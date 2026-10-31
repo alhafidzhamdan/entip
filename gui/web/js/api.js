@@ -427,7 +427,16 @@
         try {
           const r = await getJSON(this._h(head_id));
           const m = r.draft || r.champion || {};
-          return { model_version: m.version ?? m.model_id ?? 0, n_pos, n_neg, metrics: m.metrics || {}, history: [], live: true };
+          const metrics = { ...(m.metrics || {}) };
+          // Per-slide numbers the panel shows, from this slide's live scores.
+          const preds = await this.getPredictions(head_id, { scan_id: h.scan_id });
+          if (preds.length) {
+            const p = new Map(preds.map((x) => [x.cell_id, x.p]));
+            metrics.flagged = preds.filter((x) => x.p >= 0.5).length;
+            const marked = [...h.labels].filter(([c]) => p.has(c));
+            if (marked.length) metrics.train_agreement = marked.filter(([c, y]) => (p.get(c) >= 0.5 ? 1 : 0) === y).length / marked.length;
+          }
+          return { model_version: m.version ?? m.model_id ?? 0, n_pos, n_neg, metrics, history: [], live: true };
         } catch (e) { /* fall through */ }
       }
       return { model_version: null, n_pos, n_neg, metrics: {}, history: [], live: false };
