@@ -1,6 +1,16 @@
+<div align="center">
+
 # ENTIP
 
-Edinburgh Neuropathology Tissue Intelligence Platform. Research use only; not a clinical tool.
+## Edinburgh Neuropathology Tissue Intelligence Platform
+
+**From every slide to every genome, one patient record.**
+
+<sub>Research use only; not a clinical tool.</sub>
+
+</div>
+
+---
 
 Five pillars around one patient record:
 
@@ -9,7 +19,3 @@ Five pillars around one patient record:
 3. `spatial/` - spatial multi-omics backbone registered to H&E.
 4. `gui/` - clinician-facing viewer and review.
 5. `db/` - central database (the ontology): one row per patient, linked to slides, assays and model outputs.
-
-Specs and shared rules: [docs/pillar_specs.md](docs/pillar_specs.md). MitoEd (mitosis module) lives in its own repo.
-
-No patient data in this repository. Every dependency must be openly licensed (see the shared rules).
