@@ -1,6 +1,16 @@
+<div align="center">
+
 # ENTIP
 
-Edinburgh Neuropathology Tissue Intelligence Platform. Research use only; not a clinical tool.
+## Edinburgh Neuropathology Tissue Intelligence Platform
+
+**From every slide to every genome, one patient record.**
+
+<sub>Research use only; not a clinical tool.</sub>
+
+</div>
+
+---
 
 Five pillars around one patient record:
 
