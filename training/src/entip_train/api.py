@@ -138,8 +138,10 @@ def create_app(svc: TrainingService, cors_origins: Optional[List[str]] = None) -
     def queue(head_id: str, scan_id: str, n: int = 20, model: Optional[str] = None):
         try:
             return svc.queue(head_id, scan_id, n, model)
-        except (KeyError, LookupError) as e:
+        except KeyError as e:
             nf(e)
+        except LookupError:                               # no model yet (before the first marks): empty queue
+            return []
 
     @app.get("/heads/{head_id}/predictions")
     def predictions(head_id: str, scan_id: str, model: Optional[str] = None):

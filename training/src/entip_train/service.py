@@ -122,8 +122,8 @@ class TrainingService:
     def head_info(self, head_id: str) -> dict:
         f = self.store.feature(head_id)
         anns = self.store.annotations(head_id)
-        draft = self.store.latest_model(head_id, "draft")
-        champ = self.store.latest_model(head_id, "champion")
+        draft = self.latest_own(head_id, "draft")
+        champ = self.latest_own(head_id, "champion")
         return {"head_id": head_id, "feature": asdict(f),
                 "n_pos": sum(a.label == POSITIVE for a in anns if not a.locked),
                 "n_neg": sum(a.label == NEGATIVE for a in anns if not a.locked),
@@ -233,11 +233,20 @@ class TrainingService:
             self.heads[model_id] = joblib.load(self.store.model(model_id).artifact)   # our own artifacts only
         return self.heads[model_id]
 
+    @staticmethod
+    def is_own(m: Model) -> bool:
+        """A model this service trained and can load (other pillars' models, e.g. MitoEd's, share the table)."""
+        return m.kind.startswith(("live-head:", "retrain:")) and bool(m.artifact) and Path(m.artifact).exists()
+
+    def latest_own(self, head_id: str, status: str) -> Optional[Model]:
+        ms = [m for m in self.store.models(head_id, status) if self.is_own(m)]
+        return ms[-1] if ms else None
+
     def train(self, head_id: str, actor: str = "system", kind: Optional[str] = None) -> Model:
         with self.lock:
             X, y, w, _, marked = self._dataset(head_id, locked=False)
             cfg = replace(self.head_cfg, kind=kind or self.head_cfg.kind)
-            parent = self.store.latest_model(head_id, "draft")
+            parent = self.latest_own(head_id, "draft")
             head = LiveHead(cfg, self.load_head(parent.model_id) if parent else None)
             head.fit(X, y, w)                              # raises ValueError if one class only
             n_pos, n_neg = int((y[marked] == 1).sum()), int((y[marked] == 0).sum())
@@ -253,9 +262,9 @@ class TrainingService:
 
     def _model_for(self, head_id: str, model: Optional[str]) -> Model:
         if model in (None, "draft", "latest"):
-            m = self.store.latest_model(head_id, "draft")
+            m = self.latest_own(head_id, "draft")
         elif model == "champion":
-            m = self.store.latest_model(head_id, "champion")
+            m = self.latest_own(head_id, "champion")
         else:
             m = self.store.model(model)
         if m is None:
@@ -310,7 +319,8 @@ class TrainingService:
             skipped = list(self.skipped_scans)
             Xl, yl, _, gl, _ = self._dataset(head_id, locked=True, with_background=False)
             skipped += [s for s in self.skipped_scans if s not in skipped]
-            champ = self.store.latest_model(head_id, "champion")
+            champ = self.latest_own(head_id, "champion")
+            foreign = [m for m in self.store.models(head_id, "champion") if not self.is_own(m)]
             n_marks = int(marked.sum())
             new = n_marks - (champ.n_labels if champ else 0)
             cfg = replace(self.head_cfg, kind=kind or self.head_cfg.kind)
@@ -323,6 +333,11 @@ class TrainingService:
                 return entry
             mid = new_id("model")
             self.heads[mid] = chall
+            if res.promoted and foreign:                  # another pillar's champion: a person decides
+                res.promoted = False
+                res.reasons.append(f"passed the gate, but {foreign[-1].model_id} ({foreign[-1].kind}) is champion "
+                                   "and was not made here; not replaced automatically")
+                entry.update(promoted=False, reasons=res.reasons)
             status = "champion" if res.promoted else "rejected"
             if res.promoted and champ:                    # retire first: the database allows one champion
                 self.store.set_model_status(champ.model_id, "retired", person(actor), {"replaced_by": mid})
