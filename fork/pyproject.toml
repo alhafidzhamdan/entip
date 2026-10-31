@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "entip-fork"
+version = "0.1.0"
+description = "ENTIP pillar 1: fork each WSI into a clinical copy and a pseudonymised research copy joined by a linkage code"
+readme = "README.md"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"  # see ../LICENSE.md
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",      # BSD-3-Clause
+  "tifffile>=2024.1", # BSD-3-Clause
+]
+
+[project.optional-dependencies]
+jpeg = ["imagecodecs>=2024.1"]  # BSD-3-Clause; needed to read JPEG-compressed vendor slides
+test = ["pytest>=8"]            # MIT
+
+[project.scripts]
+entip-fork = "entip_fork.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
