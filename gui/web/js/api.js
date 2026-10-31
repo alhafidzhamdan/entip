@@ -181,7 +181,6 @@
       this.db = dbBase.replace(/\/$/, "");
       this.tr = trainBase.replace(/\/$/, "");
       this._ann = new Map();      // `${scan}|${feature}|${cell}` -> annotation_id, for retraction
-      this._labelIds = new Map(); // `${head}|${cell}` -> training label_id
       this._heads = new Map();    // head_id -> {feature, scan_id, local labels}
       this._scans = new Map();
       this._cells = new Map();
@@ -339,8 +338,11 @@
       } catch (e) {
         try { const hs = await getJSON(`${this.tr}/heads`); const hit = hs.find((h) => h.feature && h.feature.name === key); if (hit) { head_id = hit.head_id; live = true; } } catch (e2) { /* training service down */ }
       }
-      if (live) { // the training service must also know this scan's cells
-        try { await getJSON(`${this._h(head_id)}/queue?${new URLSearchParams({ scan_id, n: 1 })}`); } catch (e) { live = false; }
+      if (live) { // the training service must also know this scan's cells ("no draft model yet" is fine)
+        try {
+          const r = await fetch(`${this._h(head_id)}/queue?${new URLSearchParams({ scan_id, n: 1 })}`);
+          if (!r.ok) live = r.status === 404 && /no draft model/i.test(((await r.json().catch(() => ({}))).detail) || "");
+        } catch (e) { live = false; }
       }
       head_id = head_id || `db:${key}:${scan_id}`;
       this._heads.set(head_id, { key, scan_id, live, labels: new Map() });
@@ -369,21 +371,24 @@
         geometry: { type: "point", x_um: cell ? cell.x_um : 0, y_um: cell ? cell.y_um : 0 }, target_type: "cell", target_id: cell_id }], actor);
       this._ann.set(k, annotation_id);
       h.labels.set(cell_id, label ? 1 : 0);
-      return this._train(head_id, () => this._post(`${this._h(head_id)}/labels`, { scan_id, cell_id, label: label ? 1 : 0, actor }).then((r) => {
-        if (r.label_id) this._labelIds.set(`${head_id}|${cell_id}`, r.label_id);
-        return r;
-      }));
+      // The mark is already in the database: send its id so training uses it without writing it again.
+      return this._train(head_id, () => this._post(`${this._h(head_id)}/labels`, { scan_id, annotation_id, label: label ? 1 : 0, actor }));
     }
 
     async removeLabel(head_id, { scan_id, cell_id, actor }) {
       const h = this._heads.get(head_id);
       const k = `${scan_id}|${h.key}|${cell_id}`;
-      if (this._ann.has(k)) { await this._act("retract", "annotation", [{ annotation_id: this._ann.get(k) }], actor); this._ann.delete(k); }
+      const id = this._ann.get(k);
+      this._ann.delete(k);
       h.labels.delete(cell_id);
-      const id = this._labelIds.get(`${head_id}|${cell_id}`);
-      return this._train(head_id, () => id
-        ? getJSON(`${this._h(head_id)}/labels/${encodeURIComponent(id)}?${new URLSearchParams({ actor })}`, { method: "DELETE" })
-        : Promise.reject(new Error("no training label")));
+      if (!id) return this._train(head_id, () => Promise.reject(new Error("no mark")));
+      // Live: the training service retracts the mark in the database and retrains. Otherwise retract it here.
+      if (h.live) {
+        try { return await getJSON(`${this._h(head_id)}/labels/${encodeURIComponent(id)}?${new URLSearchParams({ actor })}`, { method: "DELETE" }); }
+        catch (e) { /* fall back to retracting it ourselves */ }
+      }
+      await this._act("retract", "annotation", [{ annotation_id: id }], actor);
+      return this._train(head_id, () => Promise.reject(new Error("not retrained")));
     }
 
     async _train(head_id, call) {
@@ -422,7 +427,16 @@
         try {
           const r = await getJSON(this._h(head_id));
           const m = r.draft || r.champion || {};
-          return { model_version: m.version ?? m.model_id ?? 0, n_pos, n_neg, metrics: m.metrics || {}, history: [], live: true };
+          const metrics = { ...(m.metrics || {}) };
+          // Per-slide numbers the panel shows, from this slide's live scores.
+          const preds = await this.getPredictions(head_id, { scan_id: h.scan_id });
+          if (preds.length) {
+            const p = new Map(preds.map((x) => [x.cell_id, x.p]));
+            metrics.flagged = preds.filter((x) => x.p >= 0.5).length;
+            const marked = [...h.labels].filter(([c]) => p.has(c));
+            if (marked.length) metrics.train_agreement = marked.filter(([c, y]) => (p.get(c) >= 0.5 ? 1 : 0) === y).length / marked.length;
+          }
+          return { model_version: m.version ?? m.model_id ?? 0, n_pos, n_neg, metrics, history: [], live: true };
         } catch (e) { /* fall through */ }
       }
       return { model_version: null, n_pos, n_neg, metrics: {}, history: [], live: false };

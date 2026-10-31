@@ -20,6 +20,7 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
   };
+  const ver = (v) => (typeof v === "number" ? `v${v}` : String(v));
   let toastTimer;
   function toast(msg) {
     const t = document.getElementById("toast");
@@ -653,7 +654,7 @@
         drawPanel();
         const verb = label === null ? "Removed mark" : label ? "Marked yes" : "Marked no";
         toast(res.recorded_only ? (res.warning || `${verb}. Saved; live training is not connected for this slide.`)
-          : res.changed === undefined ? `${verb}. Model v${res.model_version}.` : `${verb}. Model v${res.model_version}: ${res.changed} cells changed call.`);
+          : res.changed === undefined ? `${verb}. Model ${ver(res.model_version)}.` : `${verb}. Model ${ver(res.model_version)}: ${res.changed} cells changed call.`);
       } catch (e) { toast(e.message); } finally { st.busy = false; }
     }
     setOnCell((c) => {
@@ -692,8 +693,8 @@
       $("s-flag").textContent = s.n_pos + s.n_neg ? (s.metrics.flagged ?? 0).toLocaleString() : "–";
       $("s-note").textContent = s.live === false ? "Marks are saved to the database. Live training is not connected to this slide yet, so the queue comes from the existing model."
         : !s.n_pos && !s.n_neg ? "Mark a few cells to start. The head retrains after every mark."
-        : !s.n_neg ? `Version ${s.model_version}. Only yes marks so far, so random cells stand in as background. A few “no” marks will sharpen it.`
-        : `Version ${s.model_version}. Agrees with ${Math.round((s.metrics.train_agreement || 0) * 100)}% of your marks (the marks it learned from, so optimistic).`;
+        : !s.n_neg ? `Version ${ver(s.model_version)}. Only yes marks so far, so random cells stand in as background. A few “no” marks will sharpen it.`
+        : `Version ${ver(s.model_version)}. Agrees with ${Math.round((s.metrics.train_agreement || 0) * 100)}% of your marks on this slide (the marks it learned from, so optimistic).${s.metrics.cv_balanced_accuracy != null ? ` Cross-validated balanced accuracy ${Math.round(s.metrics.cv_balanced_accuracy * 100)}%.` : ""}`;
       spark(s.history || []);
     }
     function spark(hist) {
