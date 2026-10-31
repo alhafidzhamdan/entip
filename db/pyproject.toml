@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "entip-db"
+version = "0.1.0"
+description = "ENTIP pillar 5: central database, one row per patient linked to slides, assays and model outputs"
+readme = "README.md"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"  # see ../LICENSE.md
+requires-python = ">=3.10"
+dependencies = [
+  "psycopg[binary]>=3.1",  # LGPL-3.0 (used as an unmodified library); see LICENCES.md
+  "fastapi>=0.110",        # MIT
+  "pydantic>=2",           # MIT
+  "uvicorn>=0.27",         # BSD-3-Clause
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "httpx>=0.27"]  # MIT, BSD-3-Clause
+
+[project.scripts]
+entip-db = "entip_db.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+entip_db = ["migrations/*.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

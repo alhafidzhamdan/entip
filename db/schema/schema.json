@@ -1,0 +1,1410 @@
+{
+  "name": "ENTIP central database contract",
+  "package_version": "0.1.0",
+  "schema_version": "0001",
+  "rules": {
+    "identifiers": "No direct identifiers. Patients are known by study_id only; the CHI-to-study_id key stays in pillar 1's NHS-side key store. Payloads with these keys are refused: accession, accession_number, address, birth_date, chi, chi_number, clinical_uri, date_of_birth, dob, email, first_name, forename, hospital_number, last_name, mrn, name_of_patient, nhs_no, nhs_number, original_name, patient_name, phone, post_code, postcode, surname. A bare 10-digit number in an id is refused.",
+    "dates": "No calendar dates for patients. Use day offsets (specimen.day_offset, genomic_finding.reported_day).",
+    "units": "Positions and sizes in micrometres. PostGIS SRID 0 means micrometres in the object's frame.",
+    "frames": "Frame names: 'scan:<scan_id>' (level-0 image, origin top-left), 'assay:<assay_id>', 'section:<section_id>'. Moving between frames needs a stored transform with rmse_um.",
+    "provenance": "Every object carries provenance {kind: person|model|program, actor, version?}. If a record has none, the action's provenance is used.",
+    "actions": "Every write is a logged action (POST /actions). The database refuses writes outside an action and records each change in entip.change. action and change are append-only.",
+    "deletes": "Only cell, prediction, region, spatial_object rows can be deleted (to replace a run). Annotations are retracted, never deleted.",
+    "data": "Research use only. Synthetic or public data only in any repository or test."
+  },
+  "object_types": {
+    "patient": {
+      "id": "study_id"
+    },
+    "specimen": {
+      "id": "specimen_id"
+    },
+    "block": {
+      "id": "block_id"
+    },
+    "section": {
+      "id": "section_id"
+    },
+    "scan": {
+      "id": "scan_id"
+    },
+    "assay": {
+      "id": "assay_id"
+    },
+    "genomic_finding": {
+      "id": "finding_id"
+    },
+    "transform": {
+      "id": "transform_id"
+    },
+    "feature": {
+      "id": "name"
+    },
+    "model": {
+      "id": "model_id"
+    },
+    "cell": {
+      "id": "cell_id"
+    },
+    "region": {
+      "id": "region_id"
+    },
+    "spatial_object": {
+      "id": "object_id"
+    },
+    "annotation": {
+      "id": "annotation_id"
+    },
+    "prediction": {
+      "id": null
+    }
+  },
+  "write_verbs": [
+    "create",
+    "delete",
+    "retract",
+    "update",
+    "upsert"
+  ],
+  "geometry": {
+    "point": {
+      "type": "point",
+      "x_um": 0.0,
+      "y_um": 0.0
+    },
+    "polygon": {
+      "type": "polygon",
+      "points_um": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          10.0,
+          0.0
+        ],
+        [
+          10.0,
+          10.0
+        ]
+      ]
+    },
+    "box": {
+      "type": "box",
+      "x_um": 0.0,
+      "y_um": 0.0,
+      "w_um": 256.0,
+      "h_um": 256.0
+    },
+    "note": "GeoJSON Point/Polygon with 'coordinates' in micrometres is also accepted."
+  },
+  "example_action": {
+    "verb": "create",
+    "object_type": "annotation",
+    "provenance": {
+      "kind": "person",
+      "actor": "person:trainee-01"
+    },
+    "records": [
+      {
+        "annotation_id": "ann_0001",
+        "scan_id": "SCN-SYN0001-A1-01",
+        "feature": "mitotic_figure",
+        "label": "positive",
+        "geometry": {
+          "type": "point",
+          "x_um": 1520.0,
+          "y_um": 880.5
+        },
+        "target_type": "cell",
+        "target_id": "SCN-SYN0001-A1-01:c000123"
+      }
+    ]
+  },
+  "patient_row": {
+    "study_id": "text",
+    "cohort": "text",
+    "sex": "text",
+    "age_band": "text",
+    "diagnosis": "text",
+    "who_grade": "smallint",
+    "synthetic": "boolean",
+    "clinical": "jsonb",
+    "molecular": "jsonb",
+    "molecular_detail": "jsonb",
+    "n_specimens": "integer",
+    "n_blocks": "integer",
+    "n_sections": "integer",
+    "n_scans": "integer",
+    "n_assays": "integer",
+    "scan_ids": "ARRAY",
+    "stains": "ARRAY",
+    "assay_ids": "ARRAY",
+    "assay_kinds": "ARRAY",
+    "created_at": "timestamp with time zone"
+  },
+  "tables": {
+    "action": {
+      "role": "log",
+      "comment": "One row per logged action (a request that changes data). Append-only.",
+      "primary_key": [
+        "action_id"
+      ],
+      "columns": {
+        "action_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "verb": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "object_type": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "detail": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "annotation": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "annotation_id"
+      ],
+      "columns": {
+        "annotation_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "scan_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "scan.scan_id"
+        },
+        "frame": {
+          "type": "frame_name",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "feature": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "feature.name"
+        },
+        "label": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "geometry": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "geom": {
+          "type": "geometry",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "target_type": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "target_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "locked": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "retracted": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "assay": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "assay_id"
+      ],
+      "columns": {
+        "assay_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "section_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "section.section_id"
+        },
+        "specimen_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "specimen.specimen_id"
+        },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "frame": {
+          "type": "frame_name",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "n_obs": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "n_vars": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "uri": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "sha256": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "block": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "block_id"
+      ],
+      "columns": {
+        "block_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "specimen_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "specimen.specimen_id"
+        },
+        "label": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "cell": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "cell_id"
+      ],
+      "columns": {
+        "cell_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "scan_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "scan.scan_id"
+        },
+        "frame": {
+          "type": "frame_name",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "x_um": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "y_um": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "geom": {
+          "type": "geometry",
+          "nullable": true,
+          "default": false,
+          "generated": true
+        },
+        "outline": {
+          "type": "geometry",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "area_um2": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "source": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "model_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "model.model_id"
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "change": {
+      "role": "log",
+      "comment": "One row per changed object (or per bulk statement), written by triggers. Append-only.",
+      "primary_key": [
+        "change_id"
+      ],
+      "columns": {
+        "change_id": {
+          "type": "bigint",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "action_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "action.action_id"
+        },
+        "at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "object_type": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "object_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "op": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "study_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "n_rows": {
+          "type": "integer",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "before": {
+          "type": "jsonb",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "after": {
+          "type": "jsonb",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        }
+      }
+    },
+    "feature": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "name"
+      ],
+      "columns": {
+        "name": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "level": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "description": {
+          "type": "text",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "positives_only": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "genomic_finding": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "finding_id"
+      ],
+      "columns": {
+        "finding_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "study_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "patient.study_id"
+        },
+        "assay_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "assay.assay_id"
+        },
+        "marker": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "result": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "detail": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "value": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "unit": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "method": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "reported_day": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "model": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "model_id"
+      ],
+      "columns": {
+        "model_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "feature": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "feature.name"
+        },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "encoder": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "status": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "version": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "parent_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "model.model_id"
+        },
+        "n_labels": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "metrics": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "licence": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "uri": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "patient": {
+      "role": "object",
+      "comment": "One row per pseudonymised patient. Never holds CHI, name, date of birth or accession numbers.",
+      "primary_key": [
+        "study_id"
+      ],
+      "columns": {
+        "study_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "cohort": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "sex": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "age_band": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "diagnosis": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "who_grade": {
+          "type": "smallint",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "synthetic": {
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "clinical": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "prediction": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "model_id",
+        "target_type",
+        "target_id"
+      ],
+      "columns": {
+        "model_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "model.model_id"
+        },
+        "target_type": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "target_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "scan_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "scan.scan_id"
+        },
+        "score": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "label": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "region": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "region_id"
+      ],
+      "columns": {
+        "region_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "scan_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "scan.scan_id"
+        },
+        "frame": {
+          "type": "frame_name",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "geom": {
+          "type": "geometry",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "source": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "model_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "model.model_id"
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "scan": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "scan_id"
+      ],
+      "columns": {
+        "scan_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "section_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "section.section_id"
+        },
+        "link_code": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "mpp": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "width_px": {
+          "type": "integer",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "height_px": {
+          "type": "integer",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "width_um": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": true
+        },
+        "height_um": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": true
+        },
+        "magnification": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "scanner": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "format": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "uri": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "tile_source": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "sha256": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "section": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "section_id"
+      ],
+      "columns": {
+        "section_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "block_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "block.block_id"
+        },
+        "label": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "stain": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "thickness_um": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "serial_index": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "spatial_object": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "object_id"
+      ],
+      "columns": {
+        "object_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "assay_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "assay.assay_id"
+        },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "barcode": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "frame": {
+          "type": "frame_name",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "x_um": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "y_um": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "geom": {
+          "type": "geometry",
+          "nullable": true,
+          "default": false,
+          "generated": true
+        },
+        "radius_um": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "transform_id": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false,
+          "references": "transform.transform_id"
+        },
+        "label": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "label_score": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "specimen": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "specimen_id"
+      ],
+      "columns": {
+        "specimen_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "study_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false,
+          "references": "patient.study_id"
+        },
+        "kind": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "site": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "day_offset": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    },
+    "transform": {
+      "role": "object",
+      "comment": null,
+      "primary_key": [
+        "transform_id"
+      ],
+      "columns": {
+        "transform_id": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "src_frame": {
+          "type": "frame_name",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "dst_frame": {
+          "type": "frame_name",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "model": {
+          "type": "text",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "matrix": {
+          "type": "jsonb",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "rmse_um": {
+          "type": "double precision",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "loo_rmse_um": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "max_err_um": {
+          "type": "double precision",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "n_landmarks": {
+          "type": "integer",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "method": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
+        "meta": {
+          "type": "jsonb",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        },
+        "provenance": {
+          "type": "provenance_doc",
+          "nullable": false,
+          "default": false,
+          "generated": false
+        },
+        "created_at": {
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "default": true,
+          "generated": false
+        }
+      }
+    }
+  }
+}

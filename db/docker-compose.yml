@@ -1,0 +1,15 @@
+# Local PostgreSQL + PostGIS for development. Synthetic data only.
+# docker compose up -d   then   entip-db migrate && entip-db seed
+services:
+  db:
+    image: postgis/postgis:16-3.4   # PostgreSQL (PostgreSQL Licence) + PostGIS (GPL-2.0-or-later)
+    environment:
+      POSTGRES_USER: entip
+      POSTGRES_PASSWORD: entip       # local development only
+      POSTGRES_DB: entip_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - entip_db:/var/lib/postgresql/data
+volumes:
+  entip_db:
