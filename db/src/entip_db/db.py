@@ -44,7 +44,7 @@ OBJECT_TYPES = {
 }
 # Tables where whole sets may be replaced (a new segmentation run, a new registration).
 DELETABLE = {"cell", "region", "spatial_object", "prediction"}
-VERBS_WRITE = {"create", "upsert", "update", "retract", "delete"}
+VERBS_WRITE = {"create", "upsert", "update", "retract", "delete", "promote"}
 
 # Keys that would carry direct identifiers. Refused anywhere in a payload.
 FORBIDDEN_KEYS = {
@@ -351,7 +351,32 @@ def _apply_batch(conn, table: Table, verb: str, records: list[dict], prov: dict)
         return _update(conn, table, [{**{k: r[k] for k in table.pk if k in r}, "retracted": True} for r in records])
     if verb == "delete":
         return _delete(conn, table, records)
+    if verb == "promote":
+        return _promote(conn, records)
     raise EntipError(f"unknown verb {verb}")
+
+
+def _promote(conn, records: list[dict]) -> int:
+    """Make each model the champion of its feature; the old champion becomes 'retired' (or 'demote_to')."""
+    n = 0
+    for r in records:
+        if set(r) - {"model_id", "demote_to"} or "model_id" not in r:
+            raise EntipError("promote takes records of {model_id, demote_to?}")
+        demote = r.get("demote_to", "retired")
+        if demote not in ("challenger", "rejected", "retired"):
+            raise EntipError("demote_to must be challenger, rejected or retired")
+        m = conn.execute("SELECT feature, status FROM entip.model WHERE model_id = %s", (r["model_id"],)).fetchone()
+        if m is None:
+            raise EntipError(f"model {r['model_id']} not found")
+        if m["feature"] is None:
+            raise EntipError("only a model with a feature can be champion")
+        if m["status"] == "champion":
+            continue
+        n += conn.execute("UPDATE entip.model SET status = %s WHERE feature = %s AND status = 'champion'",
+                          (demote, m["feature"])).rowcount
+        n += conn.execute("UPDATE entip.model SET status = 'champion' WHERE model_id = %s",
+                          (r["model_id"],)).rowcount
+    return n
 
 
 def apply_action(conn: psycopg.Connection, *, verb: str, object_type: str | None, records: Iterable[dict] = (),

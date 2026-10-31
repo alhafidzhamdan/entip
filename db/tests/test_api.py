@@ -121,3 +121,22 @@ def test_gui_feedback_round(client):
     # the scan carries its patient's diagnosis
     s = client.get("/scans/SCN-0001-A1-01").json()
     assert s["stain"] == "H&E" and s["patient"]["diagnosis"].startswith("Glioblastoma")
+
+
+def test_cross_scan_annotations_and_promote(client):
+    marks = client.get("/annotations", params={"feature": "mitotic_figure", "locked": "false"}).json()
+    assert {m["scan_id"] for m in marks} >= {"SCN-0001-A1-01", "SCN-0002-A1-01", "SCN-0003-A1-01"}
+    one = client.get("/annotations", params={"feature": "mitotic_figure", "study_id": "SYN-0002",
+                                             "label": "negative"}).json()
+    assert one and all(m["scan_id"] == "SCN-0002-A1-01" and m["label"] == "negative" for m in one)
+    base = {"feature": "mitotic_figure", "kind": "live-head:xgboost", "encoder": "h-optimus-0"}
+    client.post("/actions", json={"verb": "create", "object_type": "model", "provenance": P, "records": [
+        {**base, "model_id": "mf-1", "status": "challenger"}, {**base, "model_id": "mf-2", "status": "challenger"}]})
+    for m in ("mf-1", "mf-2"):
+        r = client.post("/actions", json={"verb": "promote", "object_type": "model", "provenance": P,
+                                          "records": [{"model_id": m}]})
+        assert r.status_code == 201, r.text
+    st = {m["model_id"]: m["status"] for m in client.get("/models", params={"feature": "mitotic_figure"}).json()}
+    assert st["mf-2"] == "champion" and st["mf-1"] == "retired"
+    assert client.post("/actions", json={"verb": "promote", "object_type": "model", "provenance": P,
+                                         "records": [{"model_id": "nope"}]}).status_code == 422

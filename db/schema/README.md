@@ -66,8 +66,9 @@ marker, e.g. `{"IDH": "mutant", "1p19q": "codeleted"}`), `molecular_detail`, cou
 
 - `verb`: `create`, `upsert` (idempotent re-registration), `update` (key fields + changed fields), `retract`
   (annotations), `delete` (bulk tables; `{"scan_id": ...}` clears a scan's cells or regions,
-  `{"model_id": ..., "scan_id": ...}` clears a model's predictions on a scan). Any other
-  lower-case verb (`fork_slide`, `train`, `promote`) records an event with `detail` and no records.
+  `{"model_id": ..., "scan_id": ...}` clears a model's predictions on a scan), `promote` (models:
+  `{"model_id", "demote_to"?}` makes it its feature's champion and retires the old one in the same action).
+  Any other lower-case verb (`fork_slide`, `train`) records an event with `detail` and no records.
 - `object_type` may be left out if every record carries `"type"` (`"Patient"`, `"SpatialObject"`, ...): one
   action can then register a whole patient chain, in order.
 - `action_id` is optional; send your own to make retries safe.
@@ -85,6 +86,7 @@ marker, e.g. `{"IDH": "mutant", "1p19q": "codeleted"}`), `molecular_detail`, cou
 | `GET /patients/{study_id}/actions` | that patient's action log, with changes |
 | `GET /scans/{scan_id}` | one scan (with `stain`, `width_um`, `height_um`, `study_id`, and `patient`: diagnosis, grade, markers) |
 | `GET /scans/{scan_id}/cells?bbox=x0,y0,x1,y1&model_id=&after=&limit=` | cells, optionally with a model's `score` |
+| `GET /annotations?feature=&label=&locked=&include_retracted=&study_id=&since=` | annotations across all scans |
 | `GET /scans/{scan_id}/regions?kind=&label=`, `/annotations?feature=`, `/predictions?model_id=&order=uncertain` | slide objects; `order=uncertain` sorts by \|score − 0.5\| |
 | `GET /assays/{assay_id}`, `/assays/{assay_id}/objects?bbox=` | assay and its spots / nuclei |
 | `GET /transforms?frame=scan:...` | transforms into or out of a frame |

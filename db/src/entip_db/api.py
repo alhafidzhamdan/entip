@@ -37,7 +37,7 @@ class Provenance(BaseModel):
 
 
 class ActionIn(BaseModel):
-    verb: str = Field(..., description="create | upsert | update | retract | delete, or an event verb "
+    verb: str = Field(..., description="create | upsert | update | retract | delete | promote, or an event verb "
                                        "(e.g. fork, train, promote) with no records")
     object_type: Optional[str] = Field(None, description=f"one of {sorted(OBJECT_TYPES)}")
     records: list[dict[str, Any]] = Field(default_factory=list)
@@ -154,6 +154,17 @@ def create_app(conninfo: str | None = None) -> FastAPI:
     def scan_predictions(scan_id: str, model_id: str, order: Literal["uncertain", "score", "id"] = "uncertain",
                          limit: int = Query(200, le=100000), conn=Depends(get_conn)):
         return queries.predictions(conn, scan_id, model_id, order=order, limit=limit)
+
+    @app.get("/annotations")
+    def all_annotations(feature: Optional[str] = None, label: Optional[str] = None,
+                        locked: Optional[bool] = None, include_retracted: bool = False,
+                        study_id: Optional[str] = None, scan_id: Optional[str] = None,
+                        since: Optional[str] = None, limit: int = Query(100000, le=1000000),
+                        conn=Depends(get_conn)):
+        """Annotations across scans, e.g. every mark of one feature for training."""
+        return queries.annotations(conn, scan_id, feature=feature, label=label, locked=locked,
+                                   include_retracted=include_retracted, study_id=study_id, since=since,
+                                   limit=limit)
 
     # -- assays and registration ---------------------------------------------
     @app.get("/assays/{assay_id}")

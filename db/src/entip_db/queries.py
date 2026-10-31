@@ -169,17 +169,32 @@ def regions(conn, scan_id: str, *, bbox=None, kind: str | None = None, label: st
                                args).fetchall())
 
 
-def annotations(conn, scan_id: str, *, feature: str | None = None, include_retracted: bool = False,
-                bbox=None) -> list[dict]:
-    where, args = ["t.scan_id = %s"], [scan_id]
+def annotations(conn, scan_id: str | None = None, *, feature: str | None = None,
+                include_retracted: bool = False, bbox=None, locked: bool | None = None,
+                study_id: str | None = None, label: str | None = None, since: str | None = None,
+                limit: int = 100000) -> list[dict]:
+    """Annotations on one scan, or across scans when scan_id is None."""
+    where, args = [], []
+    if scan_id:
+        where.append("t.scan_id = %s"); args.append(scan_id)
     if feature:
         where.append("t.feature = %s"); args.append(feature)
+    if label:
+        where.append("t.label = %s"); args.append(label)
+    if locked is not None:
+        where.append("t.locked = %s"); args.append(locked)
     if not include_retracted:
         where.append("NOT t.retracted")
+    if study_id:
+        where.append("entip.study_of_scan(t.scan_id) = %s"); args.append(study_id)
+    if since:
+        where.append("t.created_at > %s"); args.append(since)
     _bbox(where, args, bbox)
-    return _clean(conn.execute(f"SELECT {_cols(conn, 'annotation')} FROM entip.annotation t "
-                               f"WHERE {' AND '.join(where)} ORDER BY t.created_at, t.annotation_id",
-                               args).fetchall())
+    q = f"SELECT {_cols(conn, 'annotation')} FROM entip.annotation t"
+    if where:
+        q += " WHERE " + " AND ".join(where)
+    q += " ORDER BY t.created_at, t.annotation_id LIMIT %s"
+    return _clean(conn.execute(q, [*args, limit]).fetchall())
 
 
 def predictions(conn, scan_id: str, model_id: str, *, order: str = "uncertain", limit: int = 200) -> list[dict]:
