@@ -13,7 +13,3 @@ Five pillars around one patient record:
 Specs and shared rules: [docs/pillar_specs.md](docs/pillar_specs.md). MitoEd (mitosis module) lives in its own repo.
 
 No patient data in this repository. Every dependency must be openly licensed (see the shared rules).
-
-## Licence
-
-[PolyForm Noncommercial 1.0.0](LICENSE.md): source is public and free to use, change and share for non-commercial purposes, including by universities, public research bodies, health organisations and government. Commercial use needs separate permission. Third-party dependencies keep their own licences.
