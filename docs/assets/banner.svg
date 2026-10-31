@@ -1,35 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="ENTIP: Edinburgh Neuropathology Tissue Intelligence Platform">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200" height="280" role="img" aria-label="ENTIP: Edinburgh Neuropathology Tissue Intelligence Platform">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0b1026"/>
-      <stop offset="0.55" stop-color="#2a1450"/>
-      <stop offset="1" stop-color="#5b1a5e"/>
+      <stop offset="1" stop-color="#4a1a5e"/>
     </linearGradient>
-    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#f5d0fe"/>
-      <stop offset="0.5" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#c4b5fd"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#e879f9" stop-opacity="0.45"/>
-      <stop offset="1" stop-color="#e879f9" stop-opacity="0"/>
-    </radialGradient>
   </defs>
-  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
-  <circle cx="600" cy="150" r="260" fill="url(#glow)"/>
-  <g fill="none" stroke="#f0abfc" stroke-opacity="0.35" stroke-width="2">
-    <ellipse cx="110" cy="80" rx="34" ry="26"/><ellipse cx="170" cy="130" rx="26" ry="20"/>
-    <ellipse cx="150" cy="260" rx="36" ry="27"/>
-    <ellipse cx="1090" cy="90" rx="30" ry="24"/><ellipse cx="1030" cy="160" rx="34" ry="25"/>
-    <ellipse cx="1050" cy="290" rx="31" ry="23"/>
-  </g>
-  <g fill="#c084fc" fill-opacity="0.75">
-    <circle cx="110" cy="80" r="9"/><circle cx="170" cy="130" r="7"/>
-    <circle cx="150" cy="260" r="10"/><circle cx="1090" cy="90" r="8"/><circle cx="1030" cy="160" r="9"/>
-    <circle cx="1050" cy="290" r="8"/>
-  </g>
-  <text x="600" y="150" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="108" font-weight="800" letter-spacing="18" fill="url(#title)">ENTIP</text>
-  <text x="600" y="205" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="3" fill="#ffffff">EDINBURGH NEUROPATHOLOGY TISSUE INTELLIGENCE PLATFORM</text>
-  <line x1="420" y1="232" x2="780" y2="232" stroke="#e879f9" stroke-opacity="0.7" stroke-width="2"/>
-  <text x="600" y="270" text-anchor="middle" font-family="Georgia, serif" font-size="24" font-style="italic" fill="#e9d5ff">From every slide to every genome, one patient record.</text>
+  <rect width="1200" height="280" rx="24" fill="url(#bg)"/>
+  <text x="600" y="150" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="104" font-weight="800" letter-spacing="18" fill="#ffffff">ENTIP</text>
+  <text x="600" y="205" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="3" fill="#e9d5ff">EDINBURGH NEUROPATHOLOGY TISSUE INTELLIGENCE PLATFORM</text>
 </svg>
