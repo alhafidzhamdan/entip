@@ -6,7 +6,7 @@ Run make_mock_slides.py and make_mock_patients.py first, start the database API 
     python gui/tools/load_mock_into_db.py --db http://127.0.0.1:8705
 
 Scans get tile_source "mock/slides/<scan_id>/slide.dzi", relative to the GUI page, so serve the GUI from
-gui/web as usual. Safe to run twice (upserts; cells and regions are replaced per scan).
+gui/web as usual. Safe to run twice (upserts; cells, regions and predictions are replaced per scan).
 """
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ PROV = {"kind": "program", "actor": "gui:load_mock_into_db", "version": "1"}
 MODEL_ID = "mdl-mitoed-mock"
 
 # The GUI mock uses display names; the database keys markers as below (see db/schema/README.md).
-MARKER = {"1p/19q": "1p19q", "CDKN2A/B": "CDKN2A", "TERT promoter": "TERT", "+7/-10": "chr7gain_chr10loss"}
+MARKER = {"1p/19q": "1p19q", "CDKN2A/B": "CDKN2A", "TERT promoter": "TERT", "+7/-10": "chr7_chr10"}
 KIND = {"IDH": "mutation", "1p19q": "codeletion", "MGMT": "methylation", "CDKN2A": "deletion", "TERT": "mutation",
-        "EGFR": "amplification", "ATRX": "expression", "TP53": "mutation", "chr7gain_chr10loss": "other"}
+        "EGFR": "amplification", "ATRX": "expression", "TP53": "mutation", "chr7_chr10": "copy_number"}
 SEX = {"F": "female", "M": "male"}
 
 
@@ -70,8 +70,9 @@ def main():
             findings = []
             for k, v in p["molecular"].items():
                 m = MARKER.get(k, k)
+                result = "+7/-10" if m == "chr7_chr10" and v == "present" else v
                 findings.append({"finding_id": f"GF-{sid}-{m}", "study_id": sid, "assay_id": panel, "marker": m,
-                                 "kind": KIND.get(m, "other"), "result": v, "method": "synthetic", "reported_day": 14})
+                                 "kind": KIND.get(m, "other"), "result": result, "method": "synthetic", "reported_day": 14})
             act(db, "upsert", "genomic_finding", findings)
             for bl in sp["blocks"]:
                 act(db, "upsert", "block", [{"block_id": bl["block_id"], "specimen_id": sp["specimen_id"],
@@ -114,12 +115,13 @@ def load_slide(db, scan_id, table):
     act(db, "delete", "region", [{"scan_id": scan_id}])
     for r in table.get("regions", []):
         act(db, "upsert", "region", [{"region_id": r["region_id"], "scan_id": scan_id, "kind": "polygon",
-                                      "meta": {"label": r["kind"]}, "source": "synthetic",
+                                      "label": r["kind"], "source": "synthetic",
                                       "geometry": {"type": "polygon", "points_um": r["polygon_um"]}}])
     det = MOCK / "slides" / scan_id / "mitoed.json"
     if det.exists():
         preds = json.loads(det.read_text())["predictions"]
-        act(db, "upsert", "prediction", [{"model_id": MODEL_ID, "target_type": "cell", "target_id": x["cell_id"],
+        act(db, "delete", "prediction", [{"scan_id": scan_id, "model_id": MODEL_ID}])
+        act(db, "create", "prediction", [{"model_id": MODEL_ID, "target_type": "cell", "target_id": x["cell_id"],
                                           "scan_id": scan_id, "score": x["p"]} for x in preds])
 
 

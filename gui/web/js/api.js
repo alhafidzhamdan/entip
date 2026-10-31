@@ -170,7 +170,7 @@
    * service for the live head. If the training service is down or does not know the scan yet, the mark is
    * still recorded and the GUI says so. */
   const SEX = { female: "F", male: "M", other: "Other", unknown: "Unknown" };
-  const MARKER_LABEL = { "1p19q": "1p/19q", chr7gain_chr10loss: "+7/-10" };
+  const MARKER_LABEL = { "1p19q": "1p/19q", chr7_chr10: "+7/-10" };
   const humanise = (name) => { const s = String(name).replace(/_/g, " "); return s.charAt(0).toUpperCase() + s.slice(1); };
   const featureKey = (s) => String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
   const sectionScans = (se) => se.scans || [];
@@ -251,8 +251,7 @@
     async getScan(id) {
       if (!this._scans.has(id)) {
         const sc = await getJSON(`${this.db}/scans/${encodeURIComponent(id)}`);
-        let diagnosis = "";
-        try { diagnosis = (await getJSON(`${this.db}/patients/${encodeURIComponent(sc.study_id)}`)).diagnosis; } catch (e) { /* optional */ }
+        const diagnosis = (sc.patient || {}).diagnosis || "";
         this._scans.set(id, { ...sc, diagnosis, objective: sc.magnification ? `${sc.magnification}x` : "",
           copy: "research", linkage: "held in NHS key store", tissue_area_mm2: (sc.meta || {}).tissue_area_mm2 });
       }
@@ -274,7 +273,7 @@
       }
       const regions = (await getJSON(`${this.db}/scans/${encodeURIComponent(id)}/regions`))
         .filter((r) => r.geojson && r.geojson.type === "Polygon")
-        .map((r) => ({ region_id: r.region_id, kind: (r.meta || {}).label || r.kind, polygon_um: r.geojson.coordinates[0] }));
+        .map((r) => ({ region_id: r.region_id, kind: r.label || r.kind, polygon_um: r.geojson.coordinates[0] }));
       const t = { scan_id: id, frame: `scan:${id}`, mpp: scan.mpp, cells, regions,
         tissue_area_mm2: scan.tissue_area_mm2, source: { kind: "model", name: cells[0] ? cells[0].source : "none" } };
       this._cells.set(id, t);
