@@ -70,8 +70,8 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
 ## Open items
 
 - Database mode makes several HTTP calls per click (about 0.6 s per click in the tests, which include writing
-  600 scores each time). A cross-scan `GET /annotations?feature=` in db/ would remove the walk over every
-  patient that listing a feature's marks needs now.
+  600 scores each time). Listing a feature's marks uses db/'s cross-scan `GET /annotations` when the server
+  has it (db/ PR #8) and otherwise walks every patient's scans.
 - `tests/test_db.py` runs against a real PostgreSQL + PostGIS (as in db/tests) and is skipped without one.
 - Cells must be supplied (from a segmenter upstream); this pillar does not segment.
 - Probabilities are not calibrated beyond what the classifier gives; the gate checks ECE on the locked set.

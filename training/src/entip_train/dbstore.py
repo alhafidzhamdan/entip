@@ -97,6 +97,7 @@ class DbStore:
         self._scans: Optional[List[str]] = None
         self._scans_at = 0.0
         self._cells: dict = {}
+        self._cross_scan: Optional[bool] = None
 
     # ------------------------------------------------------------ plumbing
     def _get(self, path: str, **params):
@@ -254,6 +255,9 @@ class DbStore:
     def _annotations_on(self, scan_id: str, feature: Optional[str], include_retracted: bool) -> List[Annotation]:
         rows = self._get(f"/scans/{urllib.parse.quote(scan_id, safe='')}/annotations", feature=feature,
                          include_retracted=str(include_retracted).lower())
+        return self._parse_annotations(rows)
+
+    def _parse_annotations(self, rows: list) -> List[Annotation]:
         out = []
         for d in rows:
             g = d["geometry"]
@@ -269,6 +273,18 @@ class DbStore:
 
     def annotations(self, feature: str, scan_id: Optional[str] = None, locked: Optional[bool] = None,
                     include_retracted: bool = False) -> List[Annotation]:
+        if scan_id is None and self._cross_scan is not False:     # GET /annotations (db/ PR #8 onwards)
+            params = {"feature": feature, "include_retracted": str(include_retracted).lower(), "limit": 1000000}
+            if locked is not None:
+                params["locked"] = str(locked).lower()
+            r = self.http.get("/annotations", params=params)
+            if r.status_code in (404, 405):
+                self._cross_scan = False                            # older db/: walk the scans instead
+            elif r.status_code >= 400:
+                raise DbError(f"GET /annotations -> {r.status_code}: {r.text}")
+            else:
+                self._cross_scan = True
+                return sorted(self._parse_annotations(r.json()), key=lambda a: a.created_at)
         scans = [scan_id] if scan_id is not None else self.scan_ids()
         out = []
         for s in scans:
