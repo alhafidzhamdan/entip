@@ -18,7 +18,7 @@ import numpy as np
 
 ENCODER_LICENCES = {
     "h-optimus-0": ("Apache-2.0", "https://huggingface.co/bioptimus/H-optimus-0"),
-    "handcrafted": ("MIT (this repository)", ""),
+    "handcrafted": ("no weights; code under the repository licence", ""),
 }
 
 HOPTIMUS_MEAN = (0.707223, 0.578729, 0.703617)   # as used for H-optimus models in MitoEd (models/encoders.py)

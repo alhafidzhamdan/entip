@@ -8,7 +8,8 @@ recorded as provenance on every mark and model.
   GET    /heads                                                        list heads
   POST   /heads                           {feature, level, scan_id?, positives_only?, actor?} -> {head_id}
   GET    /heads/{head_id}                                              counts, draft and champion models
-  POST   /heads/{head_id}/labels          {scan_id, cell_id | object_id | x_um+y_um | polygon_um, label 1|0, actor}
+  POST   /heads/{head_id}/labels          {scan_id, annotation_id | cell_id | object_id | x_um+y_um | polygon_um,
+                                           label 1|0, actor}   (annotation_id: already in the database)
                                           -> {label_id, model_version, n_pos, n_neg, metrics, queue}
   DELETE /heads/{head_id}/labels/{label_id}?actor=                     retract a mark (logged)
   GET    /heads/{head_id}/queue?scan_id=&n=20&model=                   [{cell_id, p, reason, x_um, y_um}]
@@ -52,6 +53,7 @@ class LabelIn(BaseModel):
     polygon_um: Optional[List[List[float]]] = None
     locked: Optional[bool] = None
     queue_n: int = 20
+    annotation_id: Optional[str] = None     # mark already saved in the database: train on it, do not re-write
 
 
 class RetrainIn(BaseModel):
@@ -118,7 +120,8 @@ def create_app(svc: TrainingService, cors_origins: Optional[List[str]] = None) -
         try:
             return svc.add_label(head_id, body.scan_id, body.label, body.actor, cell_id=body.cell_id,
                                  object_id=body.object_id, x_um=body.x_um, y_um=body.y_um,
-                                 polygon_um=body.polygon_um, locked=body.locked, queue_n=body.queue_n)
+                                 polygon_um=body.polygon_um, locked=body.locked, queue_n=body.queue_n,
+                                 annotation_id=body.annotation_id)
         except KeyError as e:
             nf(e)
         except ValueError as e:

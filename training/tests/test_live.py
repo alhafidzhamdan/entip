@@ -19,7 +19,7 @@ def click_cells(svc, slide, hid, n_pos, n_neg, seed=0, **kw):
 
 def test_milestone_twenty_clicks_gives_ranked_queue(svc, slide):
     hid = svc.create_head("Atypical nucleus", "cell", actor="tester")
-    assert hid == "atypical-nucleus"
+    assert hid == "atypical_nucleus"                      # database-style key
     out = click_cells(svc, slide, hid, 10, 10)
     assert out["n_pos"] == 10 and out["n_neg"] == 10
     assert out["model_version"].startswith("head_")
