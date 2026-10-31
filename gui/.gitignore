@@ -1,0 +1,3 @@
+web/mock/slides/
+__pycache__/
+.pytest_cache/

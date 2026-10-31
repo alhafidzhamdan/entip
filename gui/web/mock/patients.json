@@ -1,0 +1,611 @@
+{
+ "note": "Synthetic data for the ENTIP GUI mock. Not real patients.",
+ "features": [
+  {
+   "name": "Mitotic figure",
+   "level": "cell",
+   "description": "Cells in mitosis. Seeded from MitoEd.",
+   "source": "mitoed"
+  },
+  {
+   "name": "Apoptotic body",
+   "level": "cell",
+   "description": "Shrunken dense nuclei with a clear halo. A common mitosis mimic.",
+   "source": "user"
+  },
+  {
+   "name": "Endothelial cell",
+   "level": "cell",
+   "description": "Vessel lining cells, for microvascular proliferation.",
+   "source": "user"
+  }
+ ],
+ "patients": [
+  {
+   "study_id": "ENT-0001",
+   "sex": "F",
+   "age_band": "60-69",
+   "diagnosis": "Glioblastoma, IDH-wildtype",
+   "who_grade": 4,
+   "review_status": "In review",
+   "molecular": {
+    "IDH": "wildtype",
+    "1p/19q": "not tested",
+    "MGMT": "methylated",
+    "CDKN2A/B": "homozygous deletion",
+    "TERT promoter": "C228T",
+    "EGFR": "amplified",
+    "+7/-10": "present"
+   },
+   "model_outputs": [
+    {
+     "output_id": "MO-0001-1",
+     "object_type": "scan",
+     "object_id": "SCN-0001",
+     "measure": "Mitotic figures per mm²",
+     "value": 52.3,
+     "detail": "58 figures in 1.11 mm² of tissue",
+     "source": {
+      "kind": "model",
+      "name": "MitoEd",
+      "version": "0.5.4 (mock output)"
+     },
+     "ts": "2026-10-21T09:00:00Z"
+    }
+   ],
+   "specimens": [
+    {
+     "specimen_id": "SP-0001-1",
+     "procedure": "Resection",
+     "site": "Right temporal lobe",
+     "received": "2026-10-11",
+     "blocks": [
+      {
+       "block_id": "SP-0001-1-A1",
+       "label": "A1",
+       "sections": [
+        {
+         "section_id": "SP-0001-1-A1-L1",
+         "level": 1,
+         "stain": "H&E",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0001",
+           "stain": "H&E",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "width_px": 6144,
+           "height_px": 4608,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": "slides/SCN-0001/slide.dzi",
+           "source": {
+            "kind": "model",
+            "name": "make_mock_slides",
+            "version": "1"
+           }
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0001-1-A1-L2",
+         "level": 2,
+         "stain": "Ki-67",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0001-K",
+           "stain": "Ki-67",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": null,
+           "note": "Listed only; no mock image."
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0001-1-A1-C1",
+         "level": 3,
+         "stain": "curls",
+         "thickness_um": 10,
+         "scans": [],
+         "assays": [
+          {
+           "assay_id": "AS-0001-M",
+           "kind": "DNA methylation array",
+           "platform": "EPIC v2",
+           "status": "complete",
+           "result": "Glioblastoma, IDH-wildtype, RTK II (calibrated score 0.96)",
+           "source": {
+            "kind": "model",
+            "name": "methylation classifier",
+            "version": "mock"
+           }
+          }
+         ]
+        },
+        {
+         "section_id": "SP-0001-1-A1-V1",
+         "level": 4,
+         "stain": "H&E (spatial)",
+         "thickness_um": 5,
+         "scans": [],
+         "assays": [
+          {
+           "assay_id": "AS-0001-V",
+           "kind": "Spatial transcriptomics",
+           "platform": "Visium HD",
+           "status": "planned",
+           "result": null,
+           "transform": null
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "study_id": "ENT-0002",
+   "sex": "M",
+   "age_band": "30-39",
+   "diagnosis": "Astrocytoma, IDH-mutant",
+   "who_grade": 3,
+   "review_status": "New",
+   "molecular": {
+    "IDH": "IDH1 R132H",
+    "1p/19q": "intact",
+    "ATRX": "loss",
+    "MGMT": "methylated",
+    "CDKN2A/B": "retained",
+    "TP53": "mutant"
+   },
+   "model_outputs": [
+    {
+     "output_id": "MO-0002-1",
+     "object_type": "scan",
+     "object_id": "SCN-0002",
+     "measure": "Mitotic figures per mm²",
+     "value": 13.2,
+     "detail": "15 figures in 1.139 mm² of tissue",
+     "source": {
+      "kind": "model",
+      "name": "MitoEd",
+      "version": "0.5.4 (mock output)"
+     },
+     "ts": "2026-10-22T09:00:00Z"
+    }
+   ],
+   "specimens": [
+    {
+     "specimen_id": "SP-0002-1",
+     "procedure": "Resection",
+     "site": "Left frontal lobe",
+     "received": "2026-10-12",
+     "blocks": [
+      {
+       "block_id": "SP-0002-1-A1",
+       "label": "A1",
+       "sections": [
+        {
+         "section_id": "SP-0002-1-A1-L1",
+         "level": 1,
+         "stain": "H&E",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0002",
+           "stain": "H&E",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "width_px": 6144,
+           "height_px": 4608,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": "slides/SCN-0002/slide.dzi",
+           "source": {
+            "kind": "model",
+            "name": "make_mock_slides",
+            "version": "1"
+           }
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0002-1-A1-L2",
+         "level": 2,
+         "stain": "Ki-67",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0002-K",
+           "stain": "Ki-67",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": null,
+           "note": "Listed only; no mock image."
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0002-1-A1-C1",
+         "level": 3,
+         "stain": "curls",
+         "thickness_um": 10,
+         "scans": [],
+         "assays": [
+          {
+           "assay_id": "AS-0002-M",
+           "kind": "DNA methylation array",
+           "platform": "EPIC v2",
+           "status": "complete",
+           "result": "Astrocytoma, IDH-mutant, high grade (calibrated score 0.91)",
+           "source": {
+            "kind": "model",
+            "name": "methylation classifier",
+            "version": "mock"
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "study_id": "ENT-0003",
+   "sex": "F",
+   "age_band": "40-49",
+   "diagnosis": "Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+   "who_grade": 2,
+   "review_status": "Reported",
+   "molecular": {
+    "IDH": "IDH1 R132H",
+    "1p/19q": "codeleted",
+    "ATRX": "retained",
+    "TERT promoter": "C250T",
+    "MGMT": "methylated"
+   },
+   "model_outputs": [
+    {
+     "output_id": "MO-0003-1",
+     "object_type": "scan",
+     "object_id": "SCN-0003",
+     "measure": "Mitotic figures per mm²",
+     "value": 4.4,
+     "detail": "5 figures in 1.24 mm² of tissue",
+     "source": {
+      "kind": "model",
+      "name": "MitoEd",
+      "version": "0.5.4 (mock output)"
+     },
+     "ts": "2026-10-23T09:00:00Z"
+    }
+   ],
+   "specimens": [
+    {
+     "specimen_id": "SP-0003-1",
+     "procedure": "Resection",
+     "site": "Right frontal lobe",
+     "received": "2026-10-13",
+     "blocks": [
+      {
+       "block_id": "SP-0003-1-A1",
+       "label": "A1",
+       "sections": [
+        {
+         "section_id": "SP-0003-1-A1-L1",
+         "level": 1,
+         "stain": "H&E",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0003",
+           "stain": "H&E",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "width_px": 6144,
+           "height_px": 4608,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": "slides/SCN-0003/slide.dzi",
+           "source": {
+            "kind": "model",
+            "name": "make_mock_slides",
+            "version": "1"
+           }
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0003-1-A1-L2",
+         "level": 2,
+         "stain": "Ki-67",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0003-K",
+           "stain": "Ki-67",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": null,
+           "note": "Listed only; no mock image."
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0003-1-A1-C1",
+         "level": 3,
+         "stain": "curls",
+         "thickness_um": 10,
+         "scans": [],
+         "assays": [
+          {
+           "assay_id": "AS-0003-M",
+           "kind": "DNA methylation array",
+           "platform": "EPIC v2",
+           "status": "complete",
+           "result": "Oligodendroglioma, IDH-mutant and 1p/19q-codeleted (calibrated score 0.97)",
+           "source": {
+            "kind": "model",
+            "name": "methylation classifier",
+            "version": "mock"
+           }
+          }
+         ]
+        },
+        {
+         "section_id": "SP-0003-1-A1-V1",
+         "level": 4,
+         "stain": "H&E (spatial)",
+         "thickness_um": 5,
+         "scans": [],
+         "assays": [
+          {
+           "assay_id": "AS-0003-V",
+           "kind": "Spatial transcriptomics",
+           "platform": "Visium HD",
+           "status": "planned",
+           "result": null,
+           "transform": null
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "study_id": "ENT-0004",
+   "sex": "M",
+   "age_band": "20-29",
+   "diagnosis": "Astrocytoma, IDH-mutant",
+   "who_grade": 2,
+   "review_status": "New",
+   "molecular": {
+    "IDH": "IDH1 R132H",
+    "1p/19q": "intact",
+    "ATRX": "loss",
+    "CDKN2A/B": "retained"
+   },
+   "model_outputs": [
+    {
+     "output_id": "MO-0004-1",
+     "object_type": "scan",
+     "object_id": "SCN-0004",
+     "measure": "Mitotic figures per mm²",
+     "value": 1.0,
+     "detail": "1 figures in 1.153 mm² of tissue",
+     "source": {
+      "kind": "model",
+      "name": "MitoEd",
+      "version": "0.5.4 (mock output)"
+     },
+     "ts": "2026-10-24T09:00:00Z"
+    }
+   ],
+   "specimens": [
+    {
+     "specimen_id": "SP-0004-1",
+     "procedure": "Resection",
+     "site": "Left insula",
+     "received": "2026-10-14",
+     "blocks": [
+      {
+       "block_id": "SP-0004-1-A1",
+       "label": "A1",
+       "sections": [
+        {
+         "section_id": "SP-0004-1-A1-L1",
+         "level": 1,
+         "stain": "H&E",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0004",
+           "stain": "H&E",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "width_px": 6144,
+           "height_px": 4608,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": "slides/SCN-0004/slide.dzi",
+           "source": {
+            "kind": "model",
+            "name": "make_mock_slides",
+            "version": "1"
+           }
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0004-1-A1-L2",
+         "level": 2,
+         "stain": "Ki-67",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0004-K",
+           "stain": "Ki-67",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": null,
+           "note": "Listed only; no mock image."
+          }
+         ],
+         "assays": []
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "study_id": "ENT-0005",
+   "sex": "M",
+   "age_band": "70-79",
+   "diagnosis": "Glioblastoma, IDH-wildtype",
+   "who_grade": 4,
+   "review_status": "In review",
+   "molecular": {
+    "IDH": "wildtype",
+    "MGMT": "unmethylated",
+    "TERT promoter": "C228T",
+    "CDKN2A/B": "retained",
+    "EGFR": "not amplified",
+    "+7/-10": "present"
+   },
+   "model_outputs": [
+    {
+     "output_id": "MO-0005-1",
+     "object_type": "scan",
+     "object_id": "SCN-0005",
+     "measure": "Mitotic figures per mm²",
+     "value": 76.4,
+     "detail": "89 figures in 1.164 mm² of tissue",
+     "source": {
+      "kind": "model",
+      "name": "MitoEd",
+      "version": "0.5.4 (mock output)"
+     },
+     "ts": "2026-10-25T09:00:00Z"
+    }
+   ],
+   "specimens": [
+    {
+     "specimen_id": "SP-0005-1",
+     "procedure": "Resection",
+     "site": "Left parietal lobe",
+     "received": "2026-10-15",
+     "blocks": [
+      {
+       "block_id": "SP-0005-1-A1",
+       "label": "A1",
+       "sections": [
+        {
+         "section_id": "SP-0005-1-A1-L1",
+         "level": 1,
+         "stain": "H&E",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0005",
+           "stain": "H&E",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "width_px": 6144,
+           "height_px": 4608,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": "slides/SCN-0005/slide.dzi",
+           "source": {
+            "kind": "model",
+            "name": "make_mock_slides",
+            "version": "1"
+           }
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0005-1-A1-L2",
+         "level": 2,
+         "stain": "Ki-67",
+         "thickness_um": 4,
+         "scans": [
+          {
+           "scan_id": "SCN-0005-K",
+           "stain": "Ki-67",
+           "scanner": "synthetic",
+           "objective": "40x",
+           "mpp": 0.25,
+           "copy": "research",
+           "linkage": "held in NHS key store",
+           "tile_source": null,
+           "note": "Listed only; no mock image."
+          }
+         ],
+         "assays": []
+        },
+        {
+         "section_id": "SP-0005-1-A1-C1",
+         "level": 3,
+         "stain": "curls",
+         "thickness_um": 10,
+         "scans": [],
+         "assays": [
+          {
+           "assay_id": "AS-0005-M",
+           "kind": "DNA methylation array",
+           "platform": "EPIC v2",
+           "status": "complete",
+           "result": "Glioblastoma, IDH-wildtype, mesenchymal (calibrated score 0.88)",
+           "source": {
+            "kind": "model",
+            "name": "methylation classifier",
+            "version": "mock"
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
