@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "entip-spatial"
+version = "0.1.0"
+description = "ENTIP pillar 3: spatial multi-omics registered to H&E, and per-cell labels for training. Research use only."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",      # BSD-3-Clause
+  "scipy>=1.10",      # BSD-3-Clause
+  "pandas>=2.0",      # BSD-3-Clause
+  "anndata>=0.10",    # BSD-3-Clause
+  "h5py>=3.8",        # BSD-3-Clause
+]
+
+[project.optional-dependencies]
+parquet = ["pyarrow>=14"]  # Apache-2.0; only needed for cells.parquet
+test = ["pytest>=7"]       # MIT
+
+[project.scripts]
+entip-spatial = "entip_spatial.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
