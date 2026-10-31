@@ -5,7 +5,6 @@ Every name, id, date and result here is made up. Study ids are pseudonymised res
 the clinical link lives in the NHS-side key store (P1) and is never in this file.
 """
 import json
-import random
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "web" / "mock"
@@ -46,7 +45,6 @@ FEATURES = [
 
 def main():
     summary = json.loads((ROOT / "slides" / "summary.json").read_text())
-    rnd = random.Random(5)
     patients = []
     for i, p in enumerate(PEOPLE, start=1):
         s = summary.get(p["scan"])
@@ -54,11 +52,11 @@ def main():
         blk = f"{spec}-A1"
         outputs = []
         if s:
-            est = s["n_mitosis"] * rnd.uniform(0.85, 1.15)
+            est = s.get("n_mitoed_called", s["n_mitosis"])
             outputs.append({
                 "output_id": f"MO-{i:04d}-1", "object_type": "scan", "object_id": p["scan"],
                 "measure": "Mitotic figures per mm²", "value": round(est / s["tissue_area_mm2"], 1),
-                "detail": f"{round(est)} figures in {s['tissue_area_mm2']} mm² of tissue",
+                "detail": f"{est} figures called in {s['tissue_area_mm2']} mm² of tissue",
                 "source": {"kind": "model", "name": "MitoEd", "version": "0.5.4 (mock output)"},
                 "ts": f"2026-10-{20 + i}T09:00:00Z"})
         sections = [{
