@@ -51,7 +51,8 @@ All data access is in `web/js/api.js`; `web/config.js` picks the mode.
 - `http`: the central database (`db/`, contract in `db/schema/README.md`) and the training backend
   (`training/`). Open the GUI with `?api=http` added to the address, or set `mode` in `web/config.js`.
   Marks are written to the database first, as annotations with the person as provenance (retractions use
-  verb `retract`), then sent to the training service for the live head. If the training service does not know
+  verb `retract`). The training service (run with `--db`) is then sent the annotation's id and trains on it
+  without writing it again; removing a mark goes through the training service, which retracts it and retrains. If the training service does not know
   the slide yet, the mark is still saved, the GUI says so, and the review queue comes from the database's
   uncertainty order for an existing model (`/predictions?order=uncertain`).
 
@@ -61,13 +62,15 @@ To try `http` mode with the mock cases:
 # database (see db/README.md): PostgreSQL + PostGIS, then
 entip-db migrate && entip-db serve                       # :8705
 python gui/tools/load_mock_into_db.py --db http://127.0.0.1:8705
-entip-train serve --encoder handcrafted --cors http://localhost:8000   # optional, :8100
+entip-train serve --db http://127.0.0.1:8705 --slides-dir gui/web/mock/slides \
+  --encoder handcrafted --cors http://localhost:8000      # optional, :8100
 python -m http.server 8000 -d gui/web                    # open http://localhost:8000/?api=http
 ```
 
 Tested this way on 31 Oct 2026: patient list, patient tree, slide with cells, regions and MitoEd predictions
-from the database, marks saved as annotations and shown in the patient's log. Live training on these slides
-waits for the training service to read scans and cells from the database (its open item).
+from the database, marks saved as annotations and shown in the patient's log, and live training on a new
+feature (six marks, a change and a removal: about 0.6 s per mark, one annotation per mark in the database).
+Slide folder names under `--slides-dir` must equal the database scan IDs.
 
 ## Files
 
