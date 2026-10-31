@@ -256,6 +256,33 @@ def write_dzi(img, out_dir: Path):
     thumb.save(out_dir / "thumb.jpg", quality=80)
 
 
+def mock_detections(truth: dict, seed: int):
+    """A stand-in for MitoEd's per-cell output: mostly right, with misses and mimic false positives."""
+    rng = np.random.default_rng(seed)
+    preds = []
+    for cid, kind in truth.items():
+        if kind == "mitosis":
+            p = rng.beta(8, 2) if rng.random() > 0.15 else rng.beta(2, 5)
+        elif kind == "apoptotic":
+            p = rng.beta(5, 3) if rng.random() < 0.35 else rng.beta(1, 6)
+        elif kind == "lymphocyte":
+            p = rng.beta(2, 6) if rng.random() < 0.1 else rng.beta(1, 25)
+        else:
+            p = rng.beta(1, 40)
+        if p >= 0.05:
+            preds.append({"cell_id": cid, "p": round(float(p), 3)})
+    return {"model": "MitoEd", "version": "0.5.4 (mock output)", "feature": "Mitotic figure", "threshold": 0.5,
+            "note": "Synthetic detections for the GUI mock, derived from the hidden truth with noise.",
+            "predictions": preds}
+
+
+def write_detections(out_dir: Path, seed: int):
+    truth = json.loads((out_dir / "truth.json").read_text())
+    det = mock_detections(truth, seed)
+    (out_dir / "mitoed.json").write_text(json.dumps(det, separators=(",", ":")))
+    return sum(1 for x in det["predictions"] if x["p"] >= det["threshold"])
+
+
 def make(scan_id, p, root: Path):
     out_dir = root / "slides" / scan_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -277,16 +304,27 @@ def make(scan_id, p, root: Path):
     # Hidden truth, for tests and the mock "MitoEd" output only. The GUI never shows it.
     (out_dir / "truth.json").write_text(json.dumps({c["cell_id"]: k for c, (k, *_) in zip(table["cells"], cells)}))
     write_dzi(img, out_dir)
+    n_called = write_detections(out_dir, p["seed"] + 2)
     n_mit = sum(1 for c in cells if c[0] == "mitosis")
-    return {"scan_id": scan_id, "n_cells": len(cells), "n_mitosis": n_mit, "tissue_area_mm2": round(area, 3)}
+    return {"scan_id": scan_id, "n_cells": len(cells), "n_mitosis": n_mit, "n_mitoed_called": n_called,
+            "tissue_area_mm2": round(area, 3)}
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(Path(__file__).resolve().parents[1] / "web" / "mock"))
     ap.add_argument("--only", nargs="*", help="scan ids to render")
+    ap.add_argument("--detections-only", action="store_true", help="redo mitoed.json from existing truth.json")
     a = ap.parse_args()
     root = Path(a.out)
+    if a.detections_only:
+        sm = json.loads((root / "slides" / "summary.json").read_text())
+        for sid, p in RENDERS.items():
+            if sid in sm and (not a.only or sid in a.only):
+                sm[sid]["n_mitoed_called"] = write_detections(root / "slides" / sid, p["seed"] + 2)
+                print(sid, sm[sid]["n_mitoed_called"])
+        (root / "slides" / "summary.json").write_text(json.dumps(sm, indent=1))
+        return
     summary = {}
     for sid, p in RENDERS.items():
         if a.only and sid not in a.only:
