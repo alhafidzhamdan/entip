@@ -10,11 +10,19 @@ from pathlib import Path
 import numpy as np
 
 
-def build_service(data_dir: Path, encoder: str):
+def build_service(data_dir: Path, encoder: str, db: str | None = None, slides_dir: str | None = None):
+    """``db``: URL of the db/ pillar's API; without it a local SQLite stand-in is used."""
     from .encoders import get_encoder
     from .service import TrainingService
+    from .slides import default_reader_factory
     from .store import Store
-    return TrainingService(Store(data_dir / "training.sqlite"), get_encoder(encoder), data_dir / "artifacts")
+    if db:
+        from .dbstore import DbStore
+        store, write_predictions = DbStore(db), True
+    else:
+        store, write_predictions = Store(data_dir / "training.sqlite"), False
+    return TrainingService(store, get_encoder(encoder), data_dir / "artifacts",
+                           reader_factory=default_reader_factory(slides_dir), write_predictions=write_predictions)
 
 
 def demo(args) -> int:
@@ -51,7 +59,7 @@ def serve(args) -> int:
     import uvicorn
     from .api import create_app
     data = Path(args.data or "entip-train-data")
-    app = create_app(build_service(data, args.encoder), cors_origins=args.cors or None)
+    app = create_app(build_service(data, args.encoder, args.db, args.slides_dir), cors_origins=args.cors or None)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
@@ -70,6 +78,8 @@ def main(argv=None) -> int:
     s.add_argument("--port", type=int, default=8100)
     s.add_argument("--encoder", default="h-optimus-0")
     s.add_argument("--data", default=None)
+    s.add_argument("--db", default=None, help="db/ API URL, e.g. http://localhost:8000 (default: local SQLite)")
+    s.add_argument("--slides-dir", default=None, help="folder of DZI pyramids by scan_id (e.g. gui/web/mock/slides)")
     s.add_argument("--cors", nargs="*", default=[], help="allowed GUI origins, e.g. http://localhost:8080")
     s.set_defaults(fn=serve)
     args = ap.parse_args(argv)

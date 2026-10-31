@@ -68,6 +68,99 @@ class OpenSlideReader:
         return _resize_nn(img, out_px)
 
 
+class DziReader:
+    """Deep Zoom (DZI) pyramids, e.g. the GUI's tiles, from a local path or an http(s) URL.
+    Needs Pillow (MIT-CMU licence, ``pip install entip-train[dzi]``). The pixel size comes from the scan
+    record (DZI files do not carry one)."""
+
+    def __init__(self, dzi: str, mpp: float, cache_tiles: int = 256):
+        import xml.etree.ElementTree as ET
+        from collections import OrderedDict
+        self.dzi, self.mpp = dzi, float(mpp)
+        root = ET.fromstring(self._fetch(dzi))
+        ns = root.tag.split("}")[0] + "}" if root.tag.startswith("{") else ""
+        size = root.find(f"{ns}Size")
+        self.tile, self.overlap = int(root.get("TileSize")), int(root.get("Overlap"))
+        self.fmt = root.get("Format")
+        self.W, self.H = int(size.get("Width")), int(size.get("Height"))
+        self.max_level = int(np.ceil(np.log2(max(self.W, self.H))))
+        base = dzi[: dzi.rfind(".")]
+        self.tiles_base = base + "_files"
+        self._tiles: "OrderedDict" = OrderedDict()
+        self._cache_n = cache_tiles
+
+    @staticmethod
+    def _fetch(path: str) -> bytes:
+        if path.startswith(("http://", "https://")):
+            import urllib.request
+            with urllib.request.urlopen(path, timeout=30) as r:
+                return r.read()
+        with open(path, "rb") as f:
+            return f.read()
+
+    def _tile(self, level: int, col: int, row: int) -> np.ndarray:
+        import io
+        from PIL import Image
+        k = (level, col, row)
+        if k not in self._tiles:
+            data = self._fetch(f"{self.tiles_base}/{level}/{col}_{row}.{self.fmt}")
+            self._tiles[k] = np.asarray(Image.open(io.BytesIO(data)).convert("RGB"))
+            if len(self._tiles) > self._cache_n:
+                self._tiles.popitem(last=False)
+        else:
+            self._tiles.move_to_end(k)
+        return self._tiles[k]
+
+    def read_um(self, x_um: float, y_um: float, size_um: float, out_px: int) -> np.ndarray:
+        n = max(1, int(round(size_um / self.mpp)))                 # full-resolution pixels
+        down = 1
+        while down * 2 <= max(1, n // out_px) and down * 2 <= 2 ** self.max_level:
+            down *= 2
+        level = self.max_level - int(np.log2(down))
+        lw, lh = int(np.ceil(self.W / down)), int(np.ceil(self.H / down))
+        m = max(1, int(round(n / down)))
+        x0 = int(round(x_um / self.mpp / down - m / 2))
+        y0 = int(round(y_um / self.mpp / down - m / 2))
+        out = np.full((m, m, 3), 255, np.uint8)
+        T, ov = self.tile, self.overlap
+        for row in range(max(0, y0 // T), min((lh - 1) // T, (y0 + m - 1) // T) + 1):
+            for col in range(max(0, x0 // T), min((lw - 1) // T, (x0 + m - 1) // T) + 1):
+                t = self._tile(level, col, row)
+                ox = ov if col > 0 else 0                           # tiles carry overlap on inner edges
+                oy = ov if row > 0 else 0
+                tx0, ty0 = col * T, row * T
+                tw, th = min(T, lw - tx0), min(T, lh - ty0)
+                core = t[oy:oy + th, ox:ox + tw]
+                sx0, sy0 = max(x0, tx0), max(y0, ty0)
+                sx1, sy1 = min(x0 + m, tx0 + tw), min(y0 + m, ty0 + th)
+                if sx1 > sx0 and sy1 > sy0:
+                    out[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0] = core[sy0 - ty0:sy1 - ty0, sx0 - tx0:sx1 - tx0]
+        return _resize_nn(out, out_px)
+
+
+def default_reader_factory(slides_dir: str | None = None):
+    """Pick a reader for a scan record: ``<slides_dir>/<scan_id>/*.dzi`` or ``<slides_dir>/<scan_id>.dzi`` if
+    present, else a ``.dzi`` path or URL in the scan's tile_source / uri, else OpenSlide on a file path.
+    ``synthetic:`` scans have no pixels (KeyError)."""
+    import glob
+    import os
+
+    def factory(scan: Scan) -> Reader:
+        if slides_dir:
+            hits = sorted(glob.glob(os.path.join(slides_dir, glob.escape(scan.scan_id), "*.dzi"))) + \
+                [p for p in [os.path.join(slides_dir, scan.scan_id + ".dzi")] if os.path.exists(p)]
+            if hits:
+                return DziReader(hits[0], scan.mpp)
+        path = scan.path or ""
+        if path.endswith(".dzi"):
+            return DziReader(path, scan.mpp)
+        if not path or path.startswith("synthetic:"):
+            raise KeyError(f"no pixels for scan {scan.scan_id} (path {path!r}); give --slides-dir or a tile_source")
+        return OpenSlideReader(path, scan.mpp)
+
+    return factory
+
+
 # ------------------------------------------------------------------ synthetic slide
 
 @dataclass

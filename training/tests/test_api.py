@@ -15,6 +15,7 @@ def test_gui_contract(tmp_path):
     sc = c.post("/scans/synthetic", json={"scan_id": "s1", "seed": 3}).json()
     assert sc["n_cells"] == 600
     hid = c.post("/heads", json={"feature": "atypical", "level": "cell", "scan_id": "s1"}).json()["head_id"]
+    assert c.get(f"/heads/{hid}/queue", params={"scan_id": "s1"}).json() == []   # before any mark
     truth = app.state.truth["s1"]
     pos = [x for x in truth.cells if truth.cell_truth[x.cell_id]][:10]
     neg = [x for x in truth.cells if not truth.cell_truth[x.cell_id]][:10]

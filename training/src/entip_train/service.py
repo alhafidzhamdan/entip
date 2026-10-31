@@ -27,12 +27,13 @@ from .heads import (HeadConfig, LiveHead, background_negatives, cv_balanced_accu
                     review_queue)
 from .ontology import NEGATIVE, POSITIVE, Annotation, Cell, Feature, Model, Region, Scan
 from .retrain import GateConfig, run_round
-from .slides import Reader, grid_regions
+from .slides import Reader, default_reader_factory, grid_regions
 from .store import Store, new_id, now
 
 
 def slug(name: str) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    """Feature key in the database's style: lower case, words joined by underscores ("mitotic_figure")."""
+    s = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
     if not s:
         raise ValueError("feature name is empty")
     return s
@@ -45,14 +46,16 @@ def person(actor: str) -> str:
 class TrainingService:
     def __init__(self, store: Store, encoder: Encoder, artifacts: str | Path, cache: Optional[EmbeddingCache] = None,
                  head_cfg: Optional[HeadConfig] = None, gate_cfg: Optional[GateConfig] = None,
-                 reader_factory: Optional[Callable[[Scan], Reader]] = None, tile_um: float = 112.0):
+                 reader_factory: Optional[Callable[[Scan], Reader]] = None, tile_um: float = 112.0,
+                 write_predictions: bool = False):
         self.store, self.encoder = store, encoder
         self.artifacts = Path(artifacts)
         self.artifacts.mkdir(parents=True, exist_ok=True)
         self.cache = cache or EmbeddingCache(self.artifacts / "embeddings")
         self.head_cfg = head_cfg or HeadConfig()
         self.gate_cfg = gate_cfg or GateConfig()
-        self.reader_factory = reader_factory
+        self.reader_factory = reader_factory or default_reader_factory()
+        self.write_predictions = write_predictions        # after each click, write the scan's scores to the store
         self.tile_um = tile_um
         self.readers: Dict[str, Reader] = {}
         self.heads: Dict[str, LiveHead] = {}
@@ -60,6 +63,7 @@ class TrainingService:
         self.lock = threading.RLock()
         self.pool = ThreadPoolExecutor(max_workers=1)
         self.jobs: Dict[str, dict] = {}
+        self.skipped_scans: List[str] = []
 
     # ------------------------------------------------------------ scans
     def register_scan(self, scan: Scan, reader: Optional[Reader] = None, cells: Sequence[Cell] = (),
@@ -102,7 +106,11 @@ class TrainingService:
     # ------------------------------------------------------------ heads
     def create_head(self, feature: str, level: str = "cell", actor: str = "system", description: str = "",
                     positives_only: bool = False, locked_scans: Sequence[str] = ()) -> str:
-        head_id = slug(feature)
+        try:                                              # an existing key (e.g. the database's) is used as is
+            self.store.feature(feature)
+            head_id = feature
+        except KeyError:
+            head_id = slug(feature)
         try:
             self.store.feature(head_id)
         except KeyError:
@@ -114,8 +122,8 @@ class TrainingService:
     def head_info(self, head_id: str) -> dict:
         f = self.store.feature(head_id)
         anns = self.store.annotations(head_id)
-        draft = self.store.latest_model(head_id, "draft")
-        champ = self.store.latest_model(head_id, "champion")
+        draft = self.latest_own(head_id, "draft")
+        champ = self.latest_own(head_id, "champion")
         return {"head_id": head_id, "feature": asdict(f),
                 "n_pos": sum(a.label == POSITIVE for a in anns if not a.locked),
                 "n_neg": sum(a.label == NEGATIVE for a in anns if not a.locked),
@@ -126,31 +134,40 @@ class TrainingService:
     def add_label(self, head_id: str, scan_id: str, label, actor: str, cell_id: Optional[str] = None,
                   object_id: Optional[str] = None, x_um: Optional[float] = None, y_um: Optional[float] = None,
                   polygon_um: Optional[List[List[float]]] = None, locked: Optional[bool] = None,
-                  train: bool = True, queue_n: int = 20) -> dict:
-        """One mark. ``label``: 1/0, True/False or "positive"/"negative". Returns the new head state."""
+                  train: bool = True, queue_n: int = 20, annotation_id: Optional[str] = None) -> dict:
+        """One mark. ``label``: 1/0, True/False or "positive"/"negative". Returns the new head state.
+
+        ``annotation_id``: the mark is already saved in the store (e.g. the GUI wrote it to the database
+        first); it is not written again, only trained on."""
         lab = POSITIVE if label in (1, True, "1", POSITIVE, "pos") else NEGATIVE if label in (
             0, False, "0", NEGATIVE, "neg") else None
         if lab is None:
             raise ValueError("label must be 1/0 or positive/negative")
         self.store.scan(scan_id)
-        oid = object_id or cell_id
-        if oid:
-            geom = {"type": "object", "object_id": oid}
-        elif polygon_um:
-            geom = {"type": "polygon", "points_um": polygon_um}
-        elif x_um is not None and y_um is not None:
-            geom = {"type": "point", "x_um": float(x_um), "y_um": float(y_um)}
-        else:
-            raise ValueError("give cell_id/object_id, x_um and y_um, or polygon_um")
-        if locked is None:
-            locked = scan_id in self.locked_scans.get(head_id, set())
-        a = self.store.add_annotation(Annotation(new_id("ann"), scan_id, head_id, lab, geom, person(actor),
-                                                 locked=bool(locked)))
+        a = self.store.get_annotation(scan_id, annotation_id) if annotation_id else None
+        if a is not None and a.feature != head_id:
+            raise ValueError(f"annotation {annotation_id} is for feature {a.feature}, not {head_id}")
+        if a is None:
+            oid = object_id or cell_id
+            if oid:
+                geom = {"type": "object", "object_id": oid}
+            elif polygon_um:
+                geom = {"type": "polygon", "points_um": polygon_um}
+            elif x_um is not None and y_um is not None:
+                geom = {"type": "point", "x_um": float(x_um), "y_um": float(y_um)}
+            else:
+                raise ValueError("give annotation_id, cell_id/object_id, x_um and y_um, or polygon_um")
+            if locked is None:
+                locked = scan_id in self.locked_scans.get(head_id, set())
+            a = self.store.add_annotation(Annotation(annotation_id or new_id("ann"), scan_id, head_id, lab, geom,
+                                                     person(actor), locked=bool(locked)))
         out = {"label_id": a.annotation_id, "locked": a.locked}
         if train and not a.locked:
             try:
                 m = self.train(head_id, actor)
                 out.update(model_version=m.model_id, metrics=m.metrics)
+                if self.write_predictions:
+                    self.predict(head_id, scan_id, m.model_id, store_scores=True)
                 out["queue"] = self.queue(head_id, scan_id, queue_n)
             except ValueError as e:                       # e.g. only one class so far
                 out.update(model_version=None, metrics={}, note=str(e), queue=[])
@@ -170,7 +187,8 @@ class TrainingService:
 
     # ------------------------------------------------------------ training data
     def _dataset(self, head_id: str, locked: bool, with_background: bool = True):
-        """Stack (X, y, w, groups, n_marked) across every scan with marks for this head."""
+        """Stack (X, y, w, groups, n_marked) across every scan with marks for this head. Scans with no pixels
+        (no reader, nothing cached) are skipped and listed in ``self.skipped_scans``: their marks stay saved."""
         f = self.store.feature(head_id)
         anns = self.store.annotations(head_id, locked=locked)
         by_scan: Dict[str, List[Annotation]] = {}
@@ -178,6 +196,7 @@ class TrainingService:
             by_scan.setdefault(a.scan_id, []).append(a)
         rng = np.random.default_rng(self.head_cfg.seed + len(anns))
         Xs, ys, ws, gs, marked = [], [], [], [], []
+        self.skipped_scans = []
         for sid, a in by_scan.items():
             items = self.items(sid, f.level)
             lab = labels_from_annotations(items, a, f.level, self.head_cfg.snap_um)
@@ -188,7 +207,11 @@ class TrainingService:
             if with_background and (f.positives_only or not has_neg):
                 bg = background_negatives(items, lab, self.head_cfg, rng)
             idx = sorted(lab) + bg
-            emb = self.embeddings(sid, f.level, [items[i] for i in idx])
+            try:
+                emb = self.embeddings(sid, f.level, [items[i] for i in idx])
+            except KeyError:
+                self.skipped_scans.append(sid)
+                continue
             Xs.append(emb)
             ys += [lab[i][0] for i in sorted(lab)] + [0] * len(bg)
             ws += [1.0] * len(lab) + [self.head_cfg.bg_weight] * len(bg)
@@ -210,16 +233,25 @@ class TrainingService:
             self.heads[model_id] = joblib.load(self.store.model(model_id).artifact)   # our own artifacts only
         return self.heads[model_id]
 
+    @staticmethod
+    def is_own(m: Model) -> bool:
+        """A model this service trained and can load (other pillars' models, e.g. MitoEd's, share the table)."""
+        return m.kind.startswith(("live-head:", "retrain:")) and bool(m.artifact) and Path(m.artifact).exists()
+
+    def latest_own(self, head_id: str, status: str) -> Optional[Model]:
+        ms = [m for m in self.store.models(head_id, status) if self.is_own(m)]
+        return ms[-1] if ms else None
+
     def train(self, head_id: str, actor: str = "system", kind: Optional[str] = None) -> Model:
         with self.lock:
             X, y, w, _, marked = self._dataset(head_id, locked=False)
             cfg = replace(self.head_cfg, kind=kind or self.head_cfg.kind)
-            parent = self.store.latest_model(head_id, "draft")
+            parent = self.latest_own(head_id, "draft")
             head = LiveHead(cfg, self.load_head(parent.model_id) if parent else None)
             head.fit(X, y, w)                              # raises ValueError if one class only
             n_pos, n_neg = int((y[marked] == 1).sum()), int((y[marked] == 0).sum())
             metrics = {"n_pos": n_pos, "n_neg": n_neg, "n_background": int((~marked).sum()),
-                       "warm_start": head.warm,
+                       "warm_start": head.warm, "skipped_scans": list(self.skipped_scans),
                        "cv_balanced_accuracy": cv_balanced_accuracy(X, y, cfg, w, marked)}
             mid = new_id("head")
             self.heads[mid] = head
@@ -230,9 +262,9 @@ class TrainingService:
 
     def _model_for(self, head_id: str, model: Optional[str]) -> Model:
         if model in (None, "draft", "latest"):
-            m = self.store.latest_model(head_id, "draft")
+            m = self.latest_own(head_id, "draft")
         elif model == "champion":
-            m = self.store.latest_model(head_id, "champion")
+            m = self.latest_own(head_id, "champion")
         else:
             m = self.store.model(model)
         if m is None:
@@ -248,7 +280,8 @@ class TrainingService:
             return m, ids, items, np.zeros(0)
         p = self.load_head(m.model_id).predict(self.embeddings(scan_id, f.level, items))
         if store_scores:
-            self.store.put_scores(head_id, m.model_id, ids, p.tolist())
+            self.store.put_scores(head_id, m.model_id, ids, p.tolist(), scan_id=scan_id,
+                                  target_type="cell" if f.level == "cell" else "region")
         return m, ids, items, p
 
     def predictions(self, head_id: str, scan_id: str, model: Optional[str] = None) -> dict:
@@ -283,27 +316,35 @@ class TrainingService:
                 X = np.concatenate([X, extra[0]]) if len(X) else extra[0]
                 y = np.concatenate([y, extra[1]])
                 w = np.concatenate([w, np.ones(len(extra[1]))])
+            skipped = list(self.skipped_scans)
             Xl, yl, _, gl, _ = self._dataset(head_id, locked=True, with_background=False)
-            champ = self.store.latest_model(head_id, "champion")
+            skipped += [s for s in self.skipped_scans if s not in skipped]
+            champ = self.latest_own(head_id, "champion")
+            foreign = [m for m in self.store.models(head_id, "champion") if not self.is_own(m)]
             n_marks = int(marked.sum())
             new = n_marks - (champ.n_labels if champ else 0)
             cfg = replace(self.head_cfg, kind=kind or self.head_cfg.kind)
             chall = LiveHead(cfg)
             res = run_round(chall, self.load_head(champ.model_id) if champ else None, (X, y, w),
                             (Xl, yl, gl), new, self.gate_cfg, force)
-            entry = {"head_id": head_id, **res.to_dict(), "gate": asdict(self.gate_cfg), "entip_train": __version__}
+            entry = {"head_id": head_id, **res.to_dict(), "skipped_scans": skipped, "gate": asdict(self.gate_cfg), "entip_train": __version__}
             if res.challenger is None:                    # not trained (too few labels / locked set too small)
                 self.store.log(person(actor), "retrain_skipped", "Feature", head_id, entry)
                 return entry
             mid = new_id("model")
             self.heads[mid] = chall
+            if res.promoted and foreign:                  # another pillar's champion: a person decides
+                res.promoted = False
+                res.reasons.append(f"passed the gate, but {foreign[-1].model_id} ({foreign[-1].kind}) is champion "
+                                   "and was not made here; not replaced automatically")
+                entry.update(promoted=False, reasons=res.reasons)
             status = "champion" if res.promoted else "rejected"
+            if res.promoted and champ:                    # retire first: the database allows one champion
+                self.store.set_model_status(champ.model_id, "retired", person(actor), {"replaced_by": mid})
             self.store.add_model(Model(mid, head_id, f"retrain:{cfg.kind}", self.encoder.version, status,
                                        person(actor), n_marks, parent=champ.model_id if champ else None,
                                        metrics={"locked": res.challenger, "reasons": res.reasons},
                                        artifact=self._save(chall, mid)))
-            if res.promoted and champ:
-                self.store.set_model_status(champ.model_id, "retired", person(actor), {"replaced_by": mid})
             entry["model_id"], entry["status"] = mid, status
             return entry
 

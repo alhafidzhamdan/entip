@@ -19,7 +19,7 @@ def click_cells(svc, slide, hid, n_pos, n_neg, seed=0, **kw):
 
 def test_milestone_twenty_clicks_gives_ranked_queue(svc, slide):
     hid = svc.create_head("Atypical nucleus", "cell", actor="tester")
-    assert hid == "atypical-nucleus"
+    assert hid == "atypical_nucleus"                      # database-style key
     out = click_cells(svc, slide, hid, 10, 10)
     assert out["n_pos"] == 10 and out["n_neg"] == 10
     assert out["model_version"].startswith("head_")
@@ -125,3 +125,15 @@ def test_embedding_cache_persists(tmp_path, slide):
 
     e2 = c2.get("syn-a", "cell", slide.cells[:10], NoRead(), enc)
     np.testing.assert_allclose(e1, e2, rtol=1e-2, atol=1e-3)   # float16 on disk
+
+
+def test_other_pillars_models_are_ignored(svc, slide):
+    from entip_train.ontology import Model
+    hid = svc.create_head("mitotic_figure", "cell")
+    svc.store.add_model(Model("mdl-mitoed-mock", hid, "classifier:mitoed", "h-optimus-0", "draft", "program:gui", 0))
+    svc.store.add_model(Model("mdl-mitoed-champ", hid, "classifier:mitoed", "h-optimus-0", "champion", "x", 0))
+    out = click_cells(svc, slide, hid, 4, 4)
+    assert out["model_version"].startswith("head_")
+    assert svc.latest_own(hid, "draft").model_id == out["model_version"]
+    assert len(svc.queue(hid, slide.scan.scan_id, 5)) == 5
+    assert svc.store.models(hid)[0].parent is None                         # not warm-started from the mock
