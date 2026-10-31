@@ -9,7 +9,7 @@ Platform plan: https://claude.ai/artifact/RGUwDZr1Yc8a1xaQV33uyn
 - Provenance on every object (person, or model + version). Changes are logged actions, not edits.
 - Every dependency must pass Al's NHS open-licence rule: MIT / BSD / Apache preferred; NC, ND or AGPL only as flagged research options.
 - Research use only. Synthetic or public data only; no patient data in any repo.
-- Commits: author Al Hafidz Hamdan <alhafidz.hamdan@ed.ac.uk>, short one-line messages, no Claude co-author lines.
+- Commits: author name alhafidzhamdan, email alhafidz.hamdan@ed.ac.uk, short one-line messages, no Claude co-author lines.
 - Pillar 5 lands its schema first: it is the contract the others code against.
 
 ## P1 Slide fork and link
