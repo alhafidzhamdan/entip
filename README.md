@@ -9,7 +9,3 @@ Five pillars around one patient record:
 3. `spatial/` - spatial multi-omics backbone registered to H&E.
 4. `gui/` - clinician-facing viewer and review.
 5. `db/` - central database (the ontology): one row per patient, linked to slides, assays and model outputs.
-
-Specs and shared rules: [docs/pillar_specs.md](docs/pillar_specs.md). MitoEd (mitosis module) lives in its own repo.
-
-No patient data in this repository. Every dependency must be openly licensed (see the shared rules).
