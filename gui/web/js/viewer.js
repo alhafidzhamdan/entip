@@ -15,7 +15,10 @@
       this.p = new Map();
       this.queueIds = new Set();
       this.currentId = null;
-      this.show = { cells: true, model: true, marks: true };
+      this.show = { cells: true, model: true, marks: true, regions: true, queue: true };
+      this.threshold = 0.5;
+      this.regions = [];
+      this._tiles = new Map(); // url -> Promise<Image>, for cell crops
       this.onCellClick = onCellClick;
       this.onMove = onMove;
 
@@ -71,6 +74,35 @@
     setPredictions(list) { this.p = new Map(list.map((x) => [x.cell_id, x.p])); this.draw(); }
     setQueue(list, currentId) { this.queueIds = new Set(list.map((x) => x.cell_id)); this.currentId = currentId; this.draw(); }
     setShow(key, on) { this.show[key] = on; this.draw(); }
+    setThreshold(t) { this.threshold = t; this.draw(); }
+    setRegions(list) { this.regions = list || []; this.draw(); }
+
+    /* A small picture of one cell, cut from the full-resolution tiles. Returns a canvas. */
+    async crop(cellId, sizePx = 112, fieldUm = 32) {
+      const c = this.byId.get(cellId);
+      const item = this.osd.world.getItemAt(0);
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = sizePx;
+      if (!c || !item) return cv;
+      const src = item.source, L = src.maxLevel, tw = src.getTileWidth(L), th = src.getTileHeight(L);
+      const half = fieldUm / this.mpp / 2;
+      const x0 = c.x_um / this.mpp - half, y0 = c.y_um / this.mpp - half, x1 = x0 + 2 * half, y1 = y0 + 2 * half;
+      const g = cv.getContext("2d");
+      g.fillStyle = "#f7f7f7"; g.fillRect(0, 0, sizePx, sizePx);
+      const k = sizePx / (2 * half);
+      const jobs = [];
+      for (let tx = Math.max(0, Math.floor(x0 / tw)); tx <= Math.floor(x1 / tw); tx++) {
+        for (let ty = Math.max(0, Math.floor(y0 / th)); ty <= Math.floor(y1 / th); ty++) {
+          const url = src.getTileUrl(L, tx, ty);
+          if (!this._tiles.has(url)) {
+            this._tiles.set(url, new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = url; }));
+          }
+          jobs.push(this._tiles.get(url).then((im) => { if (im) g.drawImage(im, (tx * tw - x0) * k, (ty * th - y0) * k, im.width * k, im.height * k); }));
+        }
+      }
+      await Promise.all(jobs);
+      return cv;
+    }
 
     // Screen pixels per image pixel, and the image origin on screen.
     _xf() {
@@ -121,6 +153,15 @@
       const { ox, oy, s } = this._xf();
       const yes = css("--yes") || "#c0265e", no = css("--no") || "#2c7a82", unsure = css("--unsure") || "#a86a12";
       const close = s * (1 / this.mpp) > 0.9; // more than ~0.9 screen px per µm: outlines are useful
+      if (this.show.regions) {
+        for (const r of this.regions) {
+          g.beginPath();
+          r.polygon_um.forEach(([ux, uy], i) => { const x = ox + (ux / this.mpp) * s, y = oy + (uy / this.mpp) * s; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+          g.closePath();
+          g.fillStyle = hexA(unsure, 0.10); g.fill();
+          g.lineWidth = 2; g.setLineDash([8, 5]); g.strokeStyle = unsure; g.stroke(); g.setLineDash([]);
+        }
+      }
       for (const c of this.cells) {
         const x = ox + (c.x_um / this.mpp) * s, y = oy + (c.y_um / this.mpp) * s;
         if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
@@ -134,9 +175,9 @@
           circle(g, x, y, close ? r : 4); g.fill(); g.stroke();
           continue;
         }
-        if (this.show.model && p !== undefined && p > 0.5) {
+        if (this.show.model && p !== undefined && p >= this.threshold) {
           g.lineWidth = close ? 2 : 1.5;
-          g.strokeStyle = hexA(yes, 0.35 + 0.65 * (p - 0.5) * 2);
+          g.strokeStyle = hexA(yes, 0.45 + 0.55 * Math.min(1, (p - this.threshold) / Math.max(0.01, 1 - this.threshold)));
           g.setLineDash(close ? [5, 4] : []);
           circle(g, x, y, close ? r : 3); g.stroke();
           g.setLineDash([]);
@@ -149,7 +190,7 @@
         }
       }
       // Queue: amber rings, the current one bold.
-      for (const id of this.queueIds) {
+      for (const id of (this.show.queue ? this.queueIds : [])) {
         const c = this.byId.get(id); if (!c) continue;
         const x = ox + (c.x_um / this.mpp) * s, y = oy + (c.y_um / this.mpp) * s;
         const r = Math.max(6, (c.r_um / this.mpp) * s * 1.5);

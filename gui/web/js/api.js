@@ -95,6 +95,16 @@
       return rec;
     }
 
+    async getOutputs(scanId) { // per-cell outputs of existing models (MitoEd mock) for one scan
+      if (!this._outputs) this._outputs = new Map();
+      if (!this._outputs.has(scanId)) {
+        let o = [];
+        try { o = [await getJSON(`${this.base}/slides/${scanId}/mitoed.json`)]; } catch (e) { o = []; }
+        this._outputs.set(scanId, o);
+      }
+      return this._outputs.get(scanId);
+    }
+
     async clearMockActions() { this._actions = []; this._saveActions(); this._heads.clear(); }
 
     async listFeatures() {
@@ -126,10 +136,10 @@
 
     _head(id) { const h = this._heads.get(id); if (!h) throw new Error(`No head ${id}`); return h; }
 
-    async addLabel(head_id, { scan_id, cell_id, label, actor, study_id }) {
+    async addLabel(head_id, { scan_id, cell_id, label, actor, study_id, context }) {
       const h = this._head(head_id);
       await this.logAction({ verb: "label", object_type: "cell", object_id: cell_id, feature: h.feature,
-        label: label ? 1 : 0, scan_id, study_id, actor: { kind: "person", name: actor } });
+        label: label ? 1 : 0, scan_id, study_id, actor: { kind: "person", name: actor }, ...(context ? { context } : {}) });
       const res = h.setLabel(cell_id, label);
       await this.logAction({ verb: "train_head", object_type: "model", object_id: head_id, feature: h.feature,
         scan_id, study_id, actor: { kind: "model", name: `live-head:${h.feature}`, version: `v${res.model_version}` },
@@ -173,6 +183,7 @@
     getPatient(id) { return getJSON(`${this.db}/patients/${encodeURIComponent(id)}`); }
     getScan(id) { return getJSON(`${this.db}/scans/${encodeURIComponent(id)}`); }
     getCells(id) { return getJSON(`${this.db}/scans/${encodeURIComponent(id)}/cells`); }
+    getOutputs(id) { return getJSON(`${this.db}/scans/${encodeURIComponent(id)}/outputs`); }
     listActions(q = {}) { return getJSON(`${this.db}/actions?${new URLSearchParams(q)}`); }
     logAction(a) { return this._post(`${this.db}/actions`, a); }
 

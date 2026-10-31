@@ -3,13 +3,29 @@
 A web app for looking at a patient's material and teaching the platform new features by clicking cells.
 Research use only. Synthetic data only.
 
-- **Cases**: one row per patient (pseudonymised study ID), diagnosis, key markers, review status.
-- **Patient page**: the tissue tree (Specimen > Block > Section > Scan | Assay), slides, model outputs with
-  the model and version that made each one, molecular results, and an activity log.
-- **Slide workbench**: OpenSeadragon viewer with a µm scale bar and cursor position in frame `scan:<scan_id>`.
-  Pick a feature (or add one), mark cells yes or no, and the head retrains after every mark.
-  The review queue then shows the cells the model is least sure about (|p − 0.5|) plus a 20% random share.
-  Keys: `1` yes, `2` no, `3`/`J` next, `K` previous, `M`/`Y`/`N` click modes.
+Two views over the same data, switched at the top of every page and remembered per user:
+
+**Clinician view**: reading the output.
+- **Cases**: one row per patient (pseudonymised study ID), diagnosis, key markers, model findings, review status.
+- **Patient page**: a summary laid out like a WHO CNS5 integrated report (integrated diagnosis, grade,
+  molecular information, methylation class), model findings with their source, slides, recent activity.
+- **Slide page**: the finding as a number (e.g. mitotic figures per mm²), then a gallery of the model's
+  detections cut from the slide. Agree (`1`) or disagree (`2`) with each; answers are saved as marks with the
+  person's name and also teach the live head. Borderline cells just under the cut-off are one click away.
+
+**Researcher view**: exploring and teaching.
+- **Cohort**: sortable table, one row per patient, every molecular field and model value; copy or download CSV.
+- **Patient page**: the full tissue tree (Specimen > Block > Section > Scan | Assay), all outputs and assays, full log.
+- **Slide page**: layer toggles (model calls, marks, cell outlines, regions, queue); pick which model's calls to
+  show (the live head or an existing model such as MitoEd) and move the threshold while a histogram and the
+  count per mm² update; teach any feature with the review queue; export the per-cell table as CSV.
+
+Layout ideas (candidate gallery, probability histogram with a threshold, layer list) were taken from looking
+at TissueLab (github.com/zhihuanglab/TissueLab). No code, assets or text were copied: its Penn Academic licence
+does not allow reuse.
+
+Shared by both: an OpenSeadragon viewer with a µm scale bar and the cursor position in frame `scan:<scan_id>`.
+In the researcher queue, keys are `1` yes, `2` no, `3`/`J` next, `K` previous, `M`/`Y`/`N` click modes.
 
 Every mark is an appended action with the person's name and time; retractions are actions too.
 
@@ -42,7 +58,8 @@ All data access is in `web/js/api.js`; `web/config.js` picks the mode.
 | `GET /patients` | one row per patient: `study_id, sex, age_band, diagnosis, who_grade, review_status, molecular{}, n_scans, n_assays` |
 | `GET /patients/{study_id}` | the row plus `specimens[] > blocks[] > sections[] > scans[] / assays[]` and `model_outputs[]` |
 | `GET /scans/{scan_id}` | `scan_id, stain, mpp, objective, tile_source (DZI), study_id, diagnosis` |
-| `GET /scans/{scan_id}/cells` | `{frame, mpp, cells: [{cell_id, x_um, y_um, r_um}], source}` |
+| `GET /scans/{scan_id}/cells` | `{frame, mpp, cells: [{cell_id, x_um, y_um, r_um}], regions: [{kind, polygon_um}], source}` |
+| `GET /scans/{scan_id}/outputs` | `[{model, version, feature, threshold, predictions: [{cell_id, p}]}]` per-cell outputs of existing models |
 | `GET /actions?study_id=&scan_id=` / `POST /actions` | the append-only action log |
 
 ## Files
@@ -54,7 +71,7 @@ All data access is in `web/js/api.js`; `web/config.js` picks the mode.
 | `web/js/viewer.js` | OpenSeadragon plus a canvas overlay for cells, marks, model calls and the queue |
 | `web/js/api.js` | mock and HTTP adapters |
 | `web/js/head.js` | mock live head (mirrors training tier 1) |
-| `tools/make_mock_slides.py` | synthetic H&E-like slides (Beer-Lambert stain model), DZI tiles, cell tables in µm |
+| `tools/make_mock_slides.py` | synthetic H&E-like slides (Beer-Lambert stain model), DZI tiles, cell tables in µm, mock MitoEd detections (`mitoed.json`) |
 | `tools/make_mock_patients.py` | synthetic patient records |
 | `tests/` | `node --test gui/tests/*.test.js` and `python -m pytest gui/tests` |
 
