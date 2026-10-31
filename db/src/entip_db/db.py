@@ -302,8 +302,12 @@ def _delete(conn, table: Table, recs: list[dict]) -> int:
         if table.name == "spatial_object" and set(r) == {"assay_id"}:
             n += conn.execute("DELETE FROM entip.spatial_object WHERE assay_id = %s", (r["assay_id"],)).rowcount
             continue
-        if table.name == "prediction" and set(r) == {"model_id"}:
-            n += conn.execute("DELETE FROM entip.prediction WHERE model_id = %s", (r["model_id"],)).rowcount
+        if table.name == "prediction" and set(r) in ({"model_id"}, {"model_id", "scan_id"}):
+            if "scan_id" in r:
+                n += conn.execute("DELETE FROM entip.prediction WHERE model_id = %s AND scan_id = %s",
+                                  (r["model_id"], r["scan_id"])).rowcount
+            else:
+                n += conn.execute("DELETE FROM entip.prediction WHERE model_id = %s", (r["model_id"],)).rowcount
             continue
         where, args = _key_where(table, r)
         n += conn.execute(sql.SQL("DELETE FROM entip.{t} WHERE {w}").format(t=sql.Identifier(table.name), w=where),

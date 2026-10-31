@@ -196,9 +196,10 @@ CREATE TABLE genomic_finding (
     finding_id   text PRIMARY KEY,
     study_id     text NOT NULL REFERENCES patient (study_id),
     assay_id     text REFERENCES assay (assay_id),
-    marker       text NOT NULL,       -- IDH, 1p19q, MGMT, CDKN2A, H3K27M, TERT, EGFR, BRAF, methylation_class, ...
+    marker       text NOT NULL,       -- IDH, 1p19q, MGMT, CDKN2A, H3K27M, TERT, EGFR, BRAF, chr7_chr10, methylation_class, ...
     kind         text NOT NULL CHECK (kind IN ('mutation', 'codeletion', 'deletion', 'amplification',
-                                               'fusion', 'methylation', 'expression', 'class', 'other')),
+                                               'copy_number', 'fusion', 'methylation', 'expression',
+                                               'class', 'other')),
     result       text NOT NULL,       -- e.g. 'mutant', 'wildtype', 'codeleted', 'methylated', 'homozygous deletion'
     detail       text,                -- e.g. 'IDH1 R132H'
     value        double precision,    -- numeric value when there is one (VAF, score)
@@ -294,6 +295,7 @@ CREATE TABLE region (
     scan_id     text NOT NULL REFERENCES scan (scan_id),
     frame       frame_name NOT NULL,
     kind        text NOT NULL DEFAULT 'polygon' CHECK (kind IN ('tile', 'polygon', 'hotspot', 'roi')),
+    label       text,                           -- what the region is, e.g. 'necrosis', 'tumour', 'white_matter'
     geom        geometry(Polygon, 0) NOT NULL,
     source      text NOT NULL,
     model_id    text REFERENCES model (model_id),
@@ -302,7 +304,7 @@ CREATE TABLE region (
     created_at  timestamptz NOT NULL DEFAULT now(),
     CHECK (frame = 'scan:' || scan_id)
 );
-CREATE INDEX region_scan_idx ON region (scan_id);
+CREATE INDEX region_scan_idx ON region (scan_id, label);
 CREATE INDEX region_geom_idx ON region USING gist (geom);
 
 CREATE TABLE spatial_object (

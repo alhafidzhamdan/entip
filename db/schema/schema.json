@@ -951,6 +951,12 @@
           "default": true,
           "generated": false
         },
+        "label": {
+          "type": "text",
+          "nullable": true,
+          "default": false,
+          "generated": false
+        },
         "geom": {
           "type": "geometry",
           "nullable": false,

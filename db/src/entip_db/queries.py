@@ -127,6 +127,19 @@ def _bbox(where: list, args: list, bbox: tuple[float, float, float, float] | Non
         args += list(bbox)
 
 
+def scan(conn, scan_id: str) -> dict | None:
+    """One scan with its stain and a short patient summary, so a viewer needs one call."""
+    out = get_object(conn, "scan", scan_id)
+    if out is None:
+        return None
+    out["stain"] = conn.execute("SELECT stain FROM entip.section WHERE section_id = %s",
+                                (out["section_id"],)).fetchone()["stain"]
+    out["patient"] = conn.execute(
+        "SELECT study_id, diagnosis, who_grade, molecular FROM entip.patient_row WHERE study_id = %s",
+        (out["study_id"],)).fetchone()
+    return out
+
+
 def cells(conn, scan_id: str, *, bbox=None, model_id: str | None = None, limit: int = 50000,
           after: str | None = None) -> list[dict]:
     where, args = ["t.scan_id = %s"], [scan_id]
@@ -144,11 +157,13 @@ def cells(conn, scan_id: str, *, bbox=None, model_id: str | None = None, limit: 
     return _clean(conn.execute(q, [*args, limit]).fetchall())
 
 
-def regions(conn, scan_id: str, *, bbox=None, kind: str | None = None) -> list[dict]:
+def regions(conn, scan_id: str, *, bbox=None, kind: str | None = None, label: str | None = None) -> list[dict]:
     where, args = ["t.scan_id = %s"], [scan_id]
     _bbox(where, args, bbox)
     if kind:
         where.append("t.kind = %s"); args.append(kind)
+    if label:
+        where.append("t.label = %s"); args.append(label)
     return _clean(conn.execute(f"SELECT {_cols(conn, 'region')}, ST_AsGeoJSON(t.geom)::jsonb AS geojson "
                                f"FROM entip.region t WHERE {' AND '.join(where)} ORDER BY t.region_id",
                                args).fetchall())

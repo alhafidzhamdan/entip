@@ -241,6 +241,7 @@
     "/scans/{scan_id}": {
       "get": {
         "summary": "Get Scan",
+        "description": "The scan, its stain, and the patient's study_id, diagnosis, grade and markers.",
         "operationId": "get_scan_scans__scan_id__get",
         "parameters": [
           {
@@ -421,6 +422,22 @@
                 }
               ],
               "title": "Kind"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
             }
           }
         ],

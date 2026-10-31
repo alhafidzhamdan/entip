@@ -128,7 +128,8 @@ def create_app(conninfo: str | None = None) -> FastAPI:
     # -- scans -------------------------------------------------------------
     @app.get("/scans/{scan_id}")
     def get_scan(scan_id: str, conn=Depends(get_conn)):
-        return _404(queries.get_object(conn, "scan", scan_id), "scan")
+        """The scan, its stain, and the patient's study_id, diagnosis, grade and markers."""
+        return _404(queries.scan(conn, scan_id), "scan")
 
     @app.get("/scans/{scan_id}/cells")
     def scan_cells(scan_id: str, bbox: Optional[str] = Query(None, description="x0,y0,x1,y1 µm"),
@@ -140,8 +141,8 @@ def create_app(conninfo: str | None = None) -> FastAPI:
 
     @app.get("/scans/{scan_id}/regions")
     def scan_regions(scan_id: str, bbox: Optional[str] = None, kind: Optional[str] = None,
-                     conn=Depends(get_conn)):
-        return queries.regions(conn, scan_id, bbox=_bbox(bbox), kind=kind)
+                     label: Optional[str] = None, conn=Depends(get_conn)):
+        return queries.regions(conn, scan_id, bbox=_bbox(bbox), kind=kind, label=label)
 
     @app.get("/scans/{scan_id}/annotations")
     def scan_annotations(scan_id: str, feature: Optional[str] = None, include_retracted: bool = False,

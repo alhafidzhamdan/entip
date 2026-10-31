@@ -90,3 +90,34 @@ def test_spatial_objects_and_transforms(client):
     assert len(objs) == 50 and objs[0]["transform_id"].startswith("TF-")
     tf = client.get("/transforms", params={"frame": "scan:SCN-0001-A1-01"}).json()
     assert tf and tf[0]["src_frame"] == "assay:ASY-0001-VIS"
+
+
+def test_gui_feedback_round(client):
+    # region labels
+    r = client.post("/actions", json={"verb": "create", "object_type": "region", "provenance": P,
+                                      "records": [{"region_id": "R-NEC-1", "scan_id": "SCN-0003-A1-01",
+                                                   "source": "person", "label": "necrosis",
+                                                   "x_um": 10, "y_um": 10, "w_um": 50, "h_um": 50}]})
+    assert r.status_code == 201, r.text
+    assert [x["region_id"] for x in client.get("/scans/SCN-0003-A1-01/regions",
+                                               params={"label": "necrosis"}).json()] == ["R-NEC-1"]
+    # copy-number findings
+    r = client.post("/actions", json={"verb": "create", "object_type": "genomic_finding", "provenance": P,
+                                      "records": [{"finding_id": "GF-T-CN", "study_id": "SYN-0001",
+                                                   "marker": "chr7_chr10", "kind": "copy_number",
+                                                   "result": "+7/-10"}]})
+    assert r.status_code == 201, r.text
+    assert client.get("/patients/SYN-0001").json()["molecular"]["chr7_chr10"] == "+7/-10"
+    # clear one model's predictions on one scan
+    m = "mdl-cellpose-sam-synthetic"
+    cells = client.get("/scans/SCN-0001-A1-01/cells", params={"limit": 3}).json()
+    client.post("/actions", json={"verb": "upsert", "object_type": "prediction", "provenance": P, "records": [
+        {"model_id": m, "target_type": "cell", "target_id": c["cell_id"], "scan_id": "SCN-0001-A1-01",
+         "score": 0.4} for c in cells]})
+    r = client.post("/actions", json={"verb": "delete", "object_type": "prediction", "provenance": P,
+                                      "records": [{"model_id": m, "scan_id": "SCN-0001-A1-01"}]}).json()
+    assert r["n"] == 3
+    assert client.get("/scans/SCN-0001-A1-01/predictions", params={"model_id": m}).json() == []
+    # the scan carries its patient's diagnosis
+    s = client.get("/scans/SCN-0001-A1-01").json()
+    assert s["stain"] == "H&E" and s["patient"]["diagnosis"].startswith("Glioblastoma")
