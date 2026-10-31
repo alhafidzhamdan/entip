@@ -7,7 +7,8 @@
 
   const cfg = window.ENTIP_CONFIG || { mode: "mock", base: "mock" };
   const api = window.ENTIPApi.createApi(cfg);
-  const { walk } = window.ENTIPApi;
+  const { walk, featureKey } = window.ENTIPApi;
+  const isFeature = (a, b) => featureKey(a) === featureKey(b);
   const main = document.getElementById("main");
   const crumbs = document.getElementById("crumbs");
   let view = null; // current view's cleanup
@@ -30,7 +31,7 @@
   const actorName = (a) => a ? (a.kind === "model" ? `${a.name}${a.version ? " " + a.version : ""}` : a.name) : "unknown";
   const sourceText = (s) => s ? (s.kind === "model" ? `${s.name} ${s.version || ""}`.trim() : s.name) : "";
   const shortId = (id) => String(id).split("-").pop();
-  const KEY_MARKERS = ["IDH", "1p/19q", "MGMT", "CDKN2A/B"];
+  const KEY_MARKERS = ["IDH", "1p/19q", "MGMT", "CDKN2A/B", "CDKN2A"];
   const MITOSIS = "Mitotic figure";
 
   function setCrumbs(parts) {
@@ -399,6 +400,7 @@
         ? await api.removeLabel(t.head, { scan_id: scanId, cell_id: cellId, actor: me, study_id: studyId })
         : await api.addLabel(t.head, { scan_id: scanId, cell_id: cellId, label, actor: me, study_id: studyId, context });
       if (label === null) t.labels.delete(cellId); else t.labels.set(cellId, label);
+      t.last = res;
       t.status = await api.headStatus(t.head);
       t.queue = res.queue || await api.getQueue(t.head, { scan_id: scanId, n: 20 });
       return res;
@@ -409,7 +411,7 @@
 
   /* ----- Clinician: what the models found, and a quick agree / disagree on each detection. ----- */
   async function clinicianPanel({ scan, scanId, table, outputs, sv, opened, side, setOnCell }) {
-    const out = outputs.find((o) => o.feature === MITOSIS) || outputs[0];
+    const out = outputs.find((o) => isFeature(o.feature, MITOSIS)) || outputs[0];
     const t = await teacher(scanId, scan.study_id, out ? out.feature : MITOSIS);
     sv.setShow("cells", false);
     sv.setShow("queue", false);
@@ -431,7 +433,7 @@
         <h2 id="t-f">Findings</h2>
         <div class="finding">
           <div class="big num">${area ? (called.length / area).toFixed(1) : called.length}</div>
-          <div><b>${esc(out.feature === MITOSIS ? "mitotic figures per mm²" : out.feature)}</b>
+          <div><b>${esc(isFeature(out.feature, MITOSIS) ? "mitotic figures per mm²" : out.feature)}</b>
             <div class="prov">${called.length} detections in ${area ? area + " mm² of" : "the"} tissue · ${esc(out.model)} ${esc(out.version)}</div></div>
         </div>
         <div class="reviewbar" aria-live="polite"><div class="track"><i id="rv-bar"></i></div><span id="rv-text" class="num"></span></div>
@@ -487,7 +489,8 @@
       try {
         const same = t.labels.get(x.cell_id) === label;
         await t.mark(x.cell_id, same ? null : label, "checking model detections");
-        toast(same ? "Answer removed." : label ? "Agreed." : "Disagreed. The model will learn from this.");
+        const res = t.last || {};
+        toast(res.warning || (same ? "Answer removed." : label ? "Agreed." : "Disagreed. The model will learn from this."));
         // move on to the next unchecked detection
         if (!same) { const nxt = all.findIndex((y, j) => j > cur && !t.labels.has(y.cell_id)); if (nxt >= 0) cur = nxt; }
         focusCur(true);
@@ -649,7 +652,8 @@
         if (st.source === "live") await refreshPreds();
         drawPanel();
         const verb = label === null ? "Removed mark" : label ? "Marked yes" : "Marked no";
-        toast(res.changed === undefined ? `${verb}. Model v${res.model_version}.` : `${verb}. Model v${res.model_version}: ${res.changed} cells changed call.`);
+        toast(res.recorded_only ? (res.warning || `${verb}. Saved; live training is not connected for this slide.`)
+          : res.changed === undefined ? `${verb}. Model v${res.model_version}.` : `${verb}. Model v${res.model_version}: ${res.changed} cells changed call.`);
       } catch (e) { toast(e.message); } finally { st.busy = false; }
     }
     setOnCell((c) => {
@@ -686,7 +690,8 @@
       $("s-pos").textContent = s.n_pos;
       $("s-neg").textContent = s.n_neg;
       $("s-flag").textContent = s.n_pos + s.n_neg ? (s.metrics.flagged ?? 0).toLocaleString() : "–";
-      $("s-note").textContent = !s.n_pos && !s.n_neg ? "Mark a few cells to start. The head retrains after every mark."
+      $("s-note").textContent = s.live === false ? "Marks are saved to the database. Live training is not connected to this slide yet, so the queue comes from the existing model."
+        : !s.n_pos && !s.n_neg ? "Mark a few cells to start. The head retrains after every mark."
         : !s.n_neg ? `Version ${s.model_version}. Only yes marks so far, so random cells stand in as background. A few “no” marks will sharpen it.`
         : `Version ${s.model_version}. Agrees with ${Math.round((s.metrics.train_agreement || 0) * 100)}% of your marks (the marks it learned from, so optimistic).`;
       spark(s.history || []);

@@ -48,19 +48,26 @@ All data access is in `web/js/api.js`; `web/config.js` picks the mode.
 - `mock` (default): five invented glioma cases. Cells carry synthetic 12-number embeddings that stand in
   for H-optimus-0 embeddings, and `web/js/head.js` runs a small logistic-regression head in the browser
   (warm start, background negatives when only positives are marked). Marks are kept in this browser only.
-- `http`: the training backend in `training/` (routes in `training/README.md`: `/heads`,
-  `/heads/{id}/labels`, `/queue`, `/predictions`) and the central database. Serve the GUI and set
-  `trainBase` to the training service, started with `--cors <gui origin>`.
-  The database routes below are provisional until `db/` lands. The `http` mode has not been run end to end yet.
+- `http`: the central database (`db/`, contract in `db/schema/README.md`) and the training backend
+  (`training/`). Open the GUI with `?api=http` added to the address, or set `mode` in `web/config.js`.
+  Marks are written to the database first, as annotations with the person as provenance (retractions use
+  verb `retract`), then sent to the training service for the live head. If the training service does not know
+  the slide yet, the mark is still saved, the GUI says so, and the review queue comes from the database's
+  uncertainty order for an existing model (`/predictions?order=uncertain`).
 
-| Route (database, provisional) | Returns |
-|---|---|
-| `GET /patients` | one row per patient: `study_id, sex, age_band, diagnosis, who_grade, review_status, molecular{}, n_scans, n_assays` |
-| `GET /patients/{study_id}` | the row plus `specimens[] > blocks[] > sections[] > scans[] / assays[]` and `model_outputs[]` |
-| `GET /scans/{scan_id}` | `scan_id, stain, mpp, objective, tile_source (DZI), study_id, diagnosis` |
-| `GET /scans/{scan_id}/cells` | `{frame, mpp, cells: [{cell_id, x_um, y_um, r_um}], regions: [{kind, polygon_um}], source}` |
-| `GET /scans/{scan_id}/outputs` | `[{model, version, feature, threshold, predictions: [{cell_id, p}]}]` per-cell outputs of existing models |
-| `GET /actions?study_id=&scan_id=` / `POST /actions` | the append-only action log |
+To try `http` mode with the mock cases:
+
+```bash
+# database (see db/README.md): PostgreSQL + PostGIS, then
+entip-db migrate && entip-db serve                       # :8705
+python gui/tools/load_mock_into_db.py --db http://127.0.0.1:8705
+entip-train serve --encoder handcrafted --cors http://localhost:8000   # optional, :8100
+python -m http.server 8000 -d gui/web                    # open http://localhost:8000/?api=http
+```
+
+Tested this way on 31 Oct 2026: patient list, patient tree, slide with cells, regions and MitoEd predictions
+from the database, marks saved as annotations and shown in the patient's log. Live training on these slides
+waits for the training service to read scans and cells from the database (its open item).
 
 ## Files
 
@@ -73,6 +80,7 @@ All data access is in `web/js/api.js`; `web/config.js` picks the mode.
 | `web/js/head.js` | mock live head (mirrors training tier 1) |
 | `tools/make_mock_slides.py` | synthetic H&E-like slides (Beer-Lambert stain model), DZI tiles, cell tables in µm, mock MitoEd detections (`mitoed.json`) |
 | `tools/make_mock_patients.py` | synthetic patient records |
+| `tools/load_mock_into_db.py` | load the mock cases into the database over its API, for `http` mode |
 | `tests/` | `node --test gui/tests/*.test.js` and `python -m pytest gui/tests` |
 
 ## Licences
