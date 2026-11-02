@@ -146,6 +146,20 @@ class Store:
                  {"feature": a.feature, "label": a.label, "geometry": a.geometry, "locked": a.locked})
         return a
 
+    def get_annotation(self, scan_id: str, annotation_id: str) -> Optional[Annotation]:
+        for a in self.annotations_by_id([annotation_id]):
+            return a
+        return None
+
+    def annotations_by_id(self, ids: List[str]) -> List[Annotation]:
+        q = f"SELECT * FROM annotations WHERE annotation_id IN ({','.join('?' * len(ids))})"
+        out = []
+        for r in self.db.execute(q, ids).fetchall():
+            d = dict(r)
+            d.update(geometry=json.loads(d["geometry"]), locked=bool(d["locked"]), retracted=bool(d["retracted"]))
+            out.append(Annotation(**d))
+        return out
+
     def retract_annotation(self, annotation_id: str, actor: str) -> None:
         with self.lock:
             cur = self.db.execute("UPDATE annotations SET retracted = 1 WHERE annotation_id = ?", (annotation_id,))
@@ -211,7 +225,8 @@ class Store:
         ms = self.models(feature, status)
         return ms[-1] if ms else None
 
-    def put_scores(self, feature: str, model_id: str, object_ids: List[str], p: List[float]) -> None:
+    def put_scores(self, feature: str, model_id: str, object_ids: List[str], p: List[float],
+                   scan_id: Optional[str] = None, target_type: str = "cell") -> None:
         with self.lock:
             self.db.executemany("INSERT OR REPLACE INTO scores VALUES (?,?,?,?)",
                                 [(o, feature, model_id, float(v)) for o, v in zip(object_ids, p)])

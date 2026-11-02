@@ -24,6 +24,19 @@ entip-train demo                 # 20 clicks on a synthetic slide -> head + rank
 entip-train serve --encoder handcrafted --cors http://localhost:8080   # API on :8100
 ```
 
+**With the central database (db/ pillar):**
+
+```bash
+entip-train serve --db http://localhost:8000 --slides-dir ../gui/web/mock/slides --encoder handcrafted
+```
+
+Scans, cells, regions, features and marks are then read from the database, with its ids and feature keys
+(`mitotic_figure`) used as they are. Marks, models (draft, champion, rejected, retired) and each click's scores
+for the scan are written back through `POST /actions`, so they are in its action log. If the GUI has already
+saved a mark, it sends `annotation_id` and the mark is trained on without being written again. Pixels come from
+a DZI pyramid (`--slides-dir/<scan_id>/*.dzi`, or a `.dzi` tile_source) or OpenSlide; marks on scans with no
+pixels stay saved and are listed under `skipped_scans`.
+
 For real slides use `pip install -e ".[api,foundation]"` and `--encoder h-optimus-0` (Apache-2.0 weights from
 Hugging Face). The `handcrafted` encoder is colour/texture statistics for tests and the synthetic demo only.
 
@@ -34,7 +47,7 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
 | POST | `/heads` | `{feature, level: cell\|tile\|region, scan_id?, positives_only?, actor}` | `{head_id}` |
-| POST | `/heads/{id}/labels` | `{scan_id, cell_id \| object_id \| x_um+y_um \| polygon_um, label: 1\|0, actor}` | `{label_id, model_version, n_pos, n_neg, metrics, queue}` |
+| POST | `/heads/{id}/labels` | `{scan_id, annotation_id \| cell_id \| object_id \| x_um+y_um \| polygon_um, label: 1\|0, actor}` | `{label_id, model_version, n_pos, n_neg, metrics, queue}` |
 | DELETE | `/heads/{id}/labels/{label_id}` | `?actor=` | retraction (logged) |
 | GET | `/heads/{id}/queue` | `?scan_id=&n=20&model=` | `[{cell_id, p, reason: uncertain\|random, x_um, y_um}]` |
 | GET | `/heads/{id}/predictions` | `?scan_id=&model=draft\|champion\|<id>` | `{model_version, predictions: [{cell_id, p}]}` |
@@ -47,8 +60,8 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
 | File | What |
 |---|---|
 | `ontology.py` | Scan, Feature, Cell, Region, Annotation, Model (from the shared rules) |
-| `store.py` | SQLite stand-in for the db/ pillar, with an append-only action log |
-| `slides.py` | readers (in-memory, OpenSlide) and the synthetic slide |
+| `store.py`, `dbstore.py` | SQLite stand-in (no server needed), and the client for the db/ pillar's API |
+| `slides.py` | readers (in-memory, DZI, OpenSlide) and the synthetic slide |
 | `encoders.py`, `cache.py` | H-optimus-0 / handcrafted encoders; per-scan embedding cache on disk |
 | `heads.py` | marks → labels, background negatives, live head, review queue |
 | `retrain.py` | gate, metrics (balanced accuracy, ECE, per scan), champion/challenger round |
@@ -56,8 +69,10 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
 
 ## Open items
 
-- Swap `store.py` for the db/ pillar's API once its schema lands (same method names); then Cell and Region rows
-  come from db/ and scores are written back there.
+- Database mode makes several HTTP calls per click (about 0.6 s per click in the tests, which include writing
+  600 scores each time). Listing a feature's marks uses db/'s cross-scan `GET /annotations` when the server
+  has it (db/ PR #8) and otherwise walks every patient's scans.
+- `tests/test_db.py` runs against a real PostgreSQL + PostGIS (as in db/tests) and is skipped without one.
 - Cells must be supplied (from a segmenter upstream); this pillar does not segment.
 - Probabilities are not calibrated beyond what the classifier gives; the gate checks ECE on the locked set.
 - Joblib artifacts are only loaded from this service's own directory; do not load heads from elsewhere.

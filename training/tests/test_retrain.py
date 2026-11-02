@@ -53,3 +53,14 @@ def test_ece():
     y = np.array([0, 1] * 50)
     assert expected_calibration_error(np.full(100, 0.5), y) < 1e-9
     assert abs(expected_calibration_error(np.where(y == 1, 0.0, 1.0), y) - 1.0) < 1e-9
+
+
+def test_foreign_champion_is_not_replaced(svc, slide, slide_b):
+    from entip_train.ontology import Model
+    hid = svc.create_head("mitotic_figure", "cell", locked_scans=["syn-b"])
+    svc.store.add_model(Model("mdl-mitoed", hid, "classifier:mitoed", "h-optimus-0", "champion", "x", 0))
+    mark(svc, slide, hid, 15, 15, 0)
+    mark(svc, slide_b, hid, 10, 20, 1)
+    r = svc.retrain(hid, "t")
+    assert r["status"] == "rejected" and "not replaced automatically" in r["reasons"][-1]
+    assert [m.model_id for m in svc.store.models(hid, "champion")] == ["mdl-mitoed"]
