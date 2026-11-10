@@ -17,4 +17,7 @@ Al's rule: every component must be openly licensed so it can be deployed in the 
 Not used here: UNI, UNI2-h, Virchow2, H-optimus-1 (CC-BY-NC-ND) and Ultralytics (AGPL-3.0). Cells come in from
 outside this pillar; if they come from Cellpose-SAM, note its weights were trained on CC-BY-NC data (see MitoEd).
 
+`highgrade/` adds no dependencies. It reads MitoEd output (MIT code; see MitoEd's LICENCES.md for its weights and
+data). Region labels for real training are not chosen yet; check their licence before use.
+
 Data: synthetic only (generated in `slides.py`). No patient data.
