@@ -53,6 +53,7 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
 | `heads.py` | marks → labels, background negatives, live head, review queue |
 | `retrain.py` | gate, metrics (balanced accuracy, ECE, per scan), champion/challenger round |
 | `service.py`, `api.py`, `cli.py` | orchestration, HTTP API, `entip-train` command |
+| `methylation/` | glioma step 4: methylation class from H&E (see [methylation.md](methylation.md)) |
 
 ## Open items
 

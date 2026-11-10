@@ -17,4 +17,8 @@ Al's rule: every component must be openly licensed so it can be deployed in the 
 Not used here: UNI, UNI2-h, Virchow2, H-optimus-1 (CC-BY-NC-ND) and Ultralytics (AGPL-3.0). Cells come in from
 outside this pillar; if they come from Cellpose-SAM, note its weights were trained on CC-BY-NC data (see MitoEd).
 
+Step 4 (methylation class) uses only the packages above (scikit-learn random forest and k-means for labels).
+Training data planned: TCGA diagnostic slides and 450K beta values (GDC open access); the GSE90496 reference set
+(data-use terms not yet checked). The Heidelberg classifier software is not used.
+
 Data: synthetic only (generated in `slides.py`). No patient data.
