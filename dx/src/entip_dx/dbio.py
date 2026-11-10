@@ -61,7 +61,7 @@ def fetch_records(api: str, study_id: str) -> list[dict]:
     tree = _get(api, f"/patients/{sid}")
     actions = _get(api, f"/patients/{sid}/actions?limit=5000")
     # AI first, tests after: resolve() prefers tests anyway, and later records win ties.
-    return records_from_actions(study_id, actions) + records_from_findings(study_id, tree.get("findings", []))
+    return records_from_actions(study_id, actions) + records_from_findings(study_id, tree.get("genomic_findings", []))
 
 
 def post_dx(api: str, dx: dict) -> dict:

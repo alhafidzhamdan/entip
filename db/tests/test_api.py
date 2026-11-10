@@ -121,3 +121,12 @@ def test_gui_feedback_round(client):
     # the scan carries its patient's diagnosis
     s = client.get("/scans/SCN-0001-A1-01").json()
     assert s["stain"] == "H&E" and s["patient"]["diagnosis"].startswith("Glioblastoma")
+
+
+def test_event_actions_found_by_detail_study_id(client):
+    body = {"verb": "glioma_step", "provenance": {"kind": "model", "actor": "necrosis-head"},
+            "detail": {"study_id": "SYN-0003", "records": [{"finding": "necrosis", "call": "present"}]}}
+    assert client.post("/actions", json=body).status_code == 201
+    log = client.get("/patients/SYN-0003/actions").json()
+    assert any(a["verb"] == "glioma_step" for a in log)
+    assert not any(a["verb"] == "glioma_step" for a in client.get("/patients/SYN-0002/actions").json())
