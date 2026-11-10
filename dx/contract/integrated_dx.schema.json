@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/alhafidzhamdan/entip/dx/contract/integrated_dx.schema.json",
+  "title": "entip.integrated_dx/1",
+  "description": "WHO CNS5 integrated diagnosis draft for pathologist sign-off. Research use only.",
+  "type": "object",
+  "required": [
+    "contract",
+    "study_id",
+    "engine",
+    "integrated_diagnosis",
+    "layers",
+    "based_on",
+    "orders",
+    "conflicts",
+    "report_text",
+    "signoff"
+  ],
+  "properties": {
+    "contract": {
+      "const": "entip.integrated_dx/1"
+    },
+    "study_id": {
+      "type": "string"
+    },
+    "engine": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "rules"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "string"
+        }
+      }
+    },
+    "integrated_diagnosis": {
+      "type": "object",
+      "required": [
+        "text",
+        "status"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "who_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cns_who_grade": {
+          "type": [
+            "integer",
+            "string",
+            "null"
+          ],
+          "description": "2, 3, 4, or '2 or 3' when histology must decide"
+        },
+        "suffix": {
+          "enum": [
+            null,
+            "NOS",
+            "NEC"
+          ]
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "provisional",
+            "pending",
+            "not_diffuse_glioma",
+            "inadequate"
+          ]
+        },
+        "favoured": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "the most likely type while tests are pending"
+        }
+      }
+    },
+    "layers": {
+      "type": "object",
+      "properties": {
+        "histology": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "finding",
+              "call",
+              "source",
+              "status"
+            ],
+            "properties": {
+              "finding": {
+                "type": "string"
+              },
+              "call": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "enum": [
+                  "ai",
+                  "test",
+                  "pathologist",
+                  "rule",
+                  "missing"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "confident",
+                  "uncertain",
+                  "not_assessed",
+                  "pending"
+                ]
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "model_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        "grade_features": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "finding",
+              "call",
+              "source",
+              "status"
+            ],
+            "properties": {
+              "finding": {
+                "type": "string"
+              },
+              "call": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "enum": [
+                  "ai",
+                  "test",
+                  "pathologist",
+                  "rule",
+                  "missing"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "confident",
+                  "uncertain",
+                  "not_assessed",
+                  "pending"
+                ]
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "model_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        "molecular": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "finding",
+              "call",
+              "source",
+              "status"
+            ],
+            "properties": {
+              "finding": {
+                "type": "string"
+              },
+              "call": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "enum": [
+                  "ai",
+                  "test",
+                  "pathologist",
+                  "rule",
+                  "missing"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "confident",
+                  "uncertain",
+                  "not_assessed",
+                  "pending"
+                ]
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "model_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": "array"
+              }
+            }
+          }
+        },
+        "methylation": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "finding",
+              "call",
+              "source",
+              "status"
+            ],
+            "properties": {
+              "finding": {
+                "type": "string"
+              },
+              "call": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "enum": [
+                  "ai",
+                  "test",
+                  "pathologist",
+                  "rule",
+                  "missing"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "confident",
+                  "uncertain",
+                  "not_assessed",
+                  "pending"
+                ]
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "model_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "evidence": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      }
+    },
+    "based_on": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "criterion",
+          "met",
+          "citation"
+        ],
+        "properties": {
+          "criterion": {
+            "type": "string"
+          },
+          "met": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "citation": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "orders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "test",
+          "reason"
+        ],
+        "properties": {
+          "test": {
+            "enum": [
+              "pathologist_review",
+              "additional_sampling",
+              "IDH1_R132H_IHC",
+              "IDH_sequencing",
+              "ATRX_IHC",
+              "p53_IHC",
+              "1p19q_testing",
+              "CDKN2A_B_testing",
+              "EGFR_amplification_testing",
+              "chr7_chr10_copy_number",
+              "TERT_promoter_sequencing",
+              "H3K27M_IHC",
+              "H3K27me3_IHC",
+              "H3G34_testing",
+              "MGMT_promoter_methylation",
+              "methylation_array"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "finding": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "true if the diagnosis cannot be finalised without it"
+          }
+        }
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "report_text": {
+      "type": "string"
+    },
+    "signoff": {
+      "type": "object",
+      "required": [
+        "required",
+        "status"
+      ],
+      "properties": {
+        "required": {
+          "const": true
+        },
+        "status": {
+          "enum": [
+            "awaiting_pathologist",
+            "signed",
+            "amended"
+          ]
+        }
+      }
+    }
+  },
+  "not": {
+    "anyOf": [
+      {
+        "required": [
+          "age"
+        ]
+      },
+      {
+        "required": [
+          "age_years"
+        ]
+      },
+      {
+        "required": [
+          "site"
+        ]
+      },
+      {
+        "required": [
+          "location"
+        ]
+      },
+      {
+        "required": [
+          "radiology"
+        ]
+      },
+      {
+        "required": [
+          "imaging"
+        ]
+      },
+      {
+        "required": [
+          "sex"
+        ]
+      },
+      {
+        "required": [
+          "chi"
+        ]
+      },
+      {
+        "required": [
+          "nhs_number"
+        ]
+      },
+      {
+        "required": [
+          "dob"
+        ]
+      },
+      {
+        "required": [
+          "patient_name"
+        ]
+      },
+      {
+        "required": [
+          "accession"
+        ]
+      },
+      {
+        "required": [
+          "postcode"
+        ]
+      }
+    ]
+  }
+}
