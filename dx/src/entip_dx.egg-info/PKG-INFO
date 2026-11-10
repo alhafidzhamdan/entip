@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: entip-dx
+Version: 0.1.0
+Summary: ENTIP AI glioma workflow step 5: WHO CNS5 rules engine and draft integrated report. Research use only.
+License-Expression: LicenseRef-PolyForm-Noncommercial-1.0.0
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Provides-Extra: test
+Requires-Dist: pytest>=8; extra == "test"
+Requires-Dist: jsonschema>=4.18; extra == "test"
+
+# Integrated diagnosis (AI glioma workflow, step 5)
+
+A fixed WHO CNS5 rules engine. It reads the finding records from steps 1 to 4 (and real test results),
+works out the integrated diagnosis, orders real tests for anything uncertain, and writes a draft layered report
+for the pathologist to sign off. Research use only.
+
+The shared contract for steps 1 to 4 is in [`contract/`](contract/README.md).

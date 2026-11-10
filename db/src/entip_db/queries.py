@@ -232,7 +232,12 @@ def actions(conn, *, study_id: str | None = None, object_type: str | None = None
             sub.append("c.object_type = %s"); sargs.append(object_type)
         if object_id:
             sub.append("c.object_id = %s"); sargs.append(object_id)
-        where.append(f"a.action_id IN (SELECT c.action_id FROM entip.change c WHERE {' AND '.join(sub)})")
+        clause = f"a.action_id IN (SELECT c.action_id FROM entip.change c WHERE {' AND '.join(sub)})"
+        if study_id and not (object_type or object_id):
+            # Event actions (no records) name their patient in detail.study_id.
+            clause = f"({clause} OR a.detail->>'study_id' = %s)"
+            sargs.append(study_id)
+        where.append(clause)
         args += sargs
     if verb:
         where.append("a.verb = %s"); args.append(verb)
