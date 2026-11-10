@@ -8,7 +8,8 @@ Two views over the same data, switched at the top of every page and remembered p
 **Clinician view**: reading the output.
 - **Cases**: one row per patient (pseudonymised study ID), diagnosis, key markers, model findings, review status.
 - **Patient page**: a summary laid out like a WHO CNS5 integrated report (integrated diagnosis, grade,
-  molecular information, methylation class), model findings with their source, slides, recent activity.
+  molecular information, methylation class), the AI draft integrated report from `dx/` with the tests it asks
+  for, model findings with their source, slides, recent activity.
 - **Slide page**: the finding as a number (e.g. mitotic figures per mm²), then a gallery of the model's
   detections cut from the slide. Agree (`1`) or disagree (`2`) with each; answers are saved as marks with the
   person's name and also teach the live head. Borderline cells just under the cut-off are one click away.
@@ -35,6 +36,7 @@ Every mark is an appended action with the person's name and time; retractions ar
 pip install numpy pillow                 # for the synthetic slides only
 python gui/tools/make_mock_slides.py     # about 2-3 minutes; writes gui/web/mock/slides/ (not in git)
 python gui/tools/make_mock_patients.py   # writes gui/web/mock/patients.json
+python gui/tools/make_mock_drafts.py     # writes gui/web/mock/drafts.json (needs pip install -e dx)
 python -m http.server 8000 -d gui/web    # then open http://localhost:8000
 ```
 

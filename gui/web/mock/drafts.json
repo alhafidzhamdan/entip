@@ -1,0 +1,1059 @@
+{
+ "ENT-0001": {
+  "contract": "entip.integrated_dx/1",
+  "study_id": "ENT-0001",
+  "engine": {
+   "name": "entip-dx",
+   "version": "0.1.0",
+   "rules": "who-cns5-2021/entip-0.1"
+  },
+  "integrated_diagnosis": {
+   "text": "Glioblastoma, IDH-wildtype, CNS WHO grade 4",
+   "who_type": "gbm",
+   "cns_who_grade": 4,
+   "suffix": null,
+   "status": "complete",
+   "favoured": null
+  },
+  "layers": {
+   "histology": [
+    {
+     "finding": "adequacy",
+     "call": "adequate",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "tissue_class",
+     "call": "glioma",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "grade_features": [
+    {
+     "finding": "necrosis",
+     "call": "present",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "microvascular_proliferation",
+     "call": "present",
+     "source": "ai",
+     "status": "pending",
+     "confidence": 0.82,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "mitotic_activity",
+     "call": "present",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "molecular": [
+    {
+     "finding": "IDH",
+     "call": "wildtype",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.97,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "H3G34",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.96,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "CDKN2A",
+     "call": "homozygous_deletion",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "EGFR",
+     "call": "amplified",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "chr7_chr10",
+     "call": "gain7_loss10",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "TERT",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "MGMT",
+     "call": "methylated",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    }
+   ],
+   "methylation": []
+  },
+  "based_on": [
+   {
+    "criterion": "Microvascular proliferation or necrosis",
+    "met": true,
+    "findings": [
+     "necrosis"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   },
+   {
+    "criterion": "TERT promoter mutation, EGFR amplification or +7/-10 (any one) in an IDH-wildtype diffuse astrocytic glioma",
+    "met": true,
+    "findings": [
+     "TERT",
+     "EGFR",
+     "chr7_chr10"
+    ],
+    "citation": "Brat DJ et al. cIMPACT-NOW update 3: diffuse astrocytic glioma, IDH-wildtype, with molecular features of glioblastoma. Acta Neuropathol 2018;136:805-10 https://doi.org/10.1007/s00401-018-1913-0"
+   },
+   {
+    "criterion": "Diffuse astrocytic glioma, IDH-wildtype and H3-wildtype",
+    "met": true,
+    "findings": [
+     "IDH",
+     "H3K27",
+     "H3G34"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   }
+  ],
+  "orders": [],
+  "conflicts": [],
+  "notes": [
+   "Decided on AI calls without a test or pathologist confirmation: H3 G34, H3 K27, Necrosis. Confirm on review."
+  ],
+  "ai_decisive": [
+   "H3G34",
+   "H3K27",
+   "necrosis"
+  ],
+  "signoff": {
+   "required": true,
+   "status": "awaiting_pathologist"
+  },
+  "report_text": "DRAFT: AI-assisted integrated report for pathologist review. Research use only; not for clinical use.\n\nIntegrated diagnosis: Glioblastoma, IDH-wildtype, CNS WHO grade 4\nCNS WHO grade: 4\n\nHistological findings:\n- Adequacy: adequate [AI mock-head, confidence 0.95]\n- Tissue: glioma [AI mock-head, confidence 0.95]\n- Necrosis: present [AI mock-head, confidence 0.95]\n- Microvascular proliferation: pending (AI suggests present, 0.82, below threshold)\n- Mitotic activity: present [AI mock-head, confidence 0.95]\n\nMolecular information:\n- IDH: wildtype [mock lab]\n- H3 K27: wildtype [AI mock-head, confidence 0.97]\n- H3 G34: wildtype [AI mock-head, confidence 0.96]\n- CDKN2A/B: homozygous deletion [mock lab]\n- EGFR: amplified [mock lab]\n- Chromosomes 7/10: +7/-10 present [mock lab]\n- TERT promoter: mutant [mock lab]\n- MGMT promoter: methylated [mock lab]\n\nBased on (WHO CNS5 criteria):\n- Microvascular proliferation or necrosis: met\n- TERT promoter mutation, EGFR amplification or +7/-10 (any one) in an IDH-wildtype diffuse astrocytic glioma: met\n- Diffuse astrocytic glioma, IDH-wildtype and H3-wildtype: met\n\nComment:\n- Decided on AI calls without a test or pathologist confirmation: H3 G34, H3 K27, Necrosis. Confirm on review.\n\nReferences:\n- Brat DJ et al. cIMPACT-NOW update 3: diffuse astrocytic glioma, IDH-wildtype, with molecular features of glioblastoma. Acta Neuropathol 2018;136:805-10 https://doi.org/10.1007/s00401-018-1913-0\n- Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106\n\nEngine entip-dx 0.1.0, rules who-cns5-2021/entip-0.1. Awaiting pathologist sign-off."
+ },
+ "ENT-0002": {
+  "contract": "entip.integrated_dx/1",
+  "study_id": "ENT-0002",
+  "engine": {
+   "name": "entip-dx",
+   "version": "0.1.0",
+   "rules": "who-cns5-2021/entip-0.1"
+  },
+  "integrated_diagnosis": {
+   "text": "Astrocytoma, IDH-mutant, CNS WHO grade pending",
+   "who_type": "astro",
+   "cns_who_grade": null,
+   "suffix": null,
+   "status": "provisional",
+   "favoured": "Astrocytoma, IDH-mutant; grade 4 not yet excluded"
+  },
+  "layers": {
+   "histology": [
+    {
+     "finding": "adequacy",
+     "call": "adequate",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "tissue_class",
+     "call": "glioma",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "grade_features": [
+    {
+     "finding": "necrosis",
+     "call": "absent",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "microvascular_proliferation",
+     "call": "absent",
+     "source": "ai",
+     "status": "pending",
+     "confidence": 0.82,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "mitotic_activity",
+     "call": "absent",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "molecular": [
+    {
+     "finding": "IDH",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "1p19q",
+     "call": "not_codeleted",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.97,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "H3G34",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.96,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "ATRX",
+     "call": "lost",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "TP53",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "CDKN2A",
+     "call": "retained",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "MGMT",
+     "call": "methylated",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    }
+   ],
+   "methylation": []
+  },
+  "based_on": [
+   {
+    "criterion": "IDH mutation without 1p/19q codeletion",
+    "met": true,
+    "findings": [
+     "IDH",
+     "1p19q"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   },
+   {
+    "criterion": "Microvascular proliferation, necrosis or CDKN2A/B homozygous deletion (any one) gives CNS WHO grade 4",
+    "met": null,
+    "findings": [
+     "microvascular_proliferation"
+    ],
+    "citation": "Brat DJ et al. cIMPACT-NOW update 5: grading criteria and terminologies for IDH-mutant astrocytomas. Acta Neuropathol 2020;139:603-8 https://doi.org/10.1007/s00401-020-02127-9"
+   }
+  ],
+  "orders": [
+   {
+    "test": "pathologist_review",
+    "reason": "Microvascular proliferation uncertain; needed to exclude CNS WHO grade 4",
+    "finding": "microvascular_proliferation",
+    "blocking": true
+   }
+  ],
+  "conflicts": [],
+  "notes": [],
+  "ai_decisive": [],
+  "signoff": {
+   "required": true,
+   "status": "awaiting_pathologist"
+  },
+  "report_text": "DRAFT: AI-assisted integrated report for pathologist review. Research use only; not for clinical use.\n\nIntegrated diagnosis: Astrocytoma, IDH-mutant, CNS WHO grade pending\nFavoured while pending: Astrocytoma, IDH-mutant; grade 4 not yet excluded\nCNS WHO grade: pending\n\nHistological findings:\n- Adequacy: adequate [AI mock-head, confidence 0.95]\n- Tissue: glioma [AI mock-head, confidence 0.95]\n- Necrosis: absent [AI mock-head, confidence 0.95]\n- Microvascular proliferation: pending (AI suggests absent, 0.82, below threshold)\n- Mitotic activity: absent [AI mock-head, confidence 0.95]\n\nMolecular information:\n- IDH: mutant [mock lab]\n- 1p/19q: not codeleted [mock lab]\n- H3 K27: wildtype [AI mock-head, confidence 0.97]\n- H3 G34: wildtype [AI mock-head, confidence 0.96]\n- ATRX: loss of nuclear expression [mock lab]\n- TP53: mutant [mock lab]\n- CDKN2A/B: retained [mock lab]\n- MGMT promoter: methylated [mock lab]\n\nBased on (WHO CNS5 criteria):\n- IDH mutation without 1p/19q codeletion: met\n- Microvascular proliferation, necrosis or CDKN2A/B homozygous deletion (any one) gives CNS WHO grade 4: pending\n\nTests requested before sign-out:\n- Pathologist review: Microvascular proliferation uncertain; needed to exclude CNS WHO grade 4\n\nReferences:\n- Brat DJ et al. cIMPACT-NOW update 5: grading criteria and terminologies for IDH-mutant astrocytomas. Acta Neuropathol 2020;139:603-8 https://doi.org/10.1007/s00401-020-02127-9\n- Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106\n\nEngine entip-dx 0.1.0, rules who-cns5-2021/entip-0.1. Awaiting pathologist sign-off."
+ },
+ "ENT-0003": {
+  "contract": "entip.integrated_dx/1",
+  "study_id": "ENT-0003",
+  "engine": {
+   "name": "entip-dx",
+   "version": "0.1.0",
+   "rules": "who-cns5-2021/entip-0.1"
+  },
+  "integrated_diagnosis": {
+   "text": "Oligodendroglioma, IDH-mutant, and 1p/19q-codeleted, CNS WHO grade 2 or 3 (pathologist to grade)",
+   "who_type": "oligo",
+   "cns_who_grade": "2 or 3",
+   "suffix": null,
+   "status": "provisional",
+   "favoured": null
+  },
+  "layers": {
+   "histology": [
+    {
+     "finding": "adequacy",
+     "call": "adequate",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "tissue_class",
+     "call": "glioma",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "grade_features": [
+    {
+     "finding": "necrosis",
+     "call": "absent",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "microvascular_proliferation",
+     "call": "absent",
+     "source": "ai",
+     "status": "pending",
+     "confidence": 0.82,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "mitotic_activity",
+     "call": "absent",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "molecular": [
+    {
+     "finding": "IDH",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "1p19q",
+     "call": "codeleted",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.97,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "H3G34",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.96,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "ATRX",
+     "call": "retained",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "TERT",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "MGMT",
+     "call": "methylated",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    }
+   ],
+   "methylation": []
+  },
+  "based_on": [
+   {
+    "criterion": "IDH mutation with 1p/19q codeletion",
+    "met": true,
+    "findings": [
+     "IDH",
+     "1p19q"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   },
+   {
+    "criterion": "CNS WHO grade 2 or 3; grade is assigned by the pathologist from histology",
+    "met": null,
+    "findings": [],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   }
+  ],
+  "orders": [],
+  "conflicts": [],
+  "notes": [],
+  "ai_decisive": [],
+  "signoff": {
+   "required": true,
+   "status": "awaiting_pathologist"
+  },
+  "report_text": "DRAFT: AI-assisted integrated report for pathologist review. Research use only; not for clinical use.\n\nIntegrated diagnosis: Oligodendroglioma, IDH-mutant, and 1p/19q-codeleted, CNS WHO grade 2 or 3 (pathologist to grade)\nCNS WHO grade: 2 or 3\n\nHistological findings:\n- Adequacy: adequate [AI mock-head, confidence 0.95]\n- Tissue: glioma [AI mock-head, confidence 0.95]\n- Necrosis: absent [AI mock-head, confidence 0.95]\n- Microvascular proliferation: pending (AI suggests absent, 0.82, below threshold)\n- Mitotic activity: absent [AI mock-head, confidence 0.95]\n\nMolecular information:\n- IDH: mutant [mock lab]\n- 1p/19q: codeleted [mock lab]\n- H3 K27: wildtype [AI mock-head, confidence 0.97]\n- H3 G34: wildtype [AI mock-head, confidence 0.96]\n- ATRX: retained [mock lab]\n- TERT promoter: mutant [mock lab]\n- MGMT promoter: methylated [mock lab]\n\nBased on (WHO CNS5 criteria):\n- IDH mutation with 1p/19q codeletion: met\n- CNS WHO grade 2 or 3; grade is assigned by the pathologist from histology: pending\n\nReferences:\n- Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106\n\nEngine entip-dx 0.1.0, rules who-cns5-2021/entip-0.1. Awaiting pathologist sign-off."
+ },
+ "ENT-0004": {
+  "contract": "entip.integrated_dx/1",
+  "study_id": "ENT-0004",
+  "engine": {
+   "name": "entip-dx",
+   "version": "0.1.0",
+   "rules": "who-cns5-2021/entip-0.1"
+  },
+  "integrated_diagnosis": {
+   "text": "Astrocytoma, IDH-mutant, CNS WHO grade pending",
+   "who_type": "astro",
+   "cns_who_grade": null,
+   "suffix": null,
+   "status": "provisional",
+   "favoured": "Astrocytoma, IDH-mutant; grade 4 not yet excluded"
+  },
+  "layers": {
+   "histology": [
+    {
+     "finding": "adequacy",
+     "call": "adequate",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "tissue_class",
+     "call": "glioma",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "grade_features": [
+    {
+     "finding": "necrosis",
+     "call": "absent",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "microvascular_proliferation",
+     "call": "absent",
+     "source": "ai",
+     "status": "pending",
+     "confidence": 0.82,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "mitotic_activity",
+     "call": "absent",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "molecular": [
+    {
+     "finding": "IDH",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "1p19q",
+     "call": "not_codeleted",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.97,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "H3G34",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.96,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "ATRX",
+     "call": "lost",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "CDKN2A",
+     "call": "retained",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    }
+   ],
+   "methylation": []
+  },
+  "based_on": [
+   {
+    "criterion": "IDH mutation without 1p/19q codeletion",
+    "met": true,
+    "findings": [
+     "IDH",
+     "1p19q"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   },
+   {
+    "criterion": "Microvascular proliferation, necrosis or CDKN2A/B homozygous deletion (any one) gives CNS WHO grade 4",
+    "met": null,
+    "findings": [
+     "microvascular_proliferation"
+    ],
+    "citation": "Brat DJ et al. cIMPACT-NOW update 5: grading criteria and terminologies for IDH-mutant astrocytomas. Acta Neuropathol 2020;139:603-8 https://doi.org/10.1007/s00401-020-02127-9"
+   }
+  ],
+  "orders": [
+   {
+    "test": "pathologist_review",
+    "reason": "Microvascular proliferation uncertain; needed to exclude CNS WHO grade 4",
+    "finding": "microvascular_proliferation",
+    "blocking": true
+   },
+   {
+    "test": "MGMT_promoter_methylation",
+    "reason": "MGMT promoter not available; needed to report MGMT promoter status for treatment planning",
+    "finding": "MGMT",
+    "blocking": false
+   }
+  ],
+  "conflicts": [],
+  "notes": [],
+  "ai_decisive": [],
+  "signoff": {
+   "required": true,
+   "status": "awaiting_pathologist"
+  },
+  "report_text": "DRAFT: AI-assisted integrated report for pathologist review. Research use only; not for clinical use.\n\nIntegrated diagnosis: Astrocytoma, IDH-mutant, CNS WHO grade pending\nFavoured while pending: Astrocytoma, IDH-mutant; grade 4 not yet excluded\nCNS WHO grade: pending\n\nHistological findings:\n- Adequacy: adequate [AI mock-head, confidence 0.95]\n- Tissue: glioma [AI mock-head, confidence 0.95]\n- Necrosis: absent [AI mock-head, confidence 0.95]\n- Microvascular proliferation: pending (AI suggests absent, 0.82, below threshold)\n- Mitotic activity: absent [AI mock-head, confidence 0.95]\n\nMolecular information:\n- IDH: mutant [mock lab]\n- 1p/19q: not codeleted [mock lab]\n- H3 K27: wildtype [AI mock-head, confidence 0.97]\n- H3 G34: wildtype [AI mock-head, confidence 0.96]\n- ATRX: loss of nuclear expression [mock lab]\n- CDKN2A/B: retained [mock lab]\n\nBased on (WHO CNS5 criteria):\n- IDH mutation without 1p/19q codeletion: met\n- Microvascular proliferation, necrosis or CDKN2A/B homozygous deletion (any one) gives CNS WHO grade 4: pending\n\nTests requested before sign-out:\n- Pathologist review: Microvascular proliferation uncertain; needed to exclude CNS WHO grade 4\n- MGMT promoter methylation: MGMT promoter not available; needed to report MGMT promoter status for treatment planning (does not change the diagnosis)\n\nReferences:\n- Brat DJ et al. cIMPACT-NOW update 5: grading criteria and terminologies for IDH-mutant astrocytomas. Acta Neuropathol 2020;139:603-8 https://doi.org/10.1007/s00401-020-02127-9\n- Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106\n\nEngine entip-dx 0.1.0, rules who-cns5-2021/entip-0.1. Awaiting pathologist sign-off."
+ },
+ "ENT-0005": {
+  "contract": "entip.integrated_dx/1",
+  "study_id": "ENT-0005",
+  "engine": {
+   "name": "entip-dx",
+   "version": "0.1.0",
+   "rules": "who-cns5-2021/entip-0.1"
+  },
+  "integrated_diagnosis": {
+   "text": "Glioblastoma, IDH-wildtype, CNS WHO grade 4",
+   "who_type": "gbm",
+   "cns_who_grade": 4,
+   "suffix": null,
+   "status": "complete",
+   "favoured": null
+  },
+  "layers": {
+   "histology": [
+    {
+     "finding": "adequacy",
+     "call": "adequate",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "tissue_class",
+     "call": "glioma",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "grade_features": [
+    {
+     "finding": "necrosis",
+     "call": "present",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "microvascular_proliferation",
+     "call": "present",
+     "source": "ai",
+     "status": "pending",
+     "confidence": 0.82,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "mitotic_activity",
+     "call": "present",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.95,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    }
+   ],
+   "molecular": [
+    {
+     "finding": "IDH",
+     "call": "wildtype",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.97,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "H3G34",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.96,
+     "model_id": "mock-head",
+     "method": null,
+     "evidence": [],
+     "value": {}
+    },
+    {
+     "finding": "CDKN2A",
+     "call": "retained",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "EGFR",
+     "call": "not_amplified",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "chr7_chr10",
+     "call": "gain7_loss10",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "TERT",
+     "call": "mutant",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    },
+    {
+     "finding": "MGMT",
+     "call": "unmethylated",
+     "source": "test",
+     "status": "confident",
+     "confidence": 1.0,
+     "model_id": null,
+     "method": "mock lab",
+     "evidence": [],
+     "value": {
+      "method": "mock lab"
+     }
+    }
+   ],
+   "methylation": []
+  },
+  "based_on": [
+   {
+    "criterion": "Microvascular proliferation or necrosis",
+    "met": true,
+    "findings": [
+     "necrosis"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   },
+   {
+    "criterion": "TERT promoter mutation, EGFR amplification or +7/-10 (any one) in an IDH-wildtype diffuse astrocytic glioma",
+    "met": true,
+    "findings": [
+     "TERT",
+     "chr7_chr10"
+    ],
+    "citation": "Brat DJ et al. cIMPACT-NOW update 3: diffuse astrocytic glioma, IDH-wildtype, with molecular features of glioblastoma. Acta Neuropathol 2018;136:805-10 https://doi.org/10.1007/s00401-018-1913-0"
+   },
+   {
+    "criterion": "Diffuse astrocytic glioma, IDH-wildtype and H3-wildtype",
+    "met": true,
+    "findings": [
+     "IDH",
+     "H3K27",
+     "H3G34"
+    ],
+    "citation": "Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106"
+   }
+  ],
+  "orders": [],
+  "conflicts": [],
+  "notes": [
+   "Decided on AI calls without a test or pathologist confirmation: H3 G34, H3 K27, Necrosis. Confirm on review."
+  ],
+  "ai_decisive": [
+   "H3G34",
+   "H3K27",
+   "necrosis"
+  ],
+  "signoff": {
+   "required": true,
+   "status": "awaiting_pathologist"
+  },
+  "report_text": "DRAFT: AI-assisted integrated report for pathologist review. Research use only; not for clinical use.\n\nIntegrated diagnosis: Glioblastoma, IDH-wildtype, CNS WHO grade 4\nCNS WHO grade: 4\n\nHistological findings:\n- Adequacy: adequate [AI mock-head, confidence 0.95]\n- Tissue: glioma [AI mock-head, confidence 0.95]\n- Necrosis: present [AI mock-head, confidence 0.95]\n- Microvascular proliferation: pending (AI suggests present, 0.82, below threshold)\n- Mitotic activity: present [AI mock-head, confidence 0.95]\n\nMolecular information:\n- IDH: wildtype [mock lab]\n- H3 K27: wildtype [AI mock-head, confidence 0.97]\n- H3 G34: wildtype [AI mock-head, confidence 0.96]\n- CDKN2A/B: retained [mock lab]\n- EGFR: not amplified [mock lab]\n- Chromosomes 7/10: +7/-10 present [mock lab]\n- TERT promoter: mutant [mock lab]\n- MGMT promoter: unmethylated [mock lab]\n\nBased on (WHO CNS5 criteria):\n- Microvascular proliferation or necrosis: met\n- TERT promoter mutation, EGFR amplification or +7/-10 (any one) in an IDH-wildtype diffuse astrocytic glioma: met\n- Diffuse astrocytic glioma, IDH-wildtype and H3-wildtype: met\n\nComment:\n- Decided on AI calls without a test or pathologist confirmation: H3 G34, H3 K27, Necrosis. Confirm on review.\n\nReferences:\n- Brat DJ et al. cIMPACT-NOW update 3: diffuse astrocytic glioma, IDH-wildtype, with molecular features of glioblastoma. Acta Neuropathol 2018;136:805-10 https://doi.org/10.1007/s00401-018-1913-0\n- Louis DN et al. The 2021 WHO Classification of Tumors of the CNS: a summary. Neuro-Oncology 2021;23:1231-51 (tumour types, Table 2 markers, Table 3 grades, Table 4 layered report) https://doi.org/10.1093/neuonc/noab106\n\nEngine entip-dx 0.1.0, rules who-cns5-2021/entip-0.1. Awaiting pathologist sign-off."
+ }
+}
