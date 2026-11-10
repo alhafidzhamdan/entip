@@ -22,6 +22,7 @@ dev = ["pytest>=7", "httpx>=0.25"]                 # MIT, BSD-3-Clause
 
 [project.scripts]
 entip-train = "entip_train.cli:main"
+entip-panel = "entip_train.panel.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
