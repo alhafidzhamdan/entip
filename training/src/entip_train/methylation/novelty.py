@@ -6,6 +6,9 @@ embeddings; the novelty score is the mean distance to its ``k`` nearest training
 on the training cases). The cut-off is a high quantile of the scores of held-out-site cases in
 cross-validation, so ordinary site-to-site variation is not flagged.
 
+``wsi/novelty.py`` (step 1) is the class-centroid version of the same idea; this one uses nearest
+training cases because methylation classes are many and some are small.
+
 This is a coarse check. It catches slides far from the training data (another tissue, another stain, a
 scanner artefact, a very different tumour); it will not catch a tumour type that merely resembles a
 trained class. Those rely on the confidence threshold and, in the workflow, on triage (step 1).

@@ -16,7 +16,7 @@ Decision, per patient (all of a patient's H&E bags are pooled into one bag):
 The model is the ensemble of the cross-validation members (``train.py``): every member was tested on tissue
 source sites it never saw, and the deployed probability is the mean of the members' calibrated
 probabilities. Thresholds come from those held-out predictions: the lowest confidence at which the
-one-sided 95% upper bound on the error rate stays under ``max_error``. If no threshold reaches that, the
+exact 95% upper bound on the error rate stays under ``max_error``. If no threshold reaches that, the
 threshold is above 1 and the agent always orders the array. The thresholds were measured on single members,
 not on the ensemble, and on TCGA only: confirm them on an external set before relying on them.
 """

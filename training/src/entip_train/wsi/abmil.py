@@ -10,7 +10,8 @@ A slide is a bag of tile embeddings ``x`` (N, D). The model is::
     p   = softmax(z Wc + bc)                    (C,)     class probabilities
 
 Trained by Adam on weighted cross-entropy, one bag per step, with random tile dropout (``max_tiles``).
-Features are standardised with statistics from the training tiles. CPU is enough once bags are cached:
+Features are standardised with statistics from a sample of the training tiles. Bags are never copied or
+concatenated, so they can be float16 arrays (or any sequence whose items convert with ``np.asarray``). CPU is enough once bags are cached:
 the expensive part, the encoder, has already run.
 """
 from __future__ import annotations
@@ -51,6 +52,20 @@ class ABMIL:
         g = lambda i, o: rng.normal(0, np.sqrt(2.0 / (i + o)), (i, o))
         self.p = {"Wp": g(d, H), "bp": np.zeros(H), "Wv": g(H, A), "Wu": g(H, A), "w": rng.normal(0, 0.1, A),
                   "Wc": g(H, C), "bc": np.zeros(C)}
+
+    def _fit_scaler(self, bags, rng, per_bag: int = 256) -> None:
+        """Feature mean and standard deviation from up to ``per_bag`` tiles of each bag (streamed)."""
+        n, s1, s2 = 0, 0.0, 0.0
+        for b in bags:
+            x = np.asarray(b)
+            if len(x) > per_bag:
+                x = x[rng.choice(len(x), per_bag, replace=False)]
+            x = x.astype(np.float64)
+            n += len(x)
+            s1 = s1 + x.sum(0)
+            s2 = s2 + (x ** 2).sum(0)
+        self.mu = s1 / n
+        self.sd = np.sqrt(np.maximum(s2 / n - self.mu ** 2, 0)) + 1e-6
 
     def _norm(self, x: np.ndarray) -> np.ndarray:
         return (np.asarray(x, np.float64) - self.mu) / self.sd
@@ -106,10 +121,9 @@ class ABMIL:
             counts = np.bincount(y[sw > 0], minlength=self.n_classes).astype(float)
             cw = np.where(counts > 0, counts[counts > 0].sum() / (np.count_nonzero(counts) * np.maximum(counts, 1)), 0)
             sw = sw * cw[y]
-        allx = np.concatenate([np.asarray(b, np.float64) for b in bags])
-        self.mu, self.sd = allx.mean(0), allx.std(0) + 1e-6
-        X = [self._norm(b) for b in bags]
-        self._init(X[0].shape[1], rng)
+        self._fit_scaler(bags, rng)
+        X = bags                       # normalised one bag at a time: thousands of slides must fit in memory
+        self._init(np.asarray(X[0]).shape[1], rng)
         m = {k: np.zeros_like(v) for k, v in self.p.items()}
         s = {k: np.zeros_like(v) for k, v in self.p.items()}
         b1, b2, t = 0.9, 0.999, 0
@@ -119,10 +133,10 @@ class ABMIL:
             rng.shuffle(idx)
             tot = 0.0
             for i in idx:
-                x = X[i]
+                x = np.asarray(X[i])
                 if self.max_tiles and len(x) > self.max_tiles:
                     x = x[rng.choice(len(x), self.max_tiles, replace=False)]
-                loss, g = self._loss_grad(x, y[i], sw[i])
+                loss, g = self._loss_grad(self._norm(x), y[i], sw[i])
                 tot += loss
                 t += 1
                 for k in self.p:
