@@ -110,6 +110,7 @@ class MethylationModel:
         if reasons:
             return {**rec, "call": "indeterminate", "confidence": 0.0, "threshold": _thr(self.family_threshold),
                     "status": "not_assessed", "probabilities": {}, "value": {"class": None},
+                    "calibration": {"method": "none", "calibrated": False},
                     "order_test": ORDER_TEST, "reasons": reasons, "evidence": []}
 
         if self.novelty is not None:
@@ -117,6 +118,7 @@ class MethylationModel:
             if novel:
                 return {**rec, "call": "no_match", "confidence": 0.0, "threshold": _thr(self.family_threshold),
                         "status": "uncertain", "probabilities": {},
+                        "calibration": {"method": "none", "calibrated": False},
                         "value": {"class": None, "novelty_score": round(score, 4),
                                   "novelty_threshold": round(self.novelty.threshold, 4), "n_tiles": int(len(feats))},
                         "order_test": ORDER_TEST, "evidence": [],
@@ -150,9 +152,26 @@ class MethylationModel:
             ev.append({"kind": "tile", "id": tile_id(sid, x, y, t), "x_um": x, "y_um": y, "w_um": t, "h_um": t,
                        "weight": round(float(att[i]), 5)})
         return {**rec, "call": family, "confidence": round(fconf, 4), "threshold": _thr(self.family_threshold),
+                "calibration": self.calibration(),
                 "status": "confident" if confident else "uncertain",
                 "probabilities": {f: round(float(v), 4) for f, v in zip(fam, pf)}, "value": value,
                 "order_test": None if confident else ORDER_TEST, "reasons": reasons, "evidence": ev}
+
+    def calibration(self) -> dict:
+        """How the family confidence was calibrated and whether its threshold met the error target on
+        held-out sites (the contract's optional ``calibration`` block)."""
+        sel = (self.metrics.get("family") or {}).get("selective") or {}
+        out = {"method": "temperature", "calibrated": bool(self.temperatures),
+               "validated": bool(self.family_threshold <= 1.0)}
+        if sel.get("max_error") is not None:
+            out["max_error"] = float(sel["max_error"])
+        if sel.get("error_upper") is not None:
+            out["error_upper"] = float(sel["error_upper"])
+        if sel.get("coverage") is not None:
+            out["coverage"] = float(sel["coverage"])
+        if self.metrics.get("n_cases") is not None:
+            out["n_heldout"] = int(self.metrics["n_cases"])
+        return out
 
     # ------------------------------------------------------------------ files
     def save(self, folder: str | Path) -> Path:

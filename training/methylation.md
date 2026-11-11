@@ -19,6 +19,10 @@ family p >= threshold ? confident : uncertain -> order_test = methylation_array
 subclass (e.g. "GBM, RTK II") only when the family is confident and the subclass reaches its own threshold
 ```
 
+Each record carries the contract's `calibration` block (method, whether the threshold met its error target
+on held-out sites, the error bound, coverage and number of held-out cases), which feeds the per-step
+confidence endpoint.
+
 `not_assessed` (call `indeterminate`, order the array) when there are fewer than `min_tiles` tissue tiles,
 the bags come from another encoder, or triage says the tissue is not glioma.
 
