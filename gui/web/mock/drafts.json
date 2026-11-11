@@ -219,6 +219,7 @@
    "H3K27",
    "necrosis"
   ],
+  "ai_disagreements": [],
   "signoff": {
    "required": true,
    "status": "awaiting_pathologist"
@@ -435,6 +436,7 @@
   "conflicts": [],
   "notes": [],
   "ai_decisive": [],
+  "ai_disagreements": [],
   "signoff": {
    "required": true,
    "status": "awaiting_pathologist"
@@ -629,6 +631,7 @@
   "conflicts": [],
   "notes": [],
   "ai_decisive": [],
+  "ai_disagreements": [],
   "signoff": {
    "required": true,
    "status": "awaiting_pathologist"
@@ -825,6 +828,7 @@
   "conflicts": [],
   "notes": [],
   "ai_decisive": [],
+  "ai_disagreements": [],
   "signoff": {
    "required": true,
    "status": "awaiting_pathologist"
@@ -1050,6 +1054,7 @@
    "H3K27",
    "necrosis"
   ],
+  "ai_disagreements": [],
   "signoff": {
    "required": true,
    "status": "awaiting_pathologist"

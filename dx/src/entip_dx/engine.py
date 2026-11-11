@@ -5,8 +5,8 @@ real tests, and returns one ``entip.integrated_dx/1`` dict. It never learns anyt
 written rules in ``rules.py``. Anything uncertain or missing that would change the diagnosis is ordered as a
 real test, and the diagnosis stays pending until it comes back.
 
-Priors (age, site, radiology) are accepted for future use (for example to weight a step's confidence) but no
-rule uses them yet, and they never reach the output: the output is checked for them.
+Priors (age, site, radiology) never reach the output: the output is checked for them. One rule reads the
+age prior (the IDH sequencing exception); nothing else uses them yet.
 """
 from __future__ import annotations
 
@@ -69,6 +69,7 @@ class Ctx:
     notes: list[str] = field(default_factory=list)
     based_on: list[dict] = field(default_factory=list)
     ai_disagreements: list[str] = field(default_factory=list)
+    confirm_ai: bool = True
 
     def get(self, name: str) -> Resolved:
         return self.f.setdefault(name, Resolved(name))
@@ -77,11 +78,10 @@ class Ctx:
         if test is None:
             u = self.get(finding).uncertain if finding else None
             test = (u or {}).get("order_test") or DEFAULT_TEST[finding]
-        if any(o["test"] == test for o in self.orders):
-            for o in self.orders:
-                if o["test"] == test and blocking:
-                    o["blocking"] = True
-            return
+        for o in self.orders:
+            if o["test"] == test and o["finding"] == finding:
+                o["blocking"] = o["blocking"] or blocking
+                return
         self.orders.append({"test": test, "reason": reason, "finding": finding, "blocking": blocking})
 
     def need(self, finding: str, why: str, blocking: bool = True) -> bool:
@@ -98,6 +98,8 @@ class Ctx:
         self.based_on.append({"criterion": text, "met": met, "findings": list(findings), "citation": cite(src)})
 
 
+# Marker results that, when present, define a type or raise the grade.
+POSITIVE_MARKER_CALLS = ("mutant", "codeleted", "altered", "amplified", "gain7_loss10", "homozygous_deletion")
 HISTO = ("necrosis", "microvascular_proliferation", "mitotic_activity")
 NON_LESIONAL = ("normal_brain", "reactive")
 
@@ -135,6 +137,8 @@ def resolve(records: list[dict]) -> tuple[dict[str, Resolved], list[str], list[s
     ai: dict[str, dict[tuple, dict]] = {}
     for rec in records:
         f = rec["finding"]
+        if rec["status"] == "not_assessed":
+            continue
         if rec["source"] == "ai":
             ai.setdefault(f, {})[tuple(sorted(rec.get("scan_ids") or []))] = rec
         elif rec["call"] != INDETERMINATE and _human_beats(rec, human.get(f)):
@@ -178,7 +182,11 @@ def resolve(records: list[dict]) -> tuple[dict[str, Resolved], list[str], list[s
     return out, conflicts, disagree
 
 
-def diagnose(records: list[dict], priors: dict | None = None, study_id: str | None = None) -> dict:
+def diagnose(records: list[dict], priors: dict | None = None, study_id: str | None = None,
+             confirm_ai: bool = True) -> dict:
+    """``confirm_ai``: when True (default), an AI-only marker call that defines the type or grade (IDH, 1p/19q,
+    or any positive marker a criterion was met on) gets its real test ordered and the draft stays provisional.
+    Set False to measure what the AI alone would sign out."""
     recs = [validate_finding(r) for r in records]
     ids = {r["study_id"] for r in recs} | ({study_id} if study_id else set())
     if len(ids) != 1:
@@ -187,6 +195,7 @@ def diagnose(records: list[dict], priors: dict | None = None, study_id: str | No
     resolved, conflicts, disagree = resolve(recs)
     ctx = Ctx(resolved, dict(priors or {}), conflicts=conflicts)
     ctx.ai_disagreements = disagree
+    ctx.confirm_ai = confirm_ai
     dx = _classify(ctx)
     _molecular_extras(ctx, dx)
     _methylation_check(ctx, dx)
@@ -210,6 +219,9 @@ def _classify(c: Ctx) -> dict:
     if adequacy.is_("inadequate"):
         c.order("adequacy", "No adequate lesional tissue on the slides", test="additional_sampling")
         return _dx("inadequate", "Insufficient lesional tissue for diagnosis")
+    if adequacy.call is None and adequacy.uncertain:
+        c.order("adequacy", "Adequacy uncertain; check there is enough lesional tissue",
+                test="pathologist_review")
     if not c.need("tissue_class", "confirm a glial tumour"):
         return _dx("pending", "Pending: tumour type on H&E", favoured=_favoured_tissue(tissue))
     if not tissue.is_("glioma"):
@@ -245,10 +257,18 @@ def _classify(c: Ctx) -> dict:
         return _dx("pending", "Pending: diffuse glioma, IDH status awaited", favoured=_favoured_from_idh(c))
     if idh.is_("wildtype") and idh.source == "test" and _is_ihc(idh.rec):
         # R132H immunohistochemistry only detects the commonest IDH1 mutation; negative staining is not
-        # proof of IDH-wildtype status, so sequencing decides.
-        c.order("IDH", "IDH1 R132H immunohistochemistry is negative; sequence IDH1/IDH2 to exclude other "
-                       "mutations", test="IDH_sequencing")
-        c.notes.append("IDH-wildtype status rests on negative R132H immunohistochemistry only.")
+        # proof of IDH-wildtype status, so sequencing decides. Exception (WHO 2016, kept in practice; not
+        # checked against the primary text here): histological glioblastoma in a patient aged 55 or over.
+        age = c.priors.get("age_years")
+        typical = any(_histo(c, n) for n in ("necrosis", "microvascular_proliferation"))
+        if isinstance(age, (int, float)) and not isinstance(age, bool) and age >= 55 and typical:
+            c.notes.append("IDH sequencing not requested: negative R132H immunohistochemistry is accepted "
+                           "under the WHO exception for histological glioblastoma (rule not checked against "
+                           "the primary text; confirm it applies).")
+        else:
+            c.order("IDH", "IDH1 R132H immunohistochemistry is negative; sequence IDH1/IDH2 to exclude other "
+                           "mutations", test="IDH_sequencing")
+            c.notes.append("IDH-wildtype status rests on negative R132H immunohistochemistry only.")
 
     if idh.is_("mutant"):
         return _idh_mutant(c)
@@ -421,6 +441,10 @@ def _methylation_check(c: Ctx, dx: dict) -> None:
         c.conflicts.append("Methylation class is control (non-tumour) tissue; check tumour content")
         c.order("methylation_class", "Methylation suggests non-tumour tissue", test="pathologist_review")
         return
+    if dx["suffix"] == "NEC" and supported:
+        who = "AI" if m.source == "ai" else m.source
+        c.notes.append(f"Methylation class ({who}) matches {TYPES[supported]}; the rules do not use it to "
+                       "assign this type, so weigh it at sign-off.")
     if dx["who_type"] and supported and supported != dx["who_type"]:
         who = "AI" if m.source == "ai" else m.source
         c.conflicts.append(f"Methylation class ({who}) matches {TYPES[supported]}, but the markers give "
@@ -453,6 +477,14 @@ def _layer(c: Ctx, names: tuple[str, ...]) -> list[dict]:
 
 
 def _assemble(sid: str, c: Ctx, dx: dict) -> dict:
+    ai_decisive = sorted({f for b in c.based_on if b["met"] is not None for f in b["findings"]
+                          if c.get(f).source == "ai"})
+    if c.confirm_ai and dx["who_type"]:
+        for f in ai_decisive:
+            r = c.get(f)
+            if f in ("IDH", "1p19q") or r.call in POSITIVE_MARKER_CALLS:
+                c.order(f, f"{LABELS[f]} ({_word(r.call)}) is an AI call that decides the type or grade; "
+                           "confirm with the test", test=r.rec.get("order_test") or DEFAULT_TEST[f])
     if dx["status"] == "complete" and any(o["blocking"] for o in c.orders):
         dx["status"] = "provisional"
     layers = {
@@ -462,8 +494,6 @@ def _assemble(sid: str, c: Ctx, dx: dict) -> dict:
                                 "chr7_chr10", "TERT", "MGMT")),
         "methylation": _layer(c, ("methylation_class",)),
     }
-    ai_decisive = sorted({f for b in c.based_on if b["met"] for f in b["findings"]
-                          if c.get(f).source == "ai"})
     if ai_decisive:
         c.notes.append("Decided on AI calls without a test or pathologist confirmation: " +
                        ", ".join(LABELS[f] for f in ai_decisive) + ". Confirm on review.")

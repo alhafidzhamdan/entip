@@ -13,7 +13,7 @@ off. It learns nothing: every call traces to a written criterion with its source
 ```bash
 pip install -e 'dx[test]'
 entip-dx diagnose records.json --text            # finding records in, draft report out
-entip-dx diagnose records.json --priors p.json   # priors may change suggested tests, never the report
+entip-dx diagnose records.json --priors p.json   # priors (age_years) can change a test request, never the text
 entip-dx from-db SYN-0001 --post --text          # read the db API, post the draft as an integrated_dx action
 entip-dx validate records.jsonl                  # check a step's output against the contract
 entip-dx export-contract dx/contract             # refresh the JSON Schemas after editing contract.py
@@ -42,6 +42,13 @@ pytest dx
 7. A methylation class that disagrees with the markers makes the draft provisional and orders a methylation
    array (if the class was AI) and a pathologist review.
 8. MGMT is reported and ordered if missing, but never blocks the diagnosis.
+9. An AI-only marker call that defines the type or grade (IDH either way, 1p/19q either way, or any positive
+   marker a criterion was met on) gets its real test ordered and the draft stays provisional. AI calls of
+   absence for the other markers (for example H3-wildtype) are accepted. `diagnose(..., confirm_ai=False)`
+   turns this off, to measure what the AI alone would sign out.
+10. Priors are used in one place: negative R132H immunohistochemistry is accepted without sequencing for a
+    histological glioblastoma when the age prior is 55 or over (WHO 2016 exception; not checked against the
+    primary text here). The report never states the age.
 
 The output (`entip.integrated_dx/1`) lists each criterion as met, not met or pending, the tests to order
 (blocking or not), discrepancies, which decisive findings were AI-only, and the draft text. The GUI shows the
@@ -60,7 +67,8 @@ latest draft on the patient page.
   https://doi.org/10.1007/s00401-018-1808-0 (definitions summarised; text not read here).
 
 Not checked against a primary text and marked as such in the output: CDKN2A/B as a grade 3 marker in
-oligodendroglioma, and grade 4 for the paediatric-type H3-wildtype IDH-wildtype high-grade glioma.
+oligodendroglioma, grade 4 for the paediatric-type H3-wildtype IDH-wildtype high-grade glioma, and the
+age 55 exception to IDH sequencing.
 
 ## Not done yet
 
