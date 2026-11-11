@@ -35,38 +35,57 @@ class Label:
         return {"case_id": self.case_id, "class": self.cls, "score": self.score, "source": self.source}
 
 
-def from_report_csv(path: str | Path, min_score: float = 0.9, source: str = "report") -> List[Label]:
+def from_report_csv(path: str | Path, min_score: float = 0.9, source: str = "report",
+                    keep_unscored: bool = False) -> List[Label]:
+    """Rows without a score are dropped unless ``keep_unscored`` (they then carry score NaN and weight 1)."""
     out = []
     with open(path, newline="") as f:
         for r in csv.DictReader(f):
-            s = float(r.get("score") or "nan")
-            if not np.isnan(s) and s >= min_score:
+            raw = (r.get("score") or "").strip()
+            s = float(raw) if raw else float("nan")
+            if (np.isnan(s) and keep_unscored) or (not np.isnan(s) and s >= min_score):
                 out.append(Label(r["case_id"].strip(), r["class"].strip(), s, source))
     return out
 
 
+def probe_id(name: str) -> str:
+    """450K / EPIC v1 ids are kept; EPIC v2 ids carry a suffix (``cg00000029_TC21``) that is dropped so all
+    three arrays share one id space."""
+    return name.split("_", 1)[0]
+
+
 def read_beta_file(path: str | Path) -> Dict[str, float]:
-    """One sample: two columns, CpG id and beta (tab-separated; a header row and 'NA' values are allowed)."""
-    out: Dict[str, float] = {}
+    """One sample: two columns, CpG id and beta (tab-separated; a header row and 'NA' values are allowed).
+    Replicate EPIC v2 probes for one CpG are averaged."""
+    acc: Dict[str, List[float]] = {}
     with open(path) as f:
         for line in f:
             parts = line.rstrip("\n").split("\t")
             if len(parts) < 2 or not parts[0].startswith(("cg", "ch", "rs")):
                 continue
             try:
-                out[parts[0]] = float(parts[1])
+                v = float(parts[1])
             except ValueError:
                 continue
-    return out
+            if not np.isnan(v):
+                acc.setdefault(probe_id(parts[0]), []).append(v)
+    return {k: float(np.mean(v)) for k, v in acc.items()}
 
 
-def stack_betas(samples: Dict[str, Dict[str, float]], cpgs: Optional[Sequence[str]] = None
-                ) -> Tuple[List[str], List[str], np.ndarray]:
-    """{sample_id: {cpg: beta}} -> (sample_ids, cpgs, matrix with NaN where missing)."""
+def stack_betas(samples: Dict[str, Dict[str, float]], cpgs: Optional[Sequence[str]] = None,
+                max_missing: float = 0.1) -> Tuple[List[str], List[str], np.ndarray]:
+    """{sample_id: {cpg: beta}} -> (sample_ids, cpgs, matrix with NaN where missing).
+
+    Without ``cpgs``, keeps every CpG measured in at least ``1 - max_missing`` of samples (a CpG that failed
+    detection in a few samples is kept, not dropped for everyone)."""
     ids = list(samples)
     if cpgs is None:
-        common = set.intersection(*(set(v) for v in samples.values())) if samples else set()
-        cpgs = sorted(common)
+        counts: Dict[str, int] = {}
+        for v in samples.values():
+            for c in v:
+                counts[c] = counts.get(c, 0) + 1
+        need = (1 - max_missing) * len(ids)
+        cpgs = sorted(c for c, n in counts.items() if n >= need)
     cpgs = list(cpgs)
     X = np.full((len(ids), len(cpgs)), np.nan, np.float32)
     col = {c: j for j, c in enumerate(cpgs)}

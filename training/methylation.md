@@ -50,18 +50,26 @@ methylation (450K and older 27K arrays); TCGA-LGG 491 and 516. The exact number 
 the Mac or Eddie (the cloud session cannot reach the GDC API).
 
 TCGA is mostly adult GBM and lower-grade glioma, so paediatric, H3-altered and rare classes will be thin
-or absent. The model only learns classes present in the labels; everything else falls back to the array.
+or absent. Classes with fewer than `--min-per-class` (default 10) labelled cases are dropped and listed in
+the model's metrics; the model only learns what is left, and everything else falls back to the array.
+
+Beta files: 450K, EPIC and EPIC v2 ids are put in one id space (EPIC v2 suffixes such as `_TC21` are dropped
+and replicates averaged). A CpG missing in a few samples is kept (up to 10% missing) rather than dropped for
+all. List only 450K or EPIC files from the GDC: the old 27K array shares too few CpGs, and the label step
+refuses targets that cover under 90% of the classifier's CpGs.
 
 ## Run it
 
 ```bash
 pip install -e ".[foundation]"
 entip-train methyl demo                                  # synthetic, CPU, seconds
-entip-train methyl pair --slides dx_slides.txt --methylation meth450k.txt --out pairs.csv
-entip-train methyl label --ref-betas ref/ --ref-labels ref_labels.csv --target-betas tcga/ --out labels.csv
-# bags: one <slide>.npz per slide from entip_train.wsi.bags.extract_bag with H-optimus-0
-# labels.csv for train needs a 'slides' column (slide names joined by ';'), from pairs.csv
-entip-train methyl train --labels labels.csv --bags bags/ --out models/mc-0.1.0
+# GDC methylation files are named by UUID: give the GDC sample sheet so they map to barcodes
+entip-train methyl pair --slides dx_slides.txt --methylation meth450k.txt \
+    --methylation-sheet gdc_sample_sheet.tsv --out pairs.csv
+entip-train methyl label --ref-betas ref/ --ref-labels ref_labels.csv \
+    --target-betas tcga/ --target-sheet gdc_sample_sheet.tsv --out labels.csv
+# bags: one <slide name without extension>.npz per slide, from entip_train.wsi.bags.extract_bag (H-optimus-0)
+entip-train methyl train --labels labels.csv --pairs pairs.csv --bags bags/ --out models/mc-0.1.0
 entip-train methyl predict --model models/mc-0.1.0 --bags SCN-1.npz --study-id SYN-0001 --db http://127.0.0.1:8705
 ```
 
