@@ -1,15 +1,19 @@
 """Train the step-4 model: site-grouped cross-validation, temperature scaling and selective thresholds.
 
-1. Every case gets a fold so that all cases from one TCGA tissue source site share a fold (``tcga.site_folds``).
-2. For each outer fold: train ABMIL on the other folds, early-stop and fit the temperature on one of them, and
+1. Every case gets a fold so that all cases from one TCGA tissue source site share a fold (``tcga.group_folds``).
+2. For each fold: train ABMIL on the other folds, early-stop and fit the temperature on one of them, and
    predict the held-out fold. This gives an out-of-fold (OOF) prediction for every case from a site the model
    never saw.
-3. From the OOF predictions: accuracy, balanced accuracy and ECE at class and family level, and the selective
-   thresholds (``wsi.calibrate.selective_threshold``) for class and family at ``max_error``.
-4. The final model trains on all folds but one (used for early stopping and its temperature) and carries the
-   OOF thresholds and metrics.
+3. From the OOF predictions: accuracy, balanced accuracy and ECE at class and family level, per-family recall
+   and share of confident calls, and the selective thresholds (``wsi.calibrate.selective_threshold``) for
+   class and family at ``max_error``. The novelty cut-off is set the same way (``novelty.oof_threshold``).
+4. The deployed model is the ensemble of the fold members, so no part of it is untested.
 
 Labels with a classifier score carry it as a sample weight, so borderline calls count less.
+
+Limits to keep in mind when reading the numbers: the threshold is chosen and its error measured on the same
+OOF predictions (the Wilson bound does not correct for that choice), and everything is TCGA. An external
+set (Edinburgh) is the real test.
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ from ..wsi.bags import Bag
 from ..wsi.calibrate import ece, fit_temperature, selective_threshold
 from .classes import Taxonomy
 from .model import MethylationModel, pool_bags
+from .novelty import Novelty, descriptor, oof_threshold
 from .tcga import group_folds, site_of
 
 
@@ -47,7 +52,7 @@ def _softmax(z):
 
 def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str, k: int = 5,
           max_error: float = 0.05, min_accepted: int = 20, min_tiles: int = 50, label_source: str = "",
-          min_per_class: int = 10, mil_kw: Optional[dict] = None, seed: int = 0,
+          min_per_class: int = 10, novelty_quantile: float = 0.99, mil_kw: Optional[dict] = None, seed: int = 0,
           log: Callable[[str], None] = lambda s: None) -> MethylationModel:
     """Classes with fewer than ``min_per_class`` cases are dropped (logged and listed in the metrics): the
     model cannot learn them, and slides of those classes fall back to the array."""
@@ -80,7 +85,7 @@ def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str
         raise ValueError("need at least 3 site groups for train / validation / test folds")
 
     oof = np.zeros((len(cases), len(classes)))
-    temps = []
+    temps, members = [], []
     for f in range(k):
         v = (f + 1) % k
         tr, va, te = np.where((fold != f) & (fold != v))[0], np.where(fold == v)[0], np.where(fold == f)[0]
@@ -88,24 +93,32 @@ def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str
         m.fit([feats[i] for i in tr], y[tr], sample_weight=w[tr], val=([feats[i] for i in va], y[va]))
         t = fit_temperature(m.logits([feats[i] for i in va]), y[va])
         temps.append(t)
+        members.append(m)
         oof[te] = _softmax(m.logits([feats[i] for i in te]) / t)
         log(f"fold {f}: train {len(tr)}, val {len(va)}, test {len(te)}, T={t:.2f}, "
             f"test acc {(oof[te].argmax(1) == y[te]).mean():.3f}")
 
     M = MethylationModel(model_id, version, classes, tax.family_of, encoders.pop(), min_tiles=min_tiles,
-                         label_source=label_source)
+                         label_source=label_source, temperatures=temps, members=members)
     F = M.family_matrix()
     yf = np.array([M.families.index(tax.family_of[classes[i]]) for i in y])
     pf = oof @ F
     th_c = selective_threshold(oof.max(1), oof.argmax(1) == y, max_error, min_accepted)
     th_f = selective_threshold(pf.max(1), pf.argmax(1) == yf, max_error, min_accepted)
     M.class_threshold, M.family_threshold = th_c["threshold"], th_f["threshold"]
+    descs = np.stack([descriptor(f) for f in feats])
+    nov_thr, nov_scores = oof_threshold(descs, fold, quantile=novelty_quantile)
+    M.novelty = Novelty.fit(descs)
+    M.novelty.threshold, M.novelty.quantile = nov_thr, novelty_quantile
     M.metrics = {
         "n_cases": len(cases), "folds": k, "cv": "grouped by tissue source site", "max_error": max_error,
         "class": {"accuracy": float((oof.argmax(1) == y).mean()), "balanced_accuracy": _balanced_acc(oof.argmax(1), y),
                   "ece": ece(oof, y), "selective": th_c},
         "family": {"accuracy": float((pf.argmax(1) == yf).mean()), "balanced_accuracy": _balanced_acc(pf.argmax(1), yf),
                    "ece": ece(pf, yf), "selective": th_f},
+        "per_family": _per_family(pf, yf, M.families, th_f["threshold"]),
+        "novelty": {"threshold": nov_thr, "quantile": novelty_quantile,
+                    "share_flagged_oof": float((nov_scores > nov_thr).mean())},
         "fold_temperatures": temps,
         "class_counts": {c: int((y == i).sum()) for i, c in enumerate(classes)},
         "dropped_classes": dropped,
@@ -113,10 +126,18 @@ def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str
     log(f"OOF family accuracy {M.metrics['family']['accuracy']:.3f}; confident on "
         f"{th_f['coverage']:.0%} at threshold {th_f['threshold']:.2f}")
 
-    # final model: all folds; the largest fold early-stops it and sets its temperature
-    v = int(np.bincount(fold).argmax())
-    tr, va = np.where(fold != v)[0], np.where(fold == v)[0]
-    M.mil = ABMIL(len(classes), seed=seed, **mil_kw)
-    M.mil.fit([feats[i] for i in tr], y[tr], sample_weight=w[tr], val=([feats[i] for i in va], y[va]))
-    M.temperature = fit_temperature(M.mil.logits([feats[i] for i in va]), y[va])
     return M
+
+
+def _per_family(pf: np.ndarray, yf: np.ndarray, families: List[str], thr: float) -> Dict[str, dict]:
+    """Recall and share of confident calls per true family, on the OOF predictions."""
+    pred, conf = pf.argmax(1), pf.max(1)
+    out = {}
+    for i, f in enumerate(families):
+        m = yf == i
+        if m.any():
+            ok = m & (conf >= thr)
+            out[f] = {"n": int(m.sum()), "recall": float((pred[m] == i).mean()),
+                      "confident_share": float(ok.sum() / m.sum()),
+                      "confident_errors": int((pred[ok] != i).sum())}
+    return out
