@@ -157,6 +157,9 @@ def test_records_shape_and_evidence(trained, held_out):
             assert r["order_test"] in TESTS and r["reasons"]
         if r["status"] == "confident":
             assert r["confidence"] >= r["threshold"]
+            cal = r["calibration"]
+            assert cal["method"] == "temperature" and cal["validated"] and cal["error_upper"] <= cal["max_error"]
+            assert 0 < cal["coverage"] <= 1 and cal["n_heldout"] > 0
             ev = r["evidence"]
             assert ev and all(e["kind"] == "tile" and e["id"].split(":tile:")[0] in r["scan_ids"] for e in ev)
             assert abs(sum(r["probabilities"].values()) - 1) < 1e-6
