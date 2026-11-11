@@ -42,7 +42,8 @@ def add_parser(sub) -> None:
 
     t = s.add_parser("train")
     t.add_argument("--labels", required=True, help="CSV case_id,class,score (from 'label')")
-    t.add_argument("--pairs", help="CSV from 'pair' (case_id,slide,...); else labels need a 'slides' column")
+    t.add_argument("--pairs", help="CSV from 'pair' (case_id,slide,...; optional 'bag' column with the bag "
+                                   "file name); else labels need a 'slides' column")
     t.add_argument("--bags", required=True, help="folder of <slide>.npz bags")
     t.add_argument("--taxonomy", help="CSV class,family (default: built-in glioma list)")
     t.add_argument("--model-id", default="methylation-class-abmil")
@@ -138,7 +139,9 @@ def train_cmd(args) -> int:
     if args.pairs:
         with open(args.pairs, newline="") as f:
             for r in csv.DictReader(f):
-                slides_of.setdefault(r["case_id"], []).append(r["slide"])
+                # optional 'bag' column: the bag file name when it is not the slide name (e.g. IDC bags
+                # from 'triage build-bags' are named <SeriesInstanceUID>.npz)
+                slides_of.setdefault(r["case_id"], []).append(r.get("bag") or r["slide"])
     cases, missing = [], 0
     with open(args.labels, newline="") as f:
         for r in csv.DictReader(f):

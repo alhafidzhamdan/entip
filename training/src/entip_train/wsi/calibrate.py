@@ -3,9 +3,9 @@
 * ``fit_temperature``: one scalar T that minimises validation log loss (temperature scaling,
   Guo et al. 2017, https://arxiv.org/abs/1706.04599). It changes confidence, never the predicted class.
 * ``ece``: expected calibration error with equal-width bins.
-* ``selective_threshold``: the lowest confidence above which the model's error rate on held-out slides stays
-  under ``max_error``, judged by a one-sided Wilson upper bound so a handful of lucky slides cannot set it.
-  Below the threshold the model orders the real test.
+* ``selective_threshold``: the confidence above which the model's error rate on held-out cases stays under
+  ``max_error``, judged by an exact binomial upper bound and tested threshold by threshold from the top so
+  the guarantee survives the search. Below the threshold the model orders the real test.
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def ece(probs: np.ndarray, y: np.ndarray, bins: int = 15) -> float:
 
 
 def wilson_upper(errors: int, n: int, z: float = 1.645) -> float:
-    """One-sided 95% upper bound on an error rate (z = 1.645)."""
+    """One-sided 95% Wilson upper bound on an error rate (kept for reference; the gate uses the exact bound)."""
     if n == 0:
         return 1.0
     p = errors / n
@@ -59,22 +59,42 @@ def wilson_upper(errors: int, n: int, z: float = 1.645) -> float:
     return min(1.0, (centre + rad) / den)
 
 
+def exact_upper(errors: int, n: int, alpha: float = 0.05) -> float:
+    """One-sided (1 - alpha) Clopper-Pearson upper bound on an error rate: exact, never anti-conservative."""
+    if n == 0 or errors >= n:
+        return 1.0
+    from scipy.stats import beta          # SciPy (BSD-3-Clause) is already a scikit-learn dependency
+    return float(beta.ppf(1 - alpha, errors + 1, n - errors))
+
+
 def selective_threshold(conf: np.ndarray, correct: np.ndarray, max_error: float = 0.05,
-                        min_accepted: int = 20) -> dict:
-    """Pick the confidence threshold for "accept". Returns threshold, coverage (share accepted), the observed
-    error and its upper bound among accepted slides. If no threshold meets ``max_error``, threshold is 1.01:
-    the model never accepts and always orders the test."""
+                        min_accepted: int = 20, alpha: float = 0.05) -> dict:
+    """Pick the confidence threshold for "accept" so that the error rate among accepted cases is at most
+    ``max_error`` with confidence 1 - alpha.
+
+    Candidate thresholds are tested from the most confident case downwards and the search stops at the first
+    one that fails (fixed-sequence testing, as in Learn then Test, Angelopoulos et al. 2021,
+    https://arxiv.org/abs/2110.01052). Stopping at the first failure is what keeps the guarantee valid although
+    many thresholds are looked at; taking the best of all thresholds would not. Each test uses the exact
+    binomial bound. Cuts too small to pass even with zero errors are skipped, not counted as failures.
+
+    Returns threshold, coverage (share accepted), observed error and its upper bound among accepted cases.
+    If nothing passes, threshold is 1.01: the model never accepts and always orders the test. Rows must be
+    independent (one per patient), and the guarantee holds only for cases like the ones passed in."""
     conf, correct = np.asarray(conf, float), np.asarray(correct, bool)
-    order = np.argsort(-conf)
+    order = np.argsort(-conf, kind="stable")
     best = {"threshold": 1.01, "coverage": 0.0, "error": None, "error_upper": None, "n_accepted": 0,
-            "max_error": max_error}
+            "n": int(len(conf)), "max_error": max_error, "alpha": alpha}
     errs = 0
     for k, i in enumerate(order, start=1):
         errs += int(not correct[i])
-        if k < min_accepted or (k < len(order) and conf[order[k]] == conf[i]):
+        if k < len(order) and conf[order[k]] == conf[i]:
             continue                                   # only cut between distinct confidence values
-        ub = wilson_upper(errs, k)
-        if ub <= max_error:
-            best = {"threshold": float(conf[i]), "coverage": k / len(conf), "error": errs / k,
-                    "error_upper": ub, "n_accepted": k, "max_error": max_error}
+        if k < min_accepted or exact_upper(0, k, alpha) > max_error:
+            continue                                   # too few cases to pass even with no errors
+        ub = exact_upper(errs, k, alpha)
+        if ub > max_error:
+            break
+        best.update({"threshold": float(conf[i]), "coverage": k / len(conf), "error": errs / k,
+                     "error_upper": ub, "n_accepted": k})
     return best

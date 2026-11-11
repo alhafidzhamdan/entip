@@ -28,13 +28,13 @@ percentile of held-out-site cases). It catches slides far from the training data
 resembles a trained class is not caught and relies on the confidence threshold and on triage.
 
 The deployed model is the ensemble of the cross-validation members, so every part of it was tested on sites
-it never saw. The thresholds were measured on single members, the threshold is chosen and its error measured
-on the same held-out predictions, and all of it is TCGA: confirm on an external set (Edinburgh) before use.
+it never saw. The thresholds were measured on single members and all of it is TCGA: confirm on an external set (Edinburgh) before use.
 The training report lists recall, share of confident calls and confident errors per family.
 
 Thresholds are set on out-of-fold predictions where every fold holds whole TCGA tissue source sites, so
 the model is always judged on sites it never saw. The threshold is the lowest confidence at which the
-one-sided 95% upper bound on the error rate stays under `max_error` (default 5%). If none reaches it, the
+exact 95% upper bound on the error rate stays under `max_error` (default 5%), tested from the most confident
+case downwards and stopping at the first failure. At 5% that needs at least 59 error-free cases. If none reaches it, the
 model always orders the array. The share of cases above the threshold (coverage) is the number that
 says how often the array could be skipped.
 
@@ -89,7 +89,9 @@ entip-train methyl pair --slides dx_slides.txt --methylation meth450k.txt \
     --methylation-sheet gdc_sample_sheet.tsv --out pairs.csv
 entip-train methyl label --ref-betas ref/ --ref-labels ref_labels.csv \
     --target-betas tcga/ --target-sheet gdc_sample_sheet.tsv --out labels.csv
-# bags: one <slide name without extension>.npz per slide, from entip_train.wsi.bags.extract_bag (H-optimus-0)
+# bags: one <slide name without extension>.npz per slide, from entip_train.wsi.bags.extract_bag (H-optimus-0).
+# IDC bags from 'entip-train triage build-bags' are named <SeriesInstanceUID>.npz: add a 'bag' column with
+# that file name to pairs.csv
 entip-train methyl train --labels labels.csv --pairs pairs.csv --bags bags/ --out models/mc-0.1.0
 entip-train methyl predict --model models/mc-0.1.0 --bags SCN-1.npz --study-id SYN-0001 --db http://127.0.0.1:8705
 ```

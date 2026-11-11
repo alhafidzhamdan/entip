@@ -11,9 +11,9 @@
 
 Labels with a classifier score carry it as a sample weight, so borderline calls count less.
 
-Limits to keep in mind when reading the numbers: the threshold is chosen and its error measured on the same
-OOF predictions (the Wilson bound does not correct for that choice), and everything is TCGA. An external
-set (Edinburgh) is the real test.
+Limits to keep in mind when reading the numbers: the thresholds were measured on single fold members while
+the ensemble is deployed, and everything is TCGA. An external set (Edinburgh) is the real test. With the
+exact bound in ``selective_threshold``, no call is accepted at a 5% error limit before 59 error-free cases.
 """
 from __future__ import annotations
 
