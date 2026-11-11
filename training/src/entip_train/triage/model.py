@@ -292,6 +292,21 @@ class TriageModel:
                 "attention": self.mil.attention(bag.features), "distance": dist,
                 "novel": bool(dist is not None and dist > self.novelty.threshold)}
 
+    def calibration(self) -> dict:
+        """The contract's calibration block: how the confidence was calibrated and whether the threshold met
+        its error target. "Held-out" here means out-of-fold patients in cross-validation on the training
+        sources, not an external cohort."""
+        g = self.report.get("cv", {}).get("gate") or {}
+        out = {"method": "temperature", "calibrated": bool(self.report.get("cv")),
+               "validated": bool(g.get("n_accepted"))}
+        if g.get("max_error") is not None:
+            out["max_error"] = float(g["max_error"])
+        if g.get("n_accepted"):
+            out["error_upper"], out["coverage"] = float(g["error_upper"]), float(g["coverage"])
+        if g.get("n") is not None:
+            out["n_heldout"] = int(g["n"])
+        return out
+
     def records(self, bags: Sequence[Bag], study_id: str) -> List[dict]:
         """Contract records (entip.glioma_step/1) for one patient: ``adequacy`` and ``tissue_class``.
 
@@ -316,6 +331,7 @@ class TriageModel:
                 "confidence": 1.0 if clear else 0.5, "threshold": 0.9,
                 "status": "confident" if clear else "uncertain",
                 "probabilities": {}, "value": val,
+                "calibration": {"method": "rule", "calibrated": False, "validated": False},
                 "evidence": [{"kind": "scan", "id": s} for s in scan_ids],
                 "order_test": None if (clear and adequate) else "additional_sampling",
                 "reasons": [f"{area:.2f} mm² of tissue tiles (rule: at least {cfg.min_area_mm2} mm²); "
@@ -372,7 +388,7 @@ class TriageModel:
                     "confidence": round(conf, 4), "threshold": round(min(self.threshold, 1.0), 4),
                     "status": "confident" if confident else "uncertain",
                     "probabilities": {c: round(float(v), 4) for c, v, t in zip(CLASSES, p, self.trained) if t},
-                    "value": value, "evidence": evidence, "order_test": order, "reasons": reasons,
+                    "calibration": self.calibration(), "value": value, "evidence": evidence, "order_test": order, "reasons": reasons,
                     "model": model, "provenance": prov})
         return out
 

@@ -226,6 +226,10 @@ def test_records_follow_step5_contract(trained, tmp_path):
     assert [r["finding"] for r in recs] == ["adequacy", "tissue_class"]
     tc = recs[1]
     assert set(tc["probabilities"]) == {"normal_brain", "glioma", "other_primary_cns", "metastasis"}
+    cal = tc["calibration"]
+    assert cal["method"] == "temperature" and cal["calibrated"] and cal["n_heldout"] == m.report["n_patients"]
+    assert cal["validated"] == (m.threshold <= 1.0) and cal["max_error"] == m.cfg.max_error
+    assert recs[0]["calibration"] == {"method": "rule", "calibrated": False, "validated": False}
     assert tc["status"] in ("confident", "uncertain") and len(tc["evidence"]) == m.cfg.top_k
     assert '"site"' not in json.dumps(recs) and '"age"' not in json.dumps(recs)
     if tc["call"] != "glioma" or tc["status"] == "uncertain":

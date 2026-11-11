@@ -75,7 +75,8 @@ focus measure. H-optimus-0 itself has not been run: the cloud sessions cannot re
 
 **What it outputs.** Two records per patient in the step 5 contract (`entip.glioma_step/1`, `dx/contract/`):
 `adequacy` (tissue area rule; 1 mm² is a placeholder to set; focus is reported, not judged) and `tissue_class`
-(call, calibrated confidence, threshold, status, probabilities, p_tumour / p_glial, per-scan results, top
+(call, calibrated confidence, threshold, status, probabilities, a `calibration` block saying how the
+confidence was calibrated and whether the threshold met its error target, p_tumour / p_glial, per-scan results, top
 attention tiles as evidence, `order_test`). `predict --db` writes a `glioma_step` event, a whole-tissue `roi`
 region per scan with that scan's call, the top tiles as `tile` regions, and predictions on those regions.
 The model row is written once, at `train --db` or the first `predict --db`, with status `draft`; scoring
