@@ -1,0 +1,60 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pillars:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: entip
+          POSTGRES_PASSWORD: entip     # throwaway test server, synthetic data only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U entip"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      ENTIP_TEST_ADMIN_DSN: postgresql://entip:entip@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: "*/pyproject.toml"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install the pillars
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "db[test]" -e "fork[test]" -e "spatial[test,parquet]" -e "training[api,dev]" pillow
+      - name: Database (pillar 5)
+        run: python -m pytest -q -rs db
+      - name: Fork (pillar 1)
+        run: python -m pytest -q -rs fork
+      - name: Training (pillar 2)
+        run: python -m pytest -q -rs training
+      - name: Spatial (pillar 3)
+        run: python -m pytest -q -rs spatial
+      - name: GUI (pillar 4)
+        run: |
+          node --test gui/tests/*.test.js
+          python -m pytest -q -rs gui/tests
