@@ -272,6 +272,20 @@ def new_action_id() -> str:
     return f"act_{uuid.uuid4().hex}"
 
 
+def _replay(conn, action_id: str, verb: str, object_type: str | None) -> dict | None:
+    """The stored result of an action already applied under this id, for a safe retry."""
+    a = conn.execute("SELECT verb, object_type FROM entip.action WHERE action_id = %s", (action_id,)).fetchone()
+    if a is None:
+        return None
+    if a["verb"] != verb or a["object_type"] != object_type:
+        raise EntipError(f"action_id {action_id} was already used for a different action "
+                         f"({a['verb']} {a['object_type'] or ''}); use a new id".replace(" )", ")"))
+    c = conn.execute("SELECT count(*) AS c, coalesce(sum(n_rows), 0) AS n FROM entip.change WHERE action_id = %s",
+                     (action_id,)).fetchone()
+    return {"action_id": action_id, "verb": verb, "object_type": object_type, "n": int(c["n"]),
+            "changes": int(c["c"]), "replayed": True}
+
+
 def _key_where(table: Table, rec: dict) -> tuple[sql.Composed, list]:
     missing = [k for k in table.pk if k not in rec]
     if missing:
@@ -381,20 +395,6 @@ def _apply_batch(conn, table: Table, verb: str, records: list[dict], prov: dict)
     if verb == "delete":
         return _delete(conn, table, records)
     raise EntipError(f"unknown verb {verb}")
-
-
-def _replay(conn, action_id: str, verb: str, object_type: str | None) -> dict | None:
-    """The stored result of an action already applied under this id, for a safe retry."""
-    a = conn.execute("SELECT verb, object_type FROM entip.action WHERE action_id = %s", (action_id,)).fetchone()
-    if a is None:
-        return None
-    if a["verb"] != verb or a["object_type"] != object_type:
-        raise EntipError(f"action_id {action_id} was already used for a different action "
-                         f"({a['verb']} {a['object_type'] or ''}); use a new id".replace(" )", ")"))
-    c = conn.execute("SELECT count(*) AS c, coalesce(sum(n_rows), 0) AS n FROM entip.change WHERE action_id = %s",
-                     (action_id,)).fetchone()
-    return {"action_id": action_id, "verb": verb, "object_type": object_type, "n": int(c["n"]),
-            "changes": int(c["c"]), "replayed": True}
 
 
 def apply_action(conn: psycopg.Connection, *, verb: str, object_type: str | None, records: Iterable[dict] = (),
