@@ -3,6 +3,8 @@
 Three actions per patient, each with its own ``action_id`` so retries are safe:
 
 1. ``upsert`` the model row (status ``draft``: a model only becomes champion through a gated round).
+   ``post_actions`` skips this when the model is already registered, so a later prediction never resets a
+   promoted model back to ``draft``.
 2. ``create`` a ``genomic_finding`` with marker ``methylation_class_ai`` (kind ``class``) and the evidence tiles
    as ``region`` rows labelled ``methylation_attention``. The ``_ai`` marker keeps the AI value apart from
    a real array result in ``patient_row``; the rules engine ignores ``_ai`` markers.
@@ -12,6 +14,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import urllib.error
+import urllib.parse
 import urllib.request
 from typing import List
 
@@ -33,7 +37,7 @@ def build_actions(record: dict, model: MethylationModel) -> List[dict]:
                  "status": "draft", "version": model.version, "metrics": model.metrics, "licence": model.licence,
                  "meta": {"step": "methylation_class", "label_source": model.label_source,
                           "class_threshold": model.class_threshold, "family_threshold": model.family_threshold,
-                          "temperature": model.temperature}}
+                          "temperatures": model.temperatures, "ensemble": len(model.members)}}
     acts = [{"action_id": f"act_mc_model_{_id(model.model_id, model.version)}", "verb": "upsert",
              "object_type": "model", "provenance": prov, "records": [model_row], "detail": {}}]
 
@@ -63,12 +67,29 @@ def build_actions(record: dict, model: MethylationModel) -> List[dict]:
     return acts
 
 
+def _exists(base_url: str, object_type: str, object_id: str, timeout: float) -> bool:
+    url = f"{base_url.rstrip('/')}/objects/{object_type}/{urllib.parse.quote(object_id, safe='')}"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout):
+            return True
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        raise
+
+
 def post_actions(base_url: str, actions: List[dict], timeout: float = 30.0) -> List[dict]:
     out = []
     for a in actions:
+        if a.get("object_type") == "model" and _exists(base_url, "model", a["records"][0]["model_id"], timeout):
+            continue
         body = {k: v for k, v in a.items() if v is not None}
         req = urllib.request.Request(base_url.rstrip("/") + "/actions", data=json.dumps(body).encode(),
                                      headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            out.append(json.loads(r.read() or b"{}"))
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                out.append(json.loads(r.read() or b"{}"))
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"db refused action {a.get('action_id')} ({a.get('verb')}): "
+                               f"{e.code} {e.read().decode(errors='replace')[:500]}") from e
     return out

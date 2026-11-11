@@ -64,7 +64,7 @@ def test_reference_classifier_labels_and_refuses_low_coverage():
     ids, cpgs, X, y = synthetic_betas(classes, n_per_class=15, seed=0)
     clf = ReferenceClassifier(n_cpgs=200, n_trees=100).fit(X, cpgs, y)
     tid, _, TX, ty = synthetic_betas(classes, n_per_class=5, seed=1)
-    labs = clf.label(tid, TX, cpgs, min_score=0.6)
+    labs = clf.label(tid, TX, cpgs)                       # default cut-off 0.9, on calibrated scores
     assert len(labs) >= 12
     assert all(l.cls == t for l in labs for i, t in zip(tid, ty) if l.case_id == i)
     with pytest.raises(ValueError):
@@ -238,3 +238,130 @@ def test_cli_train_and_predict_from_files(tmp_path, capsys):
                  "--bags", str(tmp_path / "bags" / f"{data[0][1].scan_id}.npz")]) == 0
     rec = json.loads(capsys.readouterr().out)
     _validate(rec)
+
+
+# ---------------------------------------------------------------- third pass
+
+def test_calibrated_scores_reach_the_cutoff_where_raw_votes_do_not():
+    """With many similar classes raw forest votes sit well under 0.9; the calibrated score is what the 0.9
+    cut-off of Capper et al. applies to."""
+    rng = np.random.default_rng(0)
+    classes = [f"c{i}" for i in range(12)]
+    cpgs = [f"cg{i:08d}" for i in range(300)]
+    centres = rng.beta(2, 2, (12, 300))
+
+    def draw(n):
+        y = np.repeat(np.arange(12), n)
+        return np.clip(centres[y] + rng.normal(0, 0.22, (len(y), 300)), 0, 1).astype(np.float32), y
+
+    X, y = draw(20)
+    clf = ReferenceClassifier(n_cpgs=300, n_trees=200).fit(X, cpgs, [classes[i] for i in y])
+    TX, ty = draw(5)
+    raw = clf.model.predict_proba(clf._align(TX, cpgs)[0])
+    cal, _ = clf.predict_proba(TX, cpgs)
+    assert (raw.max(1) >= 0.9).mean() < 0.2 < 0.6 < (cal.max(1) >= 0.9).mean()
+    hi = cal.max(1) >= 0.9
+    assert (np.array(clf.classes)[cal.argmax(1)][hi] == np.array(classes)[ty][hi]).mean() > 0.95
+    assert clf.oob["n"] == len(y) and clf.oob["accuracy"] > 0.9
+
+
+def test_reference_classifier_skips_snp_probes_and_gappy_samples():
+    classes = ["A IDH", "O IDH"]
+    ids, cpgs, X, y = synthetic_betas(classes, n_per_class=15, seed=0)
+    cpgs = ["rs0000001", "ch.1.0000001F"] + cpgs[2:]
+    clf = ReferenceClassifier(n_cpgs=100, n_trees=50, exclude=[cpgs[5]]).fit(X, cpgs, y)
+    assert not {"rs0000001", "ch.1.0000001F", cpgs[5]} & set(clf.cpgs)
+    TX = X[:4].copy()
+    TX[0, :] = np.nan                                      # a failed array
+    labs = clf.label(ids[:4], TX, cpgs, min_score=0.5)
+    assert ids[0] not in {l.case_id for l in labs} and len(labs) == 3
+
+
+def test_all_diagnostic_slides_of_a_case_are_paired():
+    slides = ["TCGA-06-0125-01Z-00-DX2.b.svs", "TCGA-06-0125-01Z-00-DX1.a.svs", "TCGA-06-0125-01A-01-BS1.c.svs"]
+    pairs = pair_slides(slides, ["TCGA-06-0125-01A-11D.txt"])
+    assert [p.slide for p in pairs] == sorted(slides[:2])
+
+
+def test_model_is_the_ensemble_of_tested_fold_members(trained, tmp_path):
+    m, data = trained
+    assert len(m.members) == m.metrics["folds"] == len(m.temperatures) == 5
+    f = [data[0][1].features]
+    single = [mm.predict_proba(f, temperature=t) for mm, t in zip(m.members, m.temperatures)]
+    assert np.allclose(m.proba(f), np.mean(single, axis=0))
+    m2 = MethylationModel.load(m.save(tmp_path / "ens"))
+    assert len(m2.members) == 5 and m2.novelty.threshold == pytest.approx(m.novelty.threshold)
+    assert m2.predict([data[0][1]], "SYN-0001") == m.predict([data[0][1]], "SYN-0001")
+
+
+def test_unfamiliar_slide_is_no_match(trained):
+    m, data = trained
+    flagged = sum(m.predict([b], "SYN-0001")["call"] == "no_match" for _, b, _ in data)
+    assert flagged <= 0.05 * len(data)                     # training-like slides are rarely flagged
+    b = data[0][1]
+    odd = Bag(b.scan_id, b.features + 4.0, b.coords_um, b.tile_um, b.encoder, b.tissue_frac)
+    rec = m.predict([odd], "SYN-0001")
+    assert rec["call"] == "no_match" and rec["status"] == "uncertain"
+    assert rec["order_test"] == "methylation_array" and rec["probabilities"] == {}
+    _validate(rec)
+    acts = build_actions(rec, m)
+    assert [r["result"] for r in acts[1]["records"]] == ["no_match"]
+
+
+def test_subclass_is_not_named_when_the_family_is_unsure(trained):
+    m, data = trained
+    m2 = MethylationModel(**{**m.__dict__, "family_threshold": 1.01, "class_threshold": 0.0})
+    rec = m2.predict([data[0][1]], "SYN-0001")
+    assert rec["status"] == "uncertain" and rec["value"]["class"] is None
+    m3 = MethylationModel(**{**m.__dict__, "family_threshold": 0.0, "class_threshold": 0.0})
+    assert m3.predict([data[0][1]], "SYN-0001")["value"]["class"] in DEFAULT_CLASSES
+
+
+def test_per_family_report(trained):
+    m, _ = trained
+    pf = m.metrics["per_family"]
+    assert set(pf) == set(DEFAULT_CLASSES.values())
+    assert all(0 <= v["confident_share"] <= 1 and v["confident_errors"] <= v["n"] for v in pf.values())
+
+
+def test_post_actions_keeps_a_registered_model(trained):
+    """A second prediction must not reset a model that has since been promoted back to draft."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from entip_train.methylation.db import post_actions
+    m, data = trained
+    seen, models = [], set()
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            ok = self.path.rsplit("/", 1)[-1] in models
+            self.send_response(200 if ok else 404)
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            seen.append(body)
+            if body.get("object_type") == "model":
+                models.add(body["records"][0]["model_id"])
+            bad = body["verb"] == "boom"
+            self.send_response(422 if bad else 200)
+            self.end_headers()
+            self.wfile.write(b'{"detail": "nope"}' if bad else b'{"ok": true}')
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_port}"
+    try:
+        acts = build_actions(m.predict([data[0][1]], "SYN-0001"), m)
+        post_actions(url, acts)
+        post_actions(url, build_actions(m.predict([data[1][1]], "SYN-0002"), m))
+        assert [b["verb"] for b in seen] == ["upsert", "create", "glioma_step", "create", "glioma_step"]
+        assert "object_type" not in seen[1]                 # mixed records: each names its own type
+        with pytest.raises(RuntimeError, match="nope"):
+            post_actions(url, [{"action_id": "a", "verb": "boom", "provenance": {}}])
+    finally:
+        srv.shutdown()

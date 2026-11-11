@@ -35,6 +35,7 @@ def add_parser(sub) -> None:
     lb.add_argument("--ref-labels", help="CSV sample_id,class for the reference set")
     lb.add_argument("--target-betas", help="folder of target beta files")
     lb.add_argument("--target-sheet", help="GDC sample sheet mapping target file names to barcodes")
+    lb.add_argument("--exclude-probes", help="text file of probe ids to leave out (sex chromosomes, SNP-affected)")
     lb.add_argument("--min-score", type=float, default=0.9)
     lb.add_argument("--out", required=True)
     lb.set_defaults(fn=label)
@@ -99,6 +100,8 @@ def _read_folder(folder: str, sheet: str | None = None):
     out = {}
     for p in sorted(Path(folder).rglob("*.txt")):
         b = parse(names.get(p.name, p.name))
+        if b and b[1] != "01":
+            continue                                   # primary tumour only, to match the diagnostic slide
         out.setdefault(b[0] if b else p.stem, read_beta_file(p))
     return out
 
@@ -112,7 +115,9 @@ def label(args) -> int:
         with open(args.ref_labels, newline="") as f:
             y = {r["sample_id"]: r["class"] for r in csv.DictReader(f)}
         ids, cpgs, X = stack_betas({k: v for k, v in ref.items() if k in y})
-        clf = ReferenceClassifier().fit(X, cpgs, [y[i] for i in ids])
+        ex = Path(args.exclude_probes).read_text().split() if args.exclude_probes else None
+        clf = ReferenceClassifier(exclude=ex).fit(X, cpgs, [y[i] for i in ids])
+        print(f"reference classifier, out-of-bag: {json.dumps(clf.oob)}")
         tids, tcpgs, TX = stack_betas(_read_folder(args.target_betas, args.target_sheet), cpgs)
         labs = clf.label(tids, TX, tcpgs, args.min_score)
     with open(args.out, "w", newline="") as f:

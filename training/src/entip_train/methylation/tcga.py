@@ -2,7 +2,9 @@
 
 TCGA barcodes: ``TCGA-TSS-PART-STV-...``. The first 12 characters are the case (patient), characters 14-15
 are the sample type (01 = primary solid tumour, 02 = recurrent), and ``TSS`` is the tissue source site.
-Diagnostic slides are the FFPE ones with ``DX`` in the slide part (e.g. ``...-01Z-00-DX1``).
+Diagnostic slides are the FFPE ones with ``DX`` in the slide part (e.g. ``...-01Z-00-DX1``). The methylation
+array was run on a different piece of the same tumour (the ``01A``-style portion), so slide and label match
+at tumour level, not at tissue-piece level: some label noise is expected in heterogeneous tumours.
 
 Cross-validation groups by tissue source site so a model is never tested on slides from a site it trained on
 (slides from one site share staining and scanning).
@@ -70,21 +72,21 @@ def read_sample_sheet(path: str) -> Dict[str, str]:
 
 def pair_slides(slides: Iterable[str], methylation: Iterable[str], sample_types: Sequence[str] = ("01",),
                 sample_of: Optional[Dict[str, str]] = None) -> List[Pair]:
-    """One pair per case: the first diagnostic slide and the first methylation sample of the same sample type.
+    """One row per diagnostic slide of each case that also has a methylation sample of the same sample type
+    (the first one, by file name). A case with DX1 and DX2 gives two rows; training pools them into one bag.
     ``sample_of`` maps methylation file names to barcodes (from ``read_sample_sheet``) when the names lack them."""
     meth: Dict[tuple, str] = {}
-    for f in methylation:
+    for f in sorted(methylation):
         p = parse(sample_of.get(f, f) if sample_of else f)
         if p and p[1] in sample_types:
             meth.setdefault(p, f)
-    out, seen = [], set()
-    for s in sorted(slides):
+    out = []
+    for s in sorted(set(slides)):
         p = parse(s)
-        if not p or p[1] not in sample_types or not is_diagnostic(s) or p[0] in seen:
+        if not p or p[1] not in sample_types or not is_diagnostic(s):
             continue
         m = meth.get(p)
         if m:
-            seen.add(p[0])
             out.append(Pair(p[0], s, m, p[1], site_of(p[0])))
     return out
 
