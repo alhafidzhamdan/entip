@@ -276,3 +276,35 @@ def test_real_step_outputs_run_through_the_engine():
     jsonschema.validate(out, json.loads((Path(__file__).resolve().parents[1] / "contract" /
                                          "integrated_dx.schema.json").read_text()))
     assert out["integrated_diagnosis"]["status"] in contract.DX_STATUSES
+
+
+def test_ai_only_type_defining_marker_gets_confirmed():
+    recs = GLIOMA + [ai("IDH", "mutant"), ai("1p19q", "not_codeleted"), ai("CDKN2A", "homozygous_deletion")]
+    out = diagnose(recs)
+    assert out["integrated_diagnosis"]["text"] == "Astrocytoma, IDH-mutant, CNS WHO grade 4"
+    assert out["integrated_diagnosis"]["status"] == "provisional"
+    assert {"IDH1_R132H_IHC", "1p19q_testing", "CDKN2A_B_testing"} <= orders(out)
+    alone = diagnose(recs, confirm_ai=False)
+    assert alone["integrated_diagnosis"]["status"] == "complete" and not orders(alone) - {"MGMT_promoter_methylation"}
+
+
+def test_ai_wildtype_h3_is_accepted_without_a_test():
+    out = diagnose(GLIOMA + [lab("IDH", "wildtype"), ai("H3K27", "wildtype"), ai("H3G34", "wildtype"),
+                             ai("necrosis", "present")])
+    assert out["integrated_diagnosis"]["status"] == "complete"
+    assert set(out["ai_decisive"]) == {"H3G34", "H3K27", "necrosis"}
+
+
+def test_ihc_exception_uses_the_prior_but_never_states_it():
+    recs = GLIOMA + H3WT + [lab("IDH", "wildtype", "IHC"), ai("necrosis", "present")]
+    out = diagnose(recs, priors={"age_years": 67})
+    assert out["integrated_diagnosis"]["status"] == "complete" and "IDH_sequencing" not in orders(out)
+    assert "67" not in json.dumps(out) and "aged" not in out["report_text"]
+    assert "IDH_sequencing" in orders(diagnose(recs, priors={"age_years": 40}))
+
+
+def test_orders_keep_separate_reasons_and_skip_not_assessed():
+    out = diagnose([ai("adequacy", "adequate", conf=0.5), ai("tissue_class", "lymphoma"),
+                    ai("IDH", "mutant", status="not_assessed")])
+    assert [o["finding"] for o in out["orders"]] == ["adequacy", "tissue_class"]
+    assert out["layers"]["molecular"] == []
