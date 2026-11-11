@@ -9,7 +9,8 @@ Order of actions for one specimen:
   5. ``glioma_step``     event with ``detail = {study_id, records}`` in the step-5 contract; the rules engine
                          reads these from ``GET /patients/{study_id}/actions``
 
-Region, cell and focus ids are stable for a given model and bag, so re-running replaces rather than duplicates.
+Region and focus ids carry the model id and the tile's grid position, so re-running one model replaces its
+rows and a new model version never overwrites an older one's.
 """
 from __future__ import annotations
 
@@ -20,7 +21,8 @@ from typing import Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
 
-from .bags import TileBag
+from ..wsi.bags import Bag
+from .bags import tile_ids
 from .contract import FeatureResult
 
 PROGRAM = {"kind": "program", "actor": "entip-train highgrade"}
@@ -39,13 +41,13 @@ def _act(verb, object_type, records, provenance, detail=None) -> dict:
             "detail": detail or {}}
 
 
-def region_records(result: FeatureResult, bag: TileBag, tile_p: np.ndarray, tile_threshold: float):
+def region_records(result: FeatureResult, bag: Bag, tile_p: np.ndarray, tile_threshold: float):
     """Tile and focus regions plus their predictions, for one scan."""
     regions, preds = [], []
-    ids = bag.tile_ids()
+    ids = tile_ids(bag)
     src = f"model:{result.model_id}"
     for i in np.flatnonzero(tile_p >= tile_threshold):
-        rid = f"{ids[i]}:{result.finding}"
+        rid = f"{ids[i]}:{result.model_id}"
         x, y = bag.coords_um[i]
         regions.append({"region_id": rid, "scan_id": bag.scan_id, "kind": "tile", "label": result.finding,
                         "x_um": float(x), "y_um": float(y), "w_um": bag.tile_um, "h_um": bag.tile_um,

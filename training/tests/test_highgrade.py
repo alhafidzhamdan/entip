@@ -9,19 +9,25 @@ import pytest
 from entip_train.encoders import HandcraftedEncoder
 from entip_train.highgrade.actions import build_actions
 from entip_train.highgrade.assess import assess_specimen
-from entip_train.highgrade.bags import TileBag, embed_bag, load_bag, save_bag
+from entip_train.highgrade.bags import tile_ids
 from entip_train.highgrade.contract import CALLS, CONTRACT
 from entip_train.highgrade.mitoses import MitosisConfig, MitosisCounter, p_at_least
 from entip_train.highgrade.regions import RegionConfig, RegionDetector, tile_labels
 from entip_train.highgrade.synthetic import synthetic_gbm
+from entip_train.wsi.bags import Bag, extract_bag
 
 ENC = HandcraftedEncoder()
 FEATS = {"necrosis": "necrosis_polys", "microvascular_proliferation": "mvp_polys"}
 
 
 def _bag(**kw):
-    s = synthetic_gbm(tiles=12, **kw)
-    return s, embed_bag(s.scan, s.reader, ENC)
+    s = synthetic_gbm(tiles=10, **kw)
+    return s, extract_bag(s.reader, s.scan.scan_id, s.scan.width_um, s.scan.height_um, ENC)
+
+
+def _like(b, scan_id="X", features=None, n=None, encoder=None):
+    f = b.features if features is None else features
+    return Bag(scan_id, f[:n], b.coords_um[:n], b.tile_um, encoder or b.encoder, b.tissue_frac[:n])
 
 
 @pytest.fixture(scope="module")
@@ -32,11 +38,18 @@ def train_set():
 
 
 @pytest.fixture(scope="module")
-def detectors(train_set):
+def held_out():
+    return [_bag(scan_id=f"SCN-SYN-CAL-{i}", seed=50 + i, necrosis=i % 2, mvp=2 * (i % 2)) for i in range(8)]
+
+
+@pytest.fixture(scope="module")
+def detectors(train_set, held_out):
     dets = {}
     for f, attr in FEATS.items():
         labels = [tile_labels(b, getattr(s, attr), s.tumour_polys) for s, b in train_set]
-        dets[f] = RegionDetector(RegionConfig(f, validated=True)).fit([b for _, b in train_set], labels)
+        det = RegionDetector(RegionConfig(f, validated=True)).fit([b for _, b in train_set], labels)
+        det.calibrate_slides([[b] for _, b in held_out], [i % 2 for i in range(len(held_out))])
+        dets[f] = det
     return dets
 
 
@@ -60,7 +73,23 @@ def test_mitotic_activity_calls(ps, call):
     assert r.call == call
     assert (r.status == "confident") == (call != "indeterminate")
     assert (r.order_test == "pathologist_review") == (call == "indeterminate")
-    assert r.evidence[0]["weight"] == max(ps)
+    counted = [p for p in ps if p >= 0.2]                       # the floor for tables without a MitoEd call
+    assert r.value["n_counted"] == len(counted) and r.value["n_candidates"] == len(ps)
+    assert [e["weight"] for e in r.evidence[:1]] == sorted(counted)[-1:]
+
+
+def test_many_mimics_do_not_add_up_to_a_count(tmp_path):
+    """5,000 low-p candidates must not read as elevated; MitoEd's own mimic call removes them."""
+    from entip_train.highgrade.mitoses import read_mitoed_cells
+    rows = ["x_px,y_px,p_mitosis,p_std,call,x_um,y_um,slide"]
+    rows += [f"{i},{i},0.02,0,mimic,{i * 0.5},{i * 0.5},s" for i in range(5000)]
+    rows += ["9,9,0.45,0,uncertain,4.5,4.5,s"]
+    f = tmp_path / "cells.csv"
+    f.write_text("\n".join(rows) + "\n")
+    cands = read_mitoed_cells(f, "S")
+    counter = MitosisCounter(MitosisConfig(validated=True))
+    r = counter.assess(cands, ["S"], tissue_mm2=50.0)
+    assert r.call == "absent" and r.value["n_counted"] == 1 and len(counter.counted(cands)) == 1
 
 
 def test_small_biopsy_lowers_cutoff_and_unvalidated_is_uncertain():
@@ -92,6 +121,22 @@ def test_region_detector_finds_feature(detectors, feature):
                e["y_um"] - 112 <= cy <= e["y_um"] + e["h_um"] + 112 for cx, cy in cents)
 
 
+def test_slide_calibration(train_set, held_out):
+    three = train_set[:3]                                        # every slide has both classes
+    labels = [tile_labels(b, s.necrosis_polys, s.tumour_polys) for s, b in three]
+    det = RegionDetector(RegionConfig("necrosis", validated=True)).fit([b for _, b in three], labels)
+    assert "grouped by slide" in det.metrics["tile_calibration"]
+    before = det.model_id
+    r, _ = det.assess([held_out[1][1]])                          # not calibrated yet: never confident
+    assert r.status == "uncertain" and any("not calibrated" in x for x in r.reasons)
+    with pytest.raises(ValueError):
+        det.calibrate_slides([[held_out[0][1]]], [0])
+    info = det.calibrate_slides([[b] for _, b in held_out], [i % 2 for i in range(len(held_out))])
+    assert info["threshold_from"] == "config" and det.model_id != before   # too few slides to set a threshold
+    r, _ = det.assess([held_out[1][1]])
+    assert r.status == "confident" and r.call == "present" and r.model_id == det.model_id
+
+
 def test_features_are_specific(detectors):
     _, b = _bag(scan_id="SCN-SYN-T3", seed=103, necrosis=1, mvp=0)
     nec, _ = detectors["necrosis"].assess([b])
@@ -103,13 +148,12 @@ def test_guards(detectors, train_set):
     det = detectors["necrosis"]
     _, b = train_set[0]
     with pytest.raises(ValueError):
-        det.assess([TileBag("X", b.features, b.coords_um, b.tile_um, b.mpp, "h-optimus-0@other")])
-    tiny = TileBag("X", b.features[:5], b.coords_um[:5], b.tile_um, b.mpp, b.encoder_version)
+        det.assess([_like(b, encoder="h-optimus-0@other")])
+    tiny = _like(b, n=5)
     r, _ = det.assess([tiny])
     assert r.status == "uncertain" and any("tissue tiles" in x for x in r.reasons)
     rng = np.random.default_rng(0)
-    odd = TileBag("X", b.features + rng.normal(0, 50, b.features.shape), b.coords_um, b.tile_um, b.mpp,
-                  b.encoder_version)
+    odd = _like(b, features=b.features + rng.normal(0, 50, b.features.shape).astype(np.float32))
     r, _ = det.assess([odd])
     assert r.status == "uncertain" and any("unlike the training" in x for x in r.reasons)
     unvalidated = RegionDetector(RegionConfig("necrosis"))
@@ -123,8 +167,9 @@ def test_save_load_roundtrip(detectors, train_set, tmp_path):
     _, b = train_set[1]
     det2 = RegionDetector.load(det.save(tmp_path / "mvp.joblib"))
     assert np.allclose(det.tile_p(b), det2.tile_p(b)) and det2.model_id == det.model_id
-    b2 = load_bag(save_bag(b, tmp_path / "b.npz"))
-    assert np.allclose(b2.features, b.features) and b2.tile_ids() == b.tile_ids()
+    b2 = Bag.load(b.save(tmp_path / "b.npz"))                    # the step-1 file format (float16 on disk)
+    assert tile_ids(b2) == tile_ids(b) and np.allclose(det.tile_p(b2), det.tile_p(b), atol=0.02)
+    assert det2.threshold == det.threshold and det2.slide_cal == det.slide_cal
 
 
 # ---------------------------------------------------------------- contract and database actions
