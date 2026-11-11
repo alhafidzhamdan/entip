@@ -20,7 +20,7 @@ A switched-off marker is still reported, as `not_assessed`.
    A call is accepted only where two upper 95% bounds hold: the wrong-call rate among accepted calls of that
    class is within `max_error` (default 5%), and the share of patients of the *other* class accepted as that
    call is within `max_miss` (default 5%). The second rule stops a model passing on a rare alteration by
-   calling everyone "wildtype". It also means a negative call cannot be accepted until at least 52 altered
+   calling everyone "wildtype". It also means a negative call cannot be accepted until at least 59 altered
    patients have been seen with none missed. The search runs from the most confident call downward and stops
    at the first failure. A call with no threshold always orders the test.
 4. **Gates at prediction time**: same encoder and tile size as training; at least `min_tiles` tissue tiles;

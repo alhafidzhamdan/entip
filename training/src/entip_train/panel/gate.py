@@ -3,13 +3,13 @@
 A single "error among accepted calls <= 5%" rule is not safe for rare alterations: if 3% of tumours carry an
 alteration, a model that confidently says "wildtype" for everyone is 97% right and would pass, while missing
 every altered case. So a call of class c is accepted only above a threshold where BOTH hold, each as an upper
-95% bound (Wilson, one-sided) on out-of-fold predictions:
+95% bound (exact Clopper-Pearson, one-sided, the same bound as ``wsi.calibrate``) on out-of-fold predictions:
 
 * wrong-call rate: among accepted calls of c, the share that are wrong, is within ``max_error``;
 * miss rate: among patients whose true class is NOT c, the share accepted as c, is within ``max_miss``.
 
 The second rule means a negative call can never be accepted until enough altered patients have been seen:
-with zero misses, the bound only drops under 5% from 52 altered patients upward (2.706 / (n + 2.706) <= 0.05).
+with zero misses, the bound only drops to 5% from 59 altered patients upward (1 - 0.05 ** (1 / n) <= 0.05).
 
 Thresholds are searched from the most confident call downward, starting where enough calls exist for the bound
 to be reachable at all, and the search stops at the first cut that fails, so the bound is not picked as the best
@@ -21,7 +21,7 @@ from typing import Dict
 
 import numpy as np
 
-from ..wsi.calibrate import wilson_upper
+from ..wsi.calibrate import exact_upper as _upper
 
 NEVER = 1.01          # a threshold no confidence reaches: always order the test
 
@@ -42,9 +42,9 @@ def class_threshold(conf: np.ndarray, pred: np.ndarray, y: np.ndarray, c: int, m
         errs += int(y[i] != c)
         if k < len(order) and conf[order[k]] == conf[i]:
             continue                                     # only cut between distinct confidence values
-        if k < min_accepted or wilson_upper(0, k) > max_error:
+        if k < min_accepted or _upper(0, k) > max_error:
             continue                                     # too few calls to pass even with no errors
-        e_ub, m_ub = wilson_upper(errs, k), wilson_upper(errs, n_other)
+        e_ub, m_ub = _upper(errs, k), _upper(errs, n_other)
         if e_ub > max_error or m_ub > max_miss:
             break                                        # first failure ends the search
         best.update(threshold=float(conf[i]), n_accepted=k, coverage=k / max(1, len(y)), error=errs / k,

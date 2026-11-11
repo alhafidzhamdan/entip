@@ -69,7 +69,7 @@ def test_gate_refuses_always_negative_on_rare_marker():
 
 def test_gate_needs_enough_patients_of_the_other_class():
     rng = np.random.default_rng(0)
-    for n_alt, ok in ((30, False), (80, True)):           # zero misses: bound <= 5% needs 52 or more
+    for n_alt, ok in ((30, False), (80, True)):           # zero misses: bound <= 5% needs 59 or more
         y = np.array([1] * n_alt + [0] * 300)
         pred = y.copy()                                     # a perfect classifier
         conf = rng.uniform(0.9, 1.0, len(y))
