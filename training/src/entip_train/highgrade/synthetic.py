@@ -62,7 +62,7 @@ def synthetic_gbm(scan_id: str = "SCN-SYN-GBM-01", seed: int = 0, tiles: int = 2
         cx, cy = rng.uniform(r, tissue_w - r), rng.uniform(r, H - r)
         m = (xx - cx) ** 2 + (yy - cy) ** 2 < r ** 2
         nec_mask |= m
-        img[m] = img[m] * 0.35 + np.array([246, 214, 214]) * 0.65
+        img[m] = img[m] * 0.35 + np.array([236, 188, 200]) * 0.65
         for _ in range(int(r * r / 40)):                          # nuclear dust
             a, d = rng.uniform(0, 2 * np.pi), r * np.sqrt(rng.uniform(0, 1))
             _disc(img, yy, xx, cx + d * np.cos(a), cy + d * np.sin(a), rng.uniform(0.8, 1.6), (90, 40, 110))

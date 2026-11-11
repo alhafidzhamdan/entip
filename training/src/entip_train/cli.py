@@ -1,5 +1,5 @@
 """Command line: ``entip-train demo`` (milestone check on a synthetic slide), ``entip-train serve``, and the
-step-2 high-grade feature commands ``highgrade-demo``, ``highgrade-train`` and ``highgrade``."""
+step-2 high-grade feature commands ``highgrade-demo``, ``highgrade-train``, ``highgrade-calibrate`` and ``highgrade``."""
 from __future__ import annotations
 
 import argparse
@@ -57,28 +57,35 @@ def serve(args) -> int:
     return 0
 
 
+def _synthetic_bag(scan_id, seed, enc, **kw):
+    from .highgrade.synthetic import synthetic_gbm
+    from .wsi.bags import extract_bag
+    s = synthetic_gbm(scan_id, seed=seed, tiles=10, **kw)
+    return s, extract_bag(s.reader, s.scan.scan_id, s.scan.width_um, s.scan.height_um, enc)
+
+
 def highgrade_demo(args) -> int:
-    """Train necrosis and MVP heads on synthetic slides, assess a synthetic specimen, print its records."""
+    """Train necrosis and MVP heads on synthetic slides, calibrate them on further synthetic slides, assess a
+    synthetic specimen and print its records."""
     from .encoders import get_encoder
     from .highgrade.actions import post_actions, write_jsonl
     from .highgrade.assess import assess_specimen
-    from .highgrade.bags import embed_bag
     from .highgrade.mitoses import MitosisConfig, MitosisCounter
     from .highgrade.regions import RegionConfig, RegionDetector, tile_labels
-    from .highgrade.synthetic import synthetic_gbm
 
     enc = get_encoder(args.encoder)
-    train = [synthetic_gbm(f"SCN-SYN-TR-{i}", seed=i, tiles=12, necrosis=int(i < 3), mvp=3 * int(i < 3))
-             for i in range(4)]
-    tbags = [embed_bag(s.scan, s.reader, enc) for s in train]
+    train = [_synthetic_bag(f"SCN-SYN-TR-{i}", i, enc, necrosis=int(i < 3), mvp=3 * int(i < 3)) for i in range(4)]
+    held = [_synthetic_bag(f"SCN-SYN-CAL-{i}", 50 + i, enc, necrosis=i % 2, mvp=2 * (i % 2)) for i in range(8)]
     dets = []
     for f, attr in (("necrosis", "necrosis_polys"), ("microvascular_proliferation", "mvp_polys")):
-        labels = [tile_labels(b, getattr(s, attr), s.tumour_polys) for s, b in zip(train, tbags)]
-        dets.append(RegionDetector(RegionConfig(f, validated=args.validated)).fit(tbags, labels))
-    s = synthetic_gbm(args.scan_id, seed=args.seed, tiles=12, necrosis=args.necrosis, mvp=args.mvp,
-                      mitoses=args.mitoses)
-    a = assess_specimen(args.study_id, [embed_bag(s.scan, s.reader, enc)], dets,
-                        MitosisCounter(MitosisConfig(validated=args.validated)), s.candidates)
+        labels = [tile_labels(b, getattr(s, attr), s.tumour_polys) for s, b in train]
+        det = RegionDetector(RegionConfig(f, validated=args.validated)).fit([b for _, b in train], labels)
+        det.calibrate_slides([[b] for _, b in held], [i % 2 for i in range(len(held))])
+        dets.append(det)
+    s, bag = _synthetic_bag(args.scan_id, args.seed, enc, necrosis=args.necrosis, mvp=args.mvp,
+                            mitoses=args.mitoses)
+    a = assess_specimen(args.study_id, [bag], dets, MitosisCounter(MitosisConfig(validated=args.validated)),
+                        s.candidates)
     print(json.dumps(a.records(), indent=2, default=float))
     if args.actions:
         print(f"actions -> {write_jsonl(a.actions, args.actions)}", file=sys.stderr)
@@ -90,11 +97,11 @@ def highgrade_demo(args) -> int:
 
 def highgrade_train(args) -> int:
     """Fit one region head from tile bags and polygon labels ({"positives": [...], "negatives": [...]}, µm)."""
-    from .highgrade.bags import load_bag
     from .highgrade.regions import RegionConfig, RegionDetector, tile_labels
+    from .wsi.bags import Bag
     if len(args.bag) != len(args.labels):
         raise SystemExit("give one --labels file per --bag")
-    bags = [load_bag(p) for p in args.bag]
+    bags = [Bag.load(p) for p in args.bag]
     labels = []
     for b, p in zip(bags, args.labels):
         d = json.loads(Path(p).read_text())
@@ -105,14 +112,26 @@ def highgrade_train(args) -> int:
     return 0
 
 
+def highgrade_calibrate(args) -> int:
+    """Calibrate a head's slide score on held-out specimens: a JSON list of {"bags": [paths], "present": 0|1}."""
+    from .highgrade.regions import RegionDetector
+    from .wsi.bags import Bag
+    det = RegionDetector.load(args.head)
+    rows = json.loads(Path(args.specimens).read_text())
+    info = det.calibrate_slides([[Bag.load(p) for p in r["bags"]] for r in rows], [int(r["present"]) for r in rows])
+    det.save(args.out or args.head)
+    print(json.dumps(info, indent=2, default=float))
+    return 0
+
+
 def highgrade(args) -> int:
     """Assess one specimen: tile bags (one per scan), saved heads, optional MitoEd CSVs (scan_id=path)."""
     from .highgrade.actions import post_actions, write_jsonl
     from .highgrade.assess import assess_specimen
-    from .highgrade.bags import load_bag
     from .highgrade.mitoses import MitosisConfig, MitosisCounter, read_mitoed_cells
     from .highgrade.regions import RegionDetector
-    bags = [load_bag(p) for p in args.bag]
+    from .wsi.bags import Bag
+    bags = [Bag.load(p) for p in args.bag]
     dets = [RegionDetector.load(p) for p in args.head]
     cands = None
     if args.mitoed_cells:
@@ -172,6 +191,12 @@ def main(argv=None) -> int:
     t.add_argument("--training-data", default="", help="name and licence of the labels")
     t.add_argument("--out", required=True)
     t.set_defaults(fn=highgrade_train)
+
+    c = sub.add_parser("highgrade-calibrate", help="calibrate a head's slide score on held-out specimens")
+    c.add_argument("--head", required=True)
+    c.add_argument("--specimens", required=True, help='JSON list of {"bags": [paths], "present": 0|1}')
+    c.add_argument("--out", help="default: overwrite --head")
+    c.set_defaults(fn=highgrade_calibrate)
 
     g = sub.add_parser("highgrade", help="assess one specimen's high-grade features")
     g.add_argument("--study-id", required=True)

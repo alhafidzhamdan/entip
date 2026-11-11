@@ -50,36 +50,47 @@ pathologist review with the regions or cells to look at first.
 
 | Finding | Detector | Input |
 |---|---|---|
-| `necrosis` | tile head on frozen embeddings → 8-connected foci → best focus score | tile bag (`.npz`, step-1 format) |
+| `necrosis` | tile head on frozen embeddings → 8-connected foci → best focus score → slide-calibrated P(present) | tile bag (`wsi.bags.Bag`, from step 1) |
 | `microvascular_proliferation` | same machinery, its own head | same bag |
 | `mitotic_activity` | MitoEd candidates → P(at least *k* true mitoses in the whole specimen) | `mitoed predict` CSV |
 
 - **Calls.** With p = P(present) and threshold t: `present` if p ≥ t, `absent` if 1 − p ≥ t, otherwise
   `indeterminate` and a pathologist review.
-- **Guards** set `status: uncertain` and order a review: model not validated (the default, so nothing is used
-  unreviewed until it has been checked on pathologist-labelled slides), too few tissue tiles, too many tiles
-  unlike the training tiles, an encoder or tile size different from training (refused).
+- **Two calibrations for the region heads.** Tile probabilities are Platt-calibrated in folds grouped by slide.
+  The best of thousands of tiles is still not a slide probability, so `highgrade-calibrate` fits the slide
+  score to present / absent on held-out specimens and, with 40 or more of them, sets the threshold so the
+  error among accepted calls stays under 5% (Wilson upper bound, `wsi.calibrate.selective_threshold`).
+- **Guards** set `status: uncertain` and order a review: slide score not calibrated, model not signed off (the
+  default, so nothing is used unreviewed until it has been checked on pathologist-labelled slides), too few
+  tissue tiles, too many tiles unlike the training tiles. An encoder or tile size different from training is
+  refused.
 - **Mitotic cut-off.** cIMPACT-NOW update 5 keeps "significant" mitotic activity for IDH-mutant astrocytoma
   grade 3, says no validated cut-off exists, and notes most neuropathologists use ≥ 2 mitoses in the whole
   specimen, or 1 in a very small biopsy ([Brat et al. 2020](https://doi.org/10.1007/s00401-020-02127-9)). Here
   `--min-mitoses` (default 2) and `--small-biopsy-mm2` (default off) are settings, not validated values. The same
   paper makes necrosis or microvascular proliferation (or CDKN2A/B homozygous deletion) grade 4 criteria for
   IDH-mutant astrocytoma; the step-5 engine applies those rules, not this step.
-- **Database.** `actions.py` writes features, models (`draft`), tile and focus regions, mitosis candidate cells,
-  predictions, then one `glioma_step` event with `detail = {study_id, records}`. Checked against a live
+- **Which mitosis candidates count.** MitoEd lists every candidate, most of them mimics with a small p. Only
+  those MitoEd calls `mitosis` or `uncertain` are counted (or p ≥ 0.2 for tables with no call), so thousands of
+  low-p candidates cannot add up to a count. The same mitosis on two levels of one block is counted twice:
+  pool scans of different blocks.
+- **Database.** `actions.py` writes features, models (`draft`), tile and focus regions, counted mitosis
+  candidates, predictions, then one `glioma_step` event with `detail = {study_id, records}`. Region ids carry
+  the model id, so a new model version never overwrites an older one's rows. Checked against a live
   PostgreSQL 16 + PostGIS db with the seeded synthetic patients.
 
 ```bash
 entip-train highgrade-demo                                    # synthetic specimen, prints the three records
 entip-train highgrade-demo --db http://127.0.0.1:8705          # also posts the actions (scan SCN-0001-A1-01)
 entip-train highgrade-train --feature necrosis --bag s1.npz --labels s1.json --out necrosis.joblib
+entip-train highgrade-calibrate --head necrosis.joblib --specimens held_out.json
 entip-train highgrade --study-id SYN-0001 --bag s1.npz --head necrosis.joblib --head mvp.joblib \
     --mitoed-cells SCN-0001-A1-01=cells.csv --db http://127.0.0.1:8705
 ```
 
-Labels for `highgrade-train` are `{"positives": [polygon, ...], "negatives": [...]}` in µm in the scan frame.
-For real slides build bags with the step-1 module (`entip_train.wsi.bags`: tissue mask, 224 px tiles at
-0.5 µm/px, H-optimus-0); `highgrade.bags.embed_bag` is a stand-in for tests.
+Labels for `highgrade-train` are `{"positives": [polygon, ...], "negatives": [...]}` in µm in the scan frame;
+`held_out.json` is a list of `{"bags": [paths], "present": 0 | 1}`. Bags come from the step-1 module
+(`entip_train.wsi.bags.extract_bag`: tissue mask, 224 px tiles at 0.5 µm/px, H-optimus-0).
 
 Not done yet: no head has been trained on real tissue. Candidate region labels are BraTS-Path 2024 and the Ivy
 Glioblastoma Atlas ([Puchalski et al. 2018](https://doi.org/10.1126/science.aaf2666)); their licences have not
