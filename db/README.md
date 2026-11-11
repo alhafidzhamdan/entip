@@ -28,6 +28,8 @@ pytest                               # needs a server; set ENTIP_TEST_ADMIN_DSN 
 
 ## Not done yet
 
-- Authentication and roles (reader, writer, admin). Run on localhost or behind the platform gateway for now.
+- Sign-in for people and per-person roles. There are shared read and write tokens for services
+  (`ENTIP_DB_WRITE_TOKEN`, `ENTIP_DB_READ_TOKEN`; see `schema/README.md`), but `provenance.actor` is still
+  taken on trust. NHS single sign-on belongs in a gateway in front.
 - Bulk loading through `COPY` for millions of cells (the JSON path handles a few hundred thousand per call).
 - Embedding cache (pillar 2 keeps it on disk; the database could index it later).

@@ -20,6 +20,8 @@ def main(argv: list[str] | None = None) -> int:
     v = sub.add_parser("serve", help="run the HTTP API")
     v.add_argument("--host", default="127.0.0.1")
     v.add_argument("--port", type=int, default=8705)
+    v.add_argument("--open", action="store_true",
+                   help="allow a non-local --host with no ENTIP_DB_WRITE_TOKEN set (anyone who can reach it can write)")
     p = sub.add_parser("patient", help="print one patient row and tree as JSON")
     p.add_argument("study_id")
     a = ap.parse_args(argv)
@@ -28,7 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "serve":
         import uvicorn
         from .api import create_app
-        uvicorn.run(create_app(target), host=a.host, port=a.port)
+        app = create_app(target)
+        if a.host not in ("127.0.0.1", "localhost", "::1") and not app.state.auth["write"] and not a.open:
+            print("refusing to listen on a non-local address with no ENTIP_DB_WRITE_TOKEN set; "
+                  "set one (and ENTIP_DB_READ_TOKEN to protect reads), or pass --open", file=sys.stderr)
+            return 2
+        uvicorn.run(app, host=a.host, port=a.port)
         return 0
 
     conn = connect(target)

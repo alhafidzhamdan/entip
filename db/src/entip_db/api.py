@@ -7,16 +7,27 @@ features, models, the action log.
 Writes: only ``POST /actions``. One request is one logged action, applied in
 one transaction.
 
-Research use only. There is no authentication yet: run it on localhost or
-behind the platform's own gateway.
+Access: with no tokens set the API is open, which is only for localhost.
+Set ``ENTIP_DB_WRITE_TOKEN`` (and optionally ``ENTIP_DB_READ_TOKEN``) and
+clients must send ``Authorization: Bearer <token>``. A write token also reads.
+With only a read token set, writes are refused. Several tokens may be given,
+separated by commas, so one can be replaced without downtime. This is a
+shared-secret gate for services, not sign-in for people: NHS single sign-on
+belongs in the gateway in front.
+
+Research use only.
 """
 from __future__ import annotations
 
+import hmac
+import os
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Any, Literal, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from . import SCHEMA_VERSION, __version__, queries
@@ -52,10 +63,37 @@ class ActionOut(BaseModel):
     object_type: Optional[str]
     n: int
     changes: int
+    replayed: bool = Field(False, description="true when this action_id had already been applied")
 
 
-def create_app(conninfo: str | None = None) -> FastAPI:
-    app = FastAPI(title="ENTIP central database", version=__version__,
+def _tokens(value: str | None, env: str) -> list[str]:
+    raw = os.environ.get(env, "") if value is None else value
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
+def create_app(conninfo: str | None = None, *, write_token: str | None = None,
+               read_token: str | None = None) -> FastAPI:
+    """``write_token`` / ``read_token`` default to $ENTIP_DB_WRITE_TOKEN / $ENTIP_DB_READ_TOKEN."""
+    writers, readers = _tokens(write_token, "ENTIP_DB_WRITE_TOKEN"), _tokens(read_token, "ENTIP_DB_READ_TOKEN")
+
+    def _has(request: Request, allowed: list[str]) -> bool:
+        scheme, _, given = request.headers.get("authorization", "").partition(" ")
+        given = given.strip().encode()
+        # compare against every token so the time taken does not show which one matched
+        return scheme.lower() == "bearer" and any([hmac.compare_digest(given, t.encode()) for t in allowed])
+
+    def gate(request: Request):
+        if not (writers or readers) or request.url.path == "/health":
+            return
+        if request.method in ("GET", "HEAD"):
+            if readers and not _has(request, readers + writers):
+                raise HTTPException(401, "a read or write token is needed", {"WWW-Authenticate": "Bearer"})
+        elif not writers:
+            raise HTTPException(403, "writes are off: no write token is set on this server")
+        elif not _has(request, writers):
+            raise HTTPException(401, "a write token is needed", {"WWW-Authenticate": "Bearer"})
+
+    app = FastAPI(dependencies=[Depends(gate)], title="ENTIP central database", version=__version__,
                   description="Pillar 5: one row per patient, linked to slides, assays and model outputs. "
                               "Research use only; synthetic or public data only.")
     app.add_middleware(CORSMiddleware, allow_origins=["http://localhost", "http://127.0.0.1"],
@@ -77,7 +115,6 @@ def create_app(conninfo: str | None = None) -> FastAPI:
 
     @app.exception_handler(EntipError)
     async def _bad(request: Request, exc: EntipError):
-        from fastapi.responses import JSONResponse
         return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     def _bbox(bbox: Optional[str]):
@@ -87,7 +124,7 @@ def create_app(conninfo: str | None = None) -> FastAPI:
             v = tuple(float(x) for x in bbox.split(","))
         except ValueError:
             raise HTTPException(422, "bbox is x0,y0,x1,y1 in micrometres") from None
-        if len(v) != 4:
+        if len(v) != 4 or any(x != x for x in v):
             raise HTTPException(422, "bbox is x0,y0,x1,y1 in micrometres")
         return v
 
@@ -107,7 +144,8 @@ def create_app(conninfo: str | None = None) -> FastAPI:
     # -- patients ----------------------------------------------------------
     @app.get("/patients")
     def list_patients(request: Request, cohort: Optional[str] = None, diagnosis: Optional[str] = None,
-                      synthetic: Optional[bool] = None, limit: int = Query(100, le=1000), offset: int = 0,
+                      synthetic: Optional[bool] = None, limit: int = Query(100, ge=1, le=1000),
+                      offset: int = Query(0, ge=0),
                       conn=Depends(get_conn)):
         """One row per patient. Filter on a marker with ``marker.IDH=mutant`` (repeatable)."""
         markers = {k[7:]: v for k, v in request.query_params.items() if k.startswith("marker.")}
@@ -120,7 +158,7 @@ def create_app(conninfo: str | None = None) -> FastAPI:
         return _404(queries.patient_tree(conn, study_id), "patient")
 
     @app.get("/patients/{study_id}/actions")
-    def patient_actions(study_id: str, since: Optional[str] = None, limit: int = Query(500, le=5000),
+    def patient_actions(study_id: str, since: Optional[datetime] = None, limit: int = Query(500, ge=1, le=5000),
                         conn=Depends(get_conn)):
         _404(queries.patient_row(conn, study_id), "patient")
         return queries.actions(conn, study_id=study_id, since=since, limit=limit)
@@ -135,7 +173,7 @@ def create_app(conninfo: str | None = None) -> FastAPI:
     def scan_cells(scan_id: str, bbox: Optional[str] = Query(None, description="x0,y0,x1,y1 µm"),
                    model_id: Optional[str] = Query(None, description="join this model's scores"),
                    after: Optional[str] = Query(None, description="page: last cell_id seen"),
-                   limit: int = Query(50000, le=500000), conn=Depends(get_conn)):
+                   limit: int = Query(50000, ge=1, le=500000), conn=Depends(get_conn)):
         _404(queries.get_object(conn, "scan", scan_id), "scan")
         return queries.cells(conn, scan_id, bbox=_bbox(bbox), model_id=model_id, limit=limit, after=after)
 
@@ -152,7 +190,7 @@ def create_app(conninfo: str | None = None) -> FastAPI:
 
     @app.get("/scans/{scan_id}/predictions")
     def scan_predictions(scan_id: str, model_id: str, order: Literal["uncertain", "score", "id"] = "uncertain",
-                         limit: int = Query(200, le=100000), conn=Depends(get_conn)):
+                         limit: int = Query(200, ge=1, le=100000), conn=Depends(get_conn)):
         return queries.predictions(conn, scan_id, model_id, order=order, limit=limit)
 
     # -- assays and registration ---------------------------------------------
@@ -162,7 +200,7 @@ def create_app(conninfo: str | None = None) -> FastAPI:
 
     @app.get("/assays/{assay_id}/objects")
     def assay_objects(assay_id: str, bbox: Optional[str] = None, frame: Optional[str] = None,
-                      limit: int = Query(100000, le=1000000), conn=Depends(get_conn)):
+                      limit: int = Query(100000, ge=1, le=1000000), conn=Depends(get_conn)):
         return queries.spatial_objects(conn, assay_id, bbox=_bbox(bbox), frame=frame, limit=limit)
 
     @app.get("/transforms")
@@ -192,13 +230,16 @@ def create_app(conninfo: str | None = None) -> FastAPI:
     # -- actions -------------------------------------------------------------
     @app.post("/actions", response_model=ActionOut, status_code=201)
     def post_action(body: ActionIn, conn=Depends(get_conn)):
-        return _apply(conn, verb=body.verb, object_type=body.object_type, records=body.records,
-                      provenance=body.provenance.model_dump(exclude_none=True), detail=body.detail,
-                      action_id=body.action_id)
+        """Apply one action. A repeat of an ``action_id`` already applied returns 200 and ``replayed``."""
+        out = _apply(conn, verb=body.verb, object_type=body.object_type, records=body.records,
+                     provenance=body.provenance.model_dump(exclude_none=True), detail=body.detail,
+                     action_id=body.action_id)
+        return JSONResponse(out, status_code=200) if out["replayed"] else out
 
     @app.get("/actions")
-    def list_actions(since: Optional[str] = None, verb: Optional[str] = None, object_type: Optional[str] = None,
-                     limit: int = Query(200, le=5000), conn=Depends(get_conn)):
+    def list_actions(since: Optional[datetime] = None, verb: Optional[str] = None,
+                     object_type: Optional[str] = None, limit: int = Query(200, ge=1, le=5000),
+                     conn=Depends(get_conn)):
         return queries.actions(conn, since=since, verb=verb, object_type=object_type, limit=limit)
 
     @app.get("/actions/{action_id}")
@@ -210,6 +251,7 @@ def create_app(conninfo: str | None = None) -> FastAPI:
         return queries._clean([{**r, "changes": queries._clean(ch)}])[0]
 
     app.state.schema_version = SCHEMA_VERSION
+    app.state.auth = {"write": bool(writers), "read": bool(readers)}
     return app
 
 

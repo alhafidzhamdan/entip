@@ -11,8 +11,15 @@
 
   const STORE_KEY = "entip-gui-mock-actions-v1";
 
+  /* Sends the database token (config.dbToken) with calls to the database, when one is set. */
+  function withToken(url, opts) {
+    const cfg = root.ENTIP_CONFIG || {};
+    if (!cfg.dbToken || !cfg.dbBase || !String(url).startsWith(cfg.dbBase)) return opts;
+    return { ...(opts || {}), headers: { ...((opts && opts.headers) || {}), Authorization: `Bearer ${cfg.dbToken}` } };
+  }
+
   async function getJSON(url, opts) {
-    const r = await fetch(url, opts);
+    const r = await fetch(url, withToken(url, opts));
     if (!r.ok) throw new Error(`${opts && opts.method || "GET"} ${url} failed: ${r.status}`);
     return r.json();
   }

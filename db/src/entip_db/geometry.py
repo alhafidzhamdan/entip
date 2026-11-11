@@ -23,8 +23,16 @@ def _num(v, what: str) -> float:
     return f
 
 
+def _pair(p, what: str):
+    if not isinstance(p, (list, tuple)) or len(p) < 2:
+        raise EntipError(f"{what} must be [x, y] in micrometres")
+    return p[0], p[1]
+
+
 def _ring(points) -> str:
-    pts = [(_num(p[0], "x"), _num(p[1], "y")) for p in points]
+    if not isinstance(points, (list, tuple)):
+        raise EntipError("a polygon ring must be a list of [x, y] points")
+    pts = [(_num(x, "x"), _num(y, "y")) for x, y in (_pair(p, "a polygon point") for p in points)]
     if len(pts) < 3:
         raise EntipError("a polygon needs at least 3 points")
     if pts[0] != pts[-1]:
@@ -45,13 +53,15 @@ def to_wkt(g: dict) -> str:
     t = str(g["type"]).lower()
     if t == "point":
         if "coordinates" in g:
-            x, y = g["coordinates"][:2]
+            x, y = _pair(g["coordinates"], "point coordinates")
         else:
             x, y = g.get("x_um"), g.get("y_um")
         return f"POINT({_num(x, 'x_um'):.6f} {_num(y, 'y_um'):.6f})"
     if t == "polygon":
         if "coordinates" in g:
             rings = g["coordinates"]
+            if not isinstance(rings, (list, tuple)) or not rings:
+                raise EntipError("polygon coordinates must be a list of rings")
             return "POLYGON(" + ", ".join(_ring(r) for r in rings) + ")"
         return "POLYGON(" + _ring(g.get("points_um") or []) + ")"
     if t == "box":

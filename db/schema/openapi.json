@@ -99,6 +99,7 @@
             "schema": {
               "type": "integer",
               "maximum": 1000,
+              "minimum": 1,
               "default": 100,
               "title": "Limit"
             }
@@ -109,6 +110,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 0,
               "default": 0,
               "title": "Offset"
             }
@@ -195,7 +197,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "format": "date-time"
                 },
                 {
                   "type": "null"
@@ -211,6 +214,7 @@
             "schema": {
               "type": "integer",
               "maximum": 5000,
+              "minimum": 1,
               "default": 500,
               "title": "Limit"
             }
@@ -351,6 +355,7 @@
             "schema": {
               "type": "integer",
               "maximum": 500000,
+              "minimum": 1,
               "default": 50000,
               "title": "Limit"
             }
@@ -587,6 +592,7 @@
             "schema": {
               "type": "integer",
               "maximum": 100000,
+              "minimum": 1,
               "default": 200,
               "title": "Limit"
             }
@@ -704,6 +710,7 @@
             "schema": {
               "type": "integer",
               "maximum": 1000000,
+              "minimum": 1,
               "default": 100000,
               "title": "Limit"
             }
@@ -974,6 +981,7 @@
     "/actions": {
       "post": {
         "summary": "Post Action",
+        "description": "Apply one action. A repeat of an ``action_id`` already applied returns 200 and ``replayed``.",
         "operationId": "post_action_actions_post",
         "requestBody": {
           "required": true,
@@ -1019,7 +1027,8 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "format": "date-time"
                 },
                 {
                   "type": "null"
@@ -1067,6 +1076,7 @@
             "schema": {
               "type": "integer",
               "maximum": 5000,
+              "minimum": 1,
               "default": 200,
               "title": "Limit"
             }
@@ -1218,6 +1228,12 @@
           "changes": {
             "type": "integer",
             "title": "Changes"
+          },
+          "replayed": {
+            "type": "boolean",
+            "title": "Replayed",
+            "description": "true when this action_id had already been applied",
+            "default": false
           }
         },
         "type": "object",
