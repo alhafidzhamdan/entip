@@ -169,3 +169,72 @@ def test_unknown_class_needs_a_taxonomy():
     cases = [Case(cid, [b], c) for cid, b, c in data]
     with pytest.raises(ValueError):
         train(cases, Taxonomy(), "x", "0", k=3)
+
+
+# ---------------------------------------------------------------- review fixes (second pass)
+
+def test_gdc_methylation_files_pair_through_the_sample_sheet(tmp_path):
+    from entip_train.methylation.tcga import read_sample_sheet
+    sheet = tmp_path / "gdc_sample_sheet.tsv"
+    sheet.write_text("File ID\tFile Name\tData Category\tProject ID\tCase ID\tSample ID\tSample Type\n"
+                     "u1\t3f2a.methylation_array.sesame.level3betas.txt\tDNA Methylation\tTCGA-GBM\t"
+                     "TCGA-06-0125\tTCGA-06-0125-01A\tPrimary Tumor\n")
+    names = read_sample_sheet(str(sheet))
+    slides = ["TCGA-06-0125-01Z-00-DX1.abc.svs"]
+    assert pair_slides(slides, list(names)) == []                    # UUID file names carry no barcode
+    pairs = pair_slides(slides, list(names), sample_of=names)
+    assert [p.case_id for p in pairs] == ["TCGA-06-0125"]
+
+
+def test_epic_v2_ids_and_missing_values(tmp_path):
+    from entip_train.methylation.labels import read_beta_file, stack_betas
+    f = tmp_path / "s.txt"
+    f.write_text("probe\tbeta\ncg00000029_TC21\t0.2\ncg00000029_TC22\t0.4\ncg00000108_BC11\tNA\n")
+    b = read_beta_file(f)
+    assert b == {"cg00000029": pytest.approx(0.3)}
+    samples = {f"s{i}": {"cg1": 0.1, "cg2": 0.2} for i in range(19)}
+    samples["s19"] = {"cg1": 0.1}                                    # cg2 failed in one sample of 20
+    _, cpgs, X = stack_betas(samples)
+    assert cpgs == ["cg1", "cg2"] and np.isnan(X[-1, 1])
+
+
+def test_report_without_scores(tmp_path):
+    p = tmp_path / "r.csv"
+    p.write_text("case_id,class,score\nTCGA-06-0001,A IDH,\n")
+    assert from_report_csv(p) == []
+    assert [l.cls for l in from_report_csv(p, keep_unscored=True)] == ["A IDH"]
+
+
+def test_rare_classes_are_dropped_not_learned():
+    cls = {"GBM, RTK II": "glioblastoma_idh_wildtype", "A IDH": "astrocytoma_idh_mutant",
+           "DMG, K27": "diffuse_midline_glioma_h3k27"}
+    data = synthetic_cases(cls, n_per_class=12, seed=2)
+    data = [d for d in data if d[2] != "DMG, K27"] + [d for d in data if d[2] == "DMG, K27"][:3]
+    m = train([Case(cid, [b], c) for cid, b, c in data], Taxonomy(), "x", "0", k=4, min_tiles=20,
+              mil_kw={"epochs": 5})
+    assert "DMG, K27" not in m.classes and m.metrics["dropped_classes"] == {"DMG, K27": 3}
+
+
+def test_non_tcga_ids_group_by_their_own_id():
+    assert site_of("EDN-0001") == "EDN-0001" and site_of("TCGA-06-0125") == "06"
+
+
+def test_cli_train_and_predict_from_files(tmp_path, capsys):
+    from entip_train.cli import main
+    data = synthetic_cases(DEFAULT_CLASSES, n_per_class=10, seed=3)
+    (tmp_path / "bags").mkdir()
+    with open(tmp_path / "pairs.csv", "w", newline="") as f, open(tmp_path / "labels.csv", "w", newline="") as g:
+        pw, lw = csv.writer(f), csv.writer(g)
+        pw.writerow(["case_id", "slide", "methylation", "sample_type", "group"])
+        lw.writerow(["case_id", "class", "score", "source"])
+        for cid, bag, c in data:
+            bag.save(tmp_path / "bags" / f"{bag.scan_id}.npz")
+            pw.writerow([cid, f"{bag.scan_id}.svs", "m.txt", "01", site_of(cid)])
+            lw.writerow([cid, c, 0.95, "report"])
+    assert main(["methyl", "train", "--labels", str(tmp_path / "labels.csv"), "--pairs", str(tmp_path / "pairs.csv"),
+                 "--bags", str(tmp_path / "bags"), "--out", str(tmp_path / "model"), "--folds", "4"]) == 0
+    capsys.readouterr()
+    assert main(["methyl", "predict", "--model", str(tmp_path / "model"), "--study-id", "SYN-0002",
+                 "--bags", str(tmp_path / "bags" / f"{data[0][1].scan_id}.npz")]) == 0
+    rec = json.loads(capsys.readouterr().out)
+    _validate(rec)

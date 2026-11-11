@@ -23,7 +23,7 @@ from ..wsi.bags import Bag
 from ..wsi.calibrate import ece, fit_temperature, selective_threshold
 from .classes import Taxonomy
 from .model import MethylationModel, pool_bags
-from .tcga import site_folds
+from .tcga import group_folds, site_of
 
 
 @dataclass
@@ -47,10 +47,21 @@ def _softmax(z):
 
 def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str, k: int = 5,
           max_error: float = 0.05, min_accepted: int = 20, min_tiles: int = 50, label_source: str = "",
-          mil_kw: Optional[dict] = None, seed: int = 0, log: Callable[[str], None] = lambda s: None
-          ) -> MethylationModel:
+          min_per_class: int = 10, mil_kw: Optional[dict] = None, seed: int = 0,
+          log: Callable[[str], None] = lambda s: None) -> MethylationModel:
+    """Classes with fewer than ``min_per_class`` cases are dropped (logged and listed in the metrics): the
+    model cannot learn them, and slides of those classes fall back to the array."""
     mil_kw = dict(mil_kw or {})
+    n_by = {}
+    for c in cases:
+        n_by[c.cls] = n_by.get(c.cls, 0) + 1
+    dropped = {c: n for c, n in sorted(n_by.items()) if n < min_per_class}
+    if dropped:
+        log(f"dropping classes with < {min_per_class} cases: {dropped}")
+        cases = [c for c in cases if c.cls not in dropped]
     present = sorted({c.cls for c in cases})
+    if len(present) < 2:
+        raise ValueError(f"need at least 2 classes with >= {min_per_class} cases; have {n_by}")
     unknown = [c for c in present if c not in taxonomy.family_of]
     if unknown:
         raise ValueError(f"classes not in the taxonomy: {unknown}; give a taxonomy CSV")
@@ -62,11 +73,8 @@ def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str
     encoders = {b.encoder for c in cases for b in c.bags}
     if len(encoders) != 1:
         raise ValueError(f"all bags must come from one encoder, got {sorted(encoders)}")
-    groups = [c.group for c in cases]
-    if all(g is None for g in groups):
-        fold = np.array(site_folds([c.case_id for c in cases], k=k, seed=seed))
-    else:
-        fold = np.array(_group_folds(groups, k, seed))
+    groups = [c.group if c.group is not None else site_of(c.case_id) for c in cases]
+    fold = np.array(group_folds(groups, k=k, seed=seed))
     k = int(fold.max()) + 1
     if k < 3:
         raise ValueError("need at least 3 site groups for train / validation / test folds")
@@ -100,6 +108,7 @@ def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str
                    "ece": ece(pf, yf), "selective": th_f},
         "fold_temperatures": temps,
         "class_counts": {c: int((y == i).sum()) for i, c in enumerate(classes)},
+        "dropped_classes": dropped,
     }
     log(f"OOF family accuracy {M.metrics['family']['accuracy']:.3f}; confident on "
         f"{th_f['coverage']:.0%} at threshold {th_f['threshold']:.2f}")
@@ -111,8 +120,3 @@ def train(cases: Sequence[Case], taxonomy: Taxonomy, model_id: str, version: str
     M.mil.fit([feats[i] for i in tr], y[tr], sample_weight=w[tr], val=([feats[i] for i in va], y[va]))
     M.temperature = fit_temperature(M.mil.logits([feats[i] for i in va]), y[va])
     return M
-
-
-def _group_folds(groups: Sequence[Optional[str]], k: int, seed: int) -> List[int]:
-    fake = [f"TCGA-{g or 'NA'}-{i:04d}" for i, g in enumerate(groups)]   # reuse site_folds' balancing
-    return site_folds(fake, k=k, seed=seed)
