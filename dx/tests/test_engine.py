@@ -154,7 +154,6 @@ def test_priors_never_reach_the_output():
     text = json.dumps(out)
     for word in ("thalamus", "ring enhancing", "41", "age_years", "radiology"):
         assert word not in text
-    assert "IDH_sequencing" in orders(out)  # the prior changed a suggestion only
 
 
 def test_contract_refuses_priors_and_bad_calls():
@@ -196,3 +195,84 @@ def test_db_rows_become_test_records():
     out = diagnose(GLIOMA + recs + records_from_actions(SID, acts))
     assert out["integrated_diagnosis"]["who_type"] == "astro"
     assert out["integrated_diagnosis"]["cns_who_grade"] == 4
+
+
+def test_high_grade_feature_on_any_scan_counts():
+    recs = GLIOMA + H3WT + [lab("IDH", "wildtype"),
+                            ai("necrosis", "absent", scan_ids=["S1"]), ai("necrosis", "present", scan_ids=["S2"])]
+    out = diagnose(recs)
+    assert out["integrated_diagnosis"]["who_type"] == "gbm"
+
+
+def test_absent_needs_every_scan_confident():
+    recs = GLIOMA + H3WT + [lab("IDH", "wildtype"), lab("TERT", "wildtype"), lab("EGFR", "not_amplified"),
+                            lab("chr7_chr10", "absent"), ai("microvascular_proliferation", "absent"),
+                            ai("necrosis", "absent", scan_ids=["S1"]),
+                            ai("necrosis", "absent", conf=0.6, scan_ids=["S2"])]
+    out = diagnose(recs)
+    assert out["integrated_diagnosis"]["status"] == "pending"
+    assert "pathologist_review" in orders(out)
+
+
+def test_newer_ai_run_replaces_older_one():
+    old = ai("IDH", "mutant", conf=0.99, scan_ids=["S1"])
+    new = ai("IDH", "mutant", conf=0.6, scan_ids=["S1"])
+    out = diagnose(GLIOMA + [old, new])
+    assert out["integrated_diagnosis"]["status"] == "pending"
+    assert "IDH1_R132H_IHC" in orders(out)
+
+
+def test_tumour_call_beats_normal_brain_on_another_scan():
+    recs = [ai("adequacy", "adequate"), ai("tissue_class", "normal_brain", scan_ids=["S1"]),
+            ai("tissue_class", "glioma", scan_ids=["S2"]), ai("IDH", "wildtype", conf=0.5)]
+    assert diagnose(recs)["integrated_diagnosis"]["text"] == "Pending: diffuse glioma, IDH status awaited"
+
+
+def test_panel_calls_that_differ_between_scans_are_uncertain():
+    recs = GLIOMA + [ai("IDH", "mutant", scan_ids=["S1"]), ai("IDH", "wildtype", scan_ids=["S2"])]
+    out = diagnose(recs)
+    assert out["integrated_diagnosis"]["status"] == "pending"
+    assert any("differ between scans" in x for x in out["conflicts"])
+
+
+def test_negative_r132h_ihc_needs_sequencing():
+    recs = GLIOMA + H3WT + [lab("IDH", "wildtype", "IHC"), ai("necrosis", "present")]
+    out = diagnose(recs)
+    assert out["integrated_diagnosis"]["status"] == "provisional"
+    assert [o for o in out["orders"] if o["test"] == "IDH_sequencing" and o["blocking"]]
+    # sequencing beats IHC whatever the order the results arrive in
+    out2 = diagnose([lab("IDH", "wildtype", "NGS panel")] + recs)
+    assert out2["integrated_diagnosis"]["status"] == "complete"
+
+
+def test_nec_waits_for_h3():
+    recs = GLIOMA + [lab("IDH", "wildtype"), lab("TERT", "wildtype"), lab("EGFR", "not_amplified"),
+                     lab("chr7_chr10", "absent"), ai("necrosis", "absent"), ai("microvascular_proliferation", "absent")]
+    out = diagnose(recs)
+    assert out["integrated_diagnosis"]["status"] == "pending" and out["integrated_diagnosis"]["suffix"] is None
+    assert "H3K27M_IHC" in orders(out)
+
+
+def test_ai_disagreement_with_test_is_logged():
+    out = diagnose(GLIOMA + H3WT + [ai("IDH", "mutant"), lab("IDH", "wildtype"), ai("necrosis", "present")])
+    assert out["ai_disagreements"] == ["IDH: AI said mutant; test says wildtype"]
+
+
+def test_report_wording_for_indeterminate_and_methylation():
+    out = diagnose(GLIOMA + [ai("IDH", "indeterminate", conf=0.0, status="uncertain"),
+                             ai("methylation_class", "glioblastoma_idh_wildtype")])
+    assert "IDH: pending (AI could not call it)" in out["report_text"]
+    assert "matches Glioblastoma, IDH-wildtype" in out["report_text"]
+
+
+def test_real_step_outputs_run_through_the_engine():
+    """Records produced by the step 1-4 code on their PR branches (synthetic data), as one patient."""
+    path = Path(__file__).parent / "fixtures" / "step_outputs.jsonl"
+    recs = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    assert {r["step"] for r in recs} == set(contract.STEPS)
+    for r in recs:
+        r["study_id"] = SID
+    out = diagnose(recs)
+    jsonschema.validate(out, json.loads((Path(__file__).resolve().parents[1] / "contract" /
+                                         "integrated_dx.schema.json").read_text()))
+    assert out["integrated_diagnosis"]["status"] in contract.DX_STATUSES

@@ -5,7 +5,8 @@ real tests, and returns one ``entip.integrated_dx/1`` dict. It never learns anyt
 written rules in ``rules.py``. Anything uncertain or missing that would change the diagnosis is ordered as a
 real test, and the diagnosis stays pending until it comes back.
 
-Priors (age, site, radiology) may change which tests are suggested, never the words of the report.
+Priors (age, site, radiology) are accepted for future use (for example to weight a step's confidence) but no
+rule uses them yet, and they never reach the output: the output is checked for them.
 """
 from __future__ import annotations
 
@@ -28,7 +29,7 @@ LABELS = {
 }
 
 CALL_WORDS = {
-    "gain7_loss10": "+7/-10 present", "absent": "no +7/-10", "not_codeleted": "not codeleted",
+    "gain7_loss10": "+7/-10 present", "not_codeleted": "not codeleted",
     "homozygous_deletion": "homozygous deletion", "not_amplified": "not amplified",
     "normal_brain": "normal brain", "other_primary_cns": "other primary CNS tumour",
     "diffuse_astrocytic": "diffuse astrocytic", "lost": "loss of expression",
@@ -67,6 +68,7 @@ class Ctx:
     conflicts: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     based_on: list[dict] = field(default_factory=list)
+    ai_disagreements: list[str] = field(default_factory=list)
 
     def get(self, name: str) -> Resolved:
         return self.f.setdefault(name, Resolved(name))
@@ -96,18 +98,84 @@ class Ctx:
         self.based_on.append({"criterion": text, "met": met, "findings": list(findings), "citation": cite(src)})
 
 
-def resolve(records: list[dict]) -> dict[str, Resolved]:
-    """Pick one record per finding: real test > pathologist > confident AI. Later records win ties."""
-    out: dict[str, Resolved] = {}
+HISTO = ("necrosis", "microvascular_proliferation", "mitotic_activity")
+NON_LESIONAL = ("normal_brain", "reactive")
+
+
+def _is_ihc(rec: dict) -> bool:
+    return "ihc" in str((rec.get("value") or {}).get("method") or "").lower()
+
+
+def _human_beats(new: dict, old: dict | None) -> bool:
+    """Test beats pathologist. Among tests, IDH sequencing beats IHC; otherwise the later record wins."""
+    if old is None:
+        return True
+    if SOURCE_RANK[new["source"]] != SOURCE_RANK[old["source"]]:
+        return SOURCE_RANK[new["source"]] > SOURCE_RANK[old["source"]]
+    if new["finding"] == "IDH" and new["source"] == "test" and _is_ihc(new) != _is_ihc(old):
+        return not _is_ihc(new)
+    return True
+
+
+def _usable(rec: dict) -> bool:
+    return rec["call"] != INDETERMINATE and (rec["source"] != "ai" or rec["status"] == "confident")
+
+
+def resolve(records: list[dict]) -> tuple[dict[str, Resolved], list[str], list[str]]:
+    """Pick one call per finding. Returns (resolved, conflicts, ai_disagreements).
+
+    - A real test beats a pathologist's call, which beats AI.
+    - AI records are grouped by the scans they cover; the latest record per group wins, so a newer model run
+      replaces an older one even when it is less sure.
+    - Across scans: a high-grade feature is present if any scan shows it confidently, and absent only when every
+      scan is confidently absent. A triage call of normal brain or reactive on one scan gives way to a tumour
+      call on another. Other findings must agree across scans, or they are treated as uncertain.
+    """
+    human: dict[str, dict] = {}
+    ai: dict[str, dict[tuple, dict]] = {}
     for rec in records:
-        r = out.setdefault(rec["finding"], Resolved(rec["finding"]))
-        usable = rec["call"] != INDETERMINATE and (rec["source"] != "ai" or rec["status"] == "confident")
-        if usable:
-            if r.rec is None or SOURCE_RANK[rec["source"]] >= SOURCE_RANK[r.rec["source"]]:
-                r.rec = rec
-        elif rec["source"] == "ai" and rec["status"] == "uncertain":
-            r.uncertain = rec
-    return out
+        f = rec["finding"]
+        if rec["source"] == "ai":
+            ai.setdefault(f, {})[tuple(sorted(rec.get("scan_ids") or []))] = rec
+        elif rec["call"] != INDETERMINATE and _human_beats(rec, human.get(f)):
+            human[f] = rec
+    out: dict[str, Resolved] = {}
+    conflicts: list[str] = []
+    disagree: list[str] = []
+    for f in set(human) | set(ai):
+        r = out[f] = Resolved(f)
+        groups = list(ai.get(f, {}).values())
+        sure = [g for g in groups if _usable(g)]
+        unsure = [g for g in groups if not _usable(g)]
+        if unsure:
+            r.uncertain = max(unsure, key=lambda g: g.get("confidence") or 0)
+        if f in human:
+            r.rec = human[f]
+            wrong = sorted({g["call"] for g in sure if g["call"] != r.rec["call"]})
+            if wrong:
+                disagree.append(f"{LABELS[f]}: AI said {', '.join(wrong)}; {r.rec['source']} says {r.rec['call']}")
+            continue
+        if not sure:
+            continue
+        calls = {g["call"] for g in sure}
+        if f in HISTO or f == "adequacy":
+            hit = "present" if f in HISTO else "adequate"
+            pos = [g for g in sure if g["call"] == hit]
+            if pos:
+                r.rec = max(pos, key=lambda g: g.get("confidence") or 0)
+            elif not unsure:
+                r.rec = sure[-1]
+            continue
+        if f == "tissue_class" and len(calls) > 1 and len(calls - set(NON_LESIONAL)) == 1:
+            tumour = (calls - set(NON_LESIONAL)).pop()
+            r.rec = max((g for g in sure if g["call"] == tumour), key=lambda g: g.get("confidence") or 0)
+            continue
+        if len(calls) > 1:
+            conflicts.append(f"{LABELS[f]}: AI calls differ between scans ({', '.join(sorted(calls))})")
+            r.uncertain = r.uncertain or sure[-1]
+            continue
+        r.rec = sure[-1]
+    return out, conflicts, disagree
 
 
 def diagnose(records: list[dict], priors: dict | None = None, study_id: str | None = None) -> dict:
@@ -116,7 +184,9 @@ def diagnose(records: list[dict], priors: dict | None = None, study_id: str | No
     if len(ids) != 1:
         raise ValueError(f"records must be for one patient, got {sorted(ids) or 'none'}")
     sid = ids.pop()
-    ctx = Ctx(resolve(recs), dict(priors or {}))
+    resolved, conflicts, disagree = resolve(recs)
+    ctx = Ctx(resolved, dict(priors or {}), conflicts=conflicts)
+    ctx.ai_disagreements = disagree
     dx = _classify(ctx)
     _molecular_extras(ctx, dx)
     _methylation_check(ctx, dx)
@@ -172,8 +242,13 @@ def _classify(c: Ctx) -> dict:
         return _dx("complete", TYPES["dhg"], "dhg", 4)
 
     if not c.need("IDH", "separate IDH-mutant from IDH-wildtype gliomas"):
-        _hint_idh_test(c)
         return _dx("pending", "Pending: diffuse glioma, IDH status awaited", favoured=_favoured_from_idh(c))
+    if idh.is_("wildtype") and idh.source == "test" and _is_ihc(idh.rec):
+        # R132H immunohistochemistry only detects the commonest IDH1 mutation; negative staining is not
+        # proof of IDH-wildtype status, so sequencing decides.
+        c.order("IDH", "IDH1 R132H immunohistochemistry is negative; sequence IDH1/IDH2 to exclude other "
+                       "mutations", test="IDH_sequencing")
+        c.notes.append("IDH-wildtype status rests on negative R132H immunohistochemistry only.")
 
     if idh.is_("mutant"):
         return _idh_mutant(c)
@@ -309,6 +384,9 @@ def _idh_wildtype(c: Ctx) -> dict:
 
     c.basis("gbm_histo", False, "necrosis", "microvascular_proliferation")
     c.basis("gbm_mol", False, "TERT", "EGFR", "chr7_chr10")
+    if not h3_ok:
+        return _dx("pending", "Pending: diffuse glioma, IDH-wildtype, without glioblastoma criteria; H3 status "
+                              "awaited")
     meth = c.get("methylation_class")
     if meth.source == "test" and meth.is_("pediatric_hgg_h3wt_idhwt") and h3_ok:
         c.basis("phgg_def", True, "IDH", "H3K27", "H3G34", "methylation_class")
@@ -328,15 +406,6 @@ def _idh_wildtype(c: Ctx) -> dict:
 # Extras, cross-checks, assembly
 # ---------------------------------------------------------------------------------------------------------
 
-def _hint_idh_test(c: Ctx) -> None:
-    """Priors may change which IDH test is suggested. They never reach the report text."""
-    idh_rec = c.get("IDH").rec
-    age = c.priors.get("age_years")
-    if idh_rec is None and isinstance(age, (int, float)) and age < 55:
-        c.order("IDH", "If R132H immunohistochemistry is negative, sequence IDH1/IDH2 for non-canonical "
-                       "mutations", blocking=False, test="IDH_sequencing")
-
-
 def _molecular_extras(c: Ctx, dx: dict) -> None:
     if dx["who_type"] in ("gbm", "astro") and dx["status"] != "pending" and c.get("MGMT").call is None:
         c.need("MGMT", "report MGMT promoter status for treatment planning",
@@ -353,8 +422,9 @@ def _methylation_check(c: Ctx, dx: dict) -> None:
         c.order("methylation_class", "Methylation suggests non-tumour tissue", test="pathologist_review")
         return
     if dx["who_type"] and supported and supported != dx["who_type"]:
-        c.conflicts.append(f"Methylation class ({_word(m.call)}, {m.source}) does not match the rules-based "
-                           f"type ({TYPES[dx['who_type']]})")
+        who = "AI" if m.source == "ai" else m.source
+        c.conflicts.append(f"Methylation class ({who}) matches {TYPES[supported]}, but the markers give "
+                           f"{TYPES[dx['who_type']]}")
         if m.source == "ai":
             c.order("methylation_class", "AI methylation class disagrees with the markers",
                     test="methylation_array")
@@ -408,6 +478,7 @@ def _assemble(sid: str, c: Ctx, dx: dict) -> dict:
         "conflicts": c.conflicts,
         "notes": c.notes,
         "ai_decisive": ai_decisive,
+        "ai_disagreements": c.ai_disagreements,
         "signoff": {"required": True, "status": "awaiting_pathologist"},
     }
     from .report import render
