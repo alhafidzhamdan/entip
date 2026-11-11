@@ -1,0 +1,588 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/alhafidzhamdan/entip/dx/contract/glioma_step.schema.json",
+  "title": "entip.glioma_step/1",
+  "description": "One finding from one step of the AI glioma workflow (or a real test / pathologist call).",
+  "type": "object",
+  "required": [
+    "contract",
+    "step",
+    "finding",
+    "study_id",
+    "call"
+  ],
+  "properties": {
+    "contract": {
+      "const": "entip.glioma_step/1"
+    },
+    "step": {
+      "enum": [
+        "triage",
+        "high_grade_features",
+        "glioma_panel",
+        "methylation_class"
+      ]
+    },
+    "finding": {
+      "type": "string"
+    },
+    "study_id": {
+      "type": "string"
+    },
+    "scan_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "call": {
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "ai",
+        "test",
+        "pathologist"
+      ],
+      "default": "ai"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Calibrated probability that the call is right."
+    },
+    "threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Calibrated accept threshold for this finding and model version."
+    },
+    "status": {
+      "enum": [
+        "confident",
+        "uncertain",
+        "not_assessed"
+      ],
+      "description": "confident = use it; uncertain = order the real test."
+    },
+    "probabilities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "value": {
+      "type": "object",
+      "description": "Extras, e.g. mitoses_per_mm2, area_mm2; methylation: class, classifier."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "scan",
+              "region",
+              "cell",
+              "tile",
+              "prediction",
+              "annotation",
+              "genomic_finding",
+              "assay"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "x_um": {
+            "type": "number"
+          },
+          "y_um": {
+            "type": "number"
+          },
+          "w_um": {
+            "type": "number"
+          },
+          "h_um": {
+            "type": "number"
+          },
+          "weight": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "order_test": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "pathologist_review",
+            "additional_sampling",
+            "IDH1_R132H_IHC",
+            "IDH_sequencing",
+            "ATRX_IHC",
+            "p53_IHC",
+            "1p19q_testing",
+            "CDKN2A_B_testing",
+            "EGFR_amplification_testing",
+            "chr7_chr10_copy_number",
+            "TERT_promoter_sequencing",
+            "H3K27M_IHC",
+            "H3K27me3_IHC",
+            "H3G34_testing",
+            "MGMT_promoter_methylation",
+            "methylation_array"
+          ]
+        }
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model": {
+      "type": "object",
+      "required": [
+        "model_id"
+      ],
+      "properties": {
+        "model_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "licence": {
+          "type": "string"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "kind",
+        "actor"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "person",
+            "model",
+            "program"
+          ]
+        },
+        "actor": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "step": {
+              "const": "triage"
+            },
+            "finding": {
+              "const": "adequacy"
+            },
+            "call": {
+              "enum": [
+                "adequate",
+                "inadequate",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "triage"
+            },
+            "finding": {
+              "const": "tissue_class"
+            },
+            "call": {
+              "enum": [
+                "normal_brain",
+                "reactive",
+                "glioma",
+                "other_primary_cns",
+                "metastasis",
+                "lymphoma",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "triage"
+            },
+            "finding": {
+              "const": "glioma_pattern"
+            },
+            "call": {
+              "enum": [
+                "diffuse_astrocytic",
+                "oligodendroglial",
+                "circumscribed",
+                "ependymal",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "high_grade_features"
+            },
+            "finding": {
+              "const": "necrosis"
+            },
+            "call": {
+              "enum": [
+                "present",
+                "absent",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "high_grade_features"
+            },
+            "finding": {
+              "const": "microvascular_proliferation"
+            },
+            "call": {
+              "enum": [
+                "present",
+                "absent",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "high_grade_features"
+            },
+            "finding": {
+              "const": "mitotic_activity"
+            },
+            "call": {
+              "enum": [
+                "present",
+                "absent",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "IDH"
+            },
+            "call": {
+              "enum": [
+                "mutant",
+                "wildtype",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "ATRX"
+            },
+            "call": {
+              "enum": [
+                "retained",
+                "lost",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "TP53"
+            },
+            "call": {
+              "enum": [
+                "mutant",
+                "wildtype",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "1p19q"
+            },
+            "call": {
+              "enum": [
+                "codeleted",
+                "not_codeleted",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "CDKN2A"
+            },
+            "call": {
+              "enum": [
+                "homozygous_deletion",
+                "retained",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "EGFR"
+            },
+            "call": {
+              "enum": [
+                "amplified",
+                "not_amplified",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "chr7_chr10"
+            },
+            "call": {
+              "enum": [
+                "gain7_loss10",
+                "absent",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "TERT"
+            },
+            "call": {
+              "enum": [
+                "mutant",
+                "wildtype",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "H3K27"
+            },
+            "call": {
+              "enum": [
+                "altered",
+                "wildtype",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "H3G34"
+            },
+            "call": {
+              "enum": [
+                "mutant",
+                "wildtype",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "glioma_panel"
+            },
+            "finding": {
+              "const": "MGMT"
+            },
+            "call": {
+              "enum": [
+                "methylated",
+                "unmethylated",
+                "indeterminate"
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "step": {
+              "const": "methylation_class"
+            },
+            "finding": {
+              "const": "methylation_class"
+            },
+            "call": {
+              "enum": [
+                "glioblastoma_idh_wildtype",
+                "astrocytoma_idh_mutant",
+                "oligodendroglioma_idh_mutant_codeleted",
+                "diffuse_midline_glioma_h3k27",
+                "diffuse_hemispheric_glioma_h3g34",
+                "pediatric_hgg_h3wt_idhwt",
+                "control_tissue",
+                "other",
+                "no_match",
+                "indeterminate"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "not": {
+    "anyOf": [
+      {
+        "required": [
+          "age"
+        ]
+      },
+      {
+        "required": [
+          "age_years"
+        ]
+      },
+      {
+        "required": [
+          "site"
+        ]
+      },
+      {
+        "required": [
+          "location"
+        ]
+      },
+      {
+        "required": [
+          "radiology"
+        ]
+      },
+      {
+        "required": [
+          "imaging"
+        ]
+      },
+      {
+        "required": [
+          "sex"
+        ]
+      },
+      {
+        "required": [
+          "chi"
+        ]
+      },
+      {
+        "required": [
+          "nhs_number"
+        ]
+      },
+      {
+        "required": [
+          "dob"
+        ]
+      },
+      {
+        "required": [
+          "patient_name"
+        ]
+      },
+      {
+        "required": [
+          "accession"
+        ]
+      },
+      {
+        "required": [
+          "postcode"
+        ]
+      }
+    ]
+  }
+}

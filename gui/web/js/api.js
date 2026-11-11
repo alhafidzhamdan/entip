@@ -64,6 +64,13 @@
       return copy;
     }
 
+    async getDraftReport(studyId) { // WHO CNS5 draft from the dx engine (mock: gui/tools/make_mock_drafts.py)
+      try {
+        if (!this._drafts) this._drafts = await getJSON(`${this.base}/drafts.json`);
+      } catch (e) { this._drafts = {}; }
+      return this._drafts[studyId] || null;
+    }
+
     async getScan(scanId) {
       const d = await this._data();
       for (const p of d.patients) {
@@ -296,6 +303,12 @@
           threshold: meta.threshold ?? 0.5, predictions: preds.map((x) => ({ cell_id: x.target_id, p: x.score })) });
       }
       return out;
+    }
+
+    async getDraftReport(studyId) { // latest integrated_dx action written by entip-dx
+      const rows = await getJSON(`${this.db}/patients/${encodeURIComponent(studyId)}/actions?limit=5000`);
+      const dx = rows.filter((a) => a.verb === "integrated_dx" && a.detail && a.detail.contract);
+      return dx.length ? dx[dx.length - 1].detail : null;
     }
 
     async listActions({ study_id } = {}) {

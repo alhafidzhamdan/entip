@@ -234,6 +234,8 @@
     const scans = [], assays = [];
     walk(p, (k, o, trail) => { if (k === "scan") scans.push({ ...o, trail }); if (k === "assay") assays.push({ ...o, trail }); });
     const firstHE = scans.find((s) => s.tile_source);
+    const draft = api.getDraftReport ? await api.getDraftReport(id).catch(() => null) : null;
+    const draftPanel = draftReportPanel(draft);
 
     const cards = scans.map((sc) => sc.tile_source ? `
       <a class="panel slidecard" href="#slide-${esc(sc.scan_id)}">
@@ -280,6 +282,7 @@
                 ${meth ? `<div class="layer"><span class="lk">Methylation class</span><span class="lv">${esc(meth.result)}</span></div>` : ""}
                 <p class="help">Built from the research record. Not a clinical report.</p>
               </div></section>
+              ${draftPanel}
               <section class="sect" aria-labelledby="t-slides"><h2 id="t-slides">Slides</h2><div class="slides">${cards}</div></section>
             </div>
             <div class="sect" style="gap:20px">
@@ -320,10 +323,41 @@
           </div>
           <div class="sect" style="gap:20px">
             <section class="panel" aria-labelledby="t-mol"><div class="box"><h2 id="t-mol">Molecular</h2>${mol}</div></section>
+            ${draftPanel}
             <section class="panel" aria-labelledby="t-log"><div class="box"><h2 id="t-log">Activity</h2>${log(60)}</div></section>
           </div>
         </div>
       </div>`));
+  }
+
+  // The WHO CNS5 draft from the dx engine (step 5): diagnosis, tests to order, discrepancies, full text.
+  const TEST_LABEL = {
+    pathologist_review: "Pathologist review", additional_sampling: "Further tissue / levels",
+    IDH1_R132H_IHC: "IDH1 R132H IHC", IDH_sequencing: "IDH1/2 sequencing", ATRX_IHC: "ATRX IHC", p53_IHC: "p53 IHC",
+    "1p19q_testing": "1p/19q testing", CDKN2A_B_testing: "CDKN2A/B deletion", EGFR_amplification_testing: "EGFR amplification",
+    chr7_chr10_copy_number: "Chr 7/10 copy number", TERT_promoter_sequencing: "TERT promoter", H3K27M_IHC: "H3 K27M IHC",
+    H3K27me3_IHC: "H3 K27me3 IHC", H3G34_testing: "H3 G34", MGMT_promoter_methylation: "MGMT promoter",
+    methylation_array: "Methylation array",
+  };
+  const DX_STATUS = { complete: "Ready for sign-off", provisional: "Provisional", pending: "Tests pending",
+    not_diffuse_glioma: "Outside glioma rules", inadequate: "Inadequate" };
+
+  function draftReportPanel(dx) {
+    if (!dx) return "";
+    const d = dx.integrated_diagnosis;
+    const orders = (dx.orders || []).map((o) => `<li><b>${esc(TEST_LABEL[o.test] || o.test)}</b>${o.blocking ? "" : ' <span class="muted">(optional)</span>'}: ${esc(o.reason)}</li>`).join("");
+    const conflicts = (dx.conflicts || []).map((x) => `<li>${esc(x)}</li>`).join("");
+    return `
+      <section class="panel report" aria-labelledby="t-dx"><div class="box">
+        <h2 id="t-dx">AI draft integrated report</h2>
+        <div class="layer"><span class="lk">Integrated diagnosis</span><span class="lv">${esc(d.text)} <span class="tag">${esc(DX_STATUS[d.status] || d.status)}</span></span></div>
+        ${d.favoured && d.status !== "complete" ? `<div class="layer"><span class="lk">Favoured</span><span class="lv">${esc(d.favoured)}</span></div>` : ""}
+        <div class="layer"><span class="lk">CNS WHO grade</span><span class="lv">${esc(d.cns_who_grade == null ? "pending" : d.cns_who_grade)}</span></div>
+        ${orders ? `<div class="layer"><span class="lk">Tests to order</span><span class="lv"><ul class="plain">${orders}</ul></span></div>` : ""}
+        ${conflicts ? `<div class="layer"><span class="lk">Discrepancies</span><span class="lv"><ul class="plain">${conflicts}</ul></span></div>` : ""}
+        <details><summary>Full draft text</summary><pre class="draft">${esc(dx.report_text)}</pre></details>
+        <p class="help">Rules engine ${esc(dx.engine.version)} (${esc(dx.engine.rules)}). Awaiting pathologist sign-off. Research use only.</p>
+      </div></section>`;
   }
 
   function logItem(a) {
