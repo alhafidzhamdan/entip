@@ -28,9 +28,9 @@ def model_actions(model: PanelModel, uri: str = "", actor: str = "program:entip-
             "model_id": f"{model.model_id}:{name}", "kind": "slide-mil:abmil", "encoder": model.encoder,
             "status": "draft", "version": model.version, "n_labels": f.metrics.get("n"),
             "metrics": json.loads(json.dumps(f.metrics, default=float)), "licence": model.licence,
-            "uri": f"{uri.rstrip('/')}/{name}.npz" if uri else "",
+            "uri": f"{uri.rstrip('/')}/{name}.npz" if uri else None,
             "meta": {"step": "glioma_panel", "finding": name, "temperature": f.temperature,
-                     "threshold": f.threshold, "tile_um": model.tile_um, "trained_on": model.trained_on},
+                     "thresholds": f.thresholds, "tile_um": model.tile_um, "trained_on": model.trained_on},
         })
     return {"verb": "upsert", "object_type": "model", "records": recs,
             "provenance": {"kind": "program", "actor": actor, "version": model.version}}

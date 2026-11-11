@@ -4,9 +4,9 @@ calibration and its own accept threshold.
 Training, per marker:
 1. keep patients with a label (and whose own labels meet the marker's ``requires``, e.g. IDH-mutant for 1p/19q);
 2. site-grouped cross-validation gives an out-of-fold logit for every labelled patient;
-3. a temperature is fitted on those logits, and the accept threshold is the lowest calibrated confidence at
-   which the upper 95% bound on the error among accepted patients stays within the marker's ``max_error``
-   (``wsi.calibrate.selective_threshold``); if no threshold reaches it, the marker always orders the test;
+3. a temperature is fitted on those logits, and each call gets its own accept threshold: the lowest calibrated
+   confidence at which both the wrong-call rate and the miss rate of that call stay within the marker's limits,
+   as upper 95% bounds (``gate.py``); a call with no such threshold always orders the test;
 4. the final classifier is trained on every labelled patient.
 
 Markers per patient are separate models (not one shared head) so that each one can use every patient that has
@@ -24,13 +24,13 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 
 from ..wsi.abmil import ABMIL
-from ..wsi.calibrate import ece, fit_temperature, selective_threshold
+from ..wsi.calibrate import ece, fit_temperature
 from .dataset import PatientBag
+from .gate import NEVER, marker_thresholds
 from .labels import Labels, apply_requirements
 from .markers import PanelConfig, load_config
 
-__version__ = "0.1.0"
-NEVER = 1.01          # threshold that no confidence reaches: always order the test
+__version__ = "0.2.0"
 
 
 @dataclass
@@ -39,7 +39,7 @@ class MarkerFit:
     trained: bool
     reason: str = ""
     temperature: float = 1.0
-    threshold: float = NEVER
+    thresholds: List[float] = field(default_factory=lambda: [NEVER, NEVER])   # per call (class 0, class 1)
     metrics: dict = field(default_factory=dict)
     clf: Optional[ABMIL] = None
 
@@ -134,28 +134,38 @@ class PanelModel:
         k = min(self.config.cv_folds, len({p.group or p.study_id for p in pats}))
         folds = _groups_to_folds([p.group for p in pats], max(2, k))
         oof = np.zeros((len(y), 2))
+        scored = np.zeros(len(y), bool)       # a fold whose training side lacks a class cannot be scored
         for f in range(folds.max() + 1):
             te, tr = folds == f, folds != f
             if len(np.unique(y[tr])) < 2 or not te.any():
-                oof[te] = 0.0                 # a fold without both classes cannot be scored; logits 0 = p 0.5
                 continue
             clf = self._new_clf().fit([bags[i] for i in np.flatnonzero(tr)], y[tr])
             oof[te] = clf.logits([bags[i] for i in np.flatnonzero(te)])
-        t = fit_temperature(oof, y)
-        p = _softmax(oof / t)
+            scored[te] = True
+        ys, zs = y[scored], oof[scored]
+        metrics = {"n": int(len(y)), "n_per_class": [int((y == 0).sum()), int((y == 1).sum())],
+                   "n_scored_oof": int(scored.sum()), "folds": int(folds.max() + 1),
+                   "cv_groups": "tissue source site" if all(p.group for p in pats) else "patient"}
+        if len(np.unique(ys)) < 2:
+            reason = "cross-validation could not score both classes (too few sites or patients)"
+            log(f"[panel] {m.finding}: not trained, {reason}")
+            return MarkerFit(m.finding, False, reason, metrics=metrics)
+        t = fit_temperature(zs, ys)
+        p = _softmax(zs / t)
         conf, pred = p.max(1), p.argmax(1)
-        sel = selective_threshold(conf, pred == y, max_error=m.max_error)
-        metrics = {
-            "n": int(len(y)), "n_per_class": [int((y == 0).sum()), int((y == 1).sum())],
-            "folds": int(folds.max() + 1), "cv_groups": "tissue source site" if pats[0].group else "patient",
-            "auroc_oof": _auroc(y, p[:, 1]), "balanced_accuracy_oof": _balanced_acc(y, pred),
-            "ece_oof_raw": ece(_softmax(oof), y), "ece_oof_calibrated": ece(p, y),
-            "temperature": t, "accept": sel,
-        }
+        acc = marker_thresholds(conf, pred, ys, m.max_error, m.max_miss)
+        metrics.update({
+            "auroc_oof": _auroc(ys, p[:, 1]), "balanced_accuracy_oof": _balanced_acc(ys, pred),
+            "ece_oof_raw": ece(_softmax(zs), ys), "ece_oof_calibrated": ece(p, ys), "temperature": t,
+            "accept": {m.calls[c]: acc[c] for c in (0, 1)},
+            "coverage_oof": float(sum(acc[c]["n_accepted"] for c in (0, 1)) / len(ys)),
+        })
         clf = self._new_clf().fit(bags, y)
-        log(f"[panel] {m.finding}: n={len(y)} AUROC(oof)={metrics['auroc_oof']} "
-            f"accepts {sel['coverage']:.0%} at threshold {min(sel['threshold'], 1.0):.3f}")
-        return MarkerFit(m.finding, True, temperature=t, threshold=float(sel["threshold"]), metrics=metrics, clf=clf)
+        log(f"[panel] {m.finding}: n={len(y)} AUROC(oof)={metrics['auroc_oof']:.3f}; accepts "
+            + ", ".join(f"{m.calls[c]} {acc[c]['n_accepted']}/{int((pred == c).sum())}" for c in (0, 1)))
+        return MarkerFit(m.finding, True, temperature=t, thresholds=[float(acc[0]["threshold"]),
+                                                                    float(acc[1]["threshold"])],
+                         metrics=metrics, clf=clf)
 
     # ------------------------------------------------------------------ inference
     def predict_proba(self, finding: str, bag: np.ndarray) -> np.ndarray:
@@ -174,7 +184,7 @@ class PanelModel:
                     "config": self.config.to_dict(), "ood_limit": self.ood.get("limit"), "markers": {}}
         for name, f in self.fits.items():
             manifest["markers"][name] = {"trained": f.trained, "reason": f.reason, "temperature": f.temperature,
-                                         "threshold": f.threshold, "metrics": f.metrics}
+                                         "thresholds": f.thresholds, "metrics": f.metrics}
             if f.trained:
                 f.clf.save(out / f"{name}.npz")
         np.savez(out / "ood.npz", mu=self.ood["mu"], sd=self.ood["sd"])
@@ -194,6 +204,6 @@ class PanelModel:
         with np.load(out / "ood.npz", allow_pickle=False) as z:
             m.ood = {"mu": z["mu"], "sd": z["sd"], "limit": man["ood_limit"]}
         for name, f in man["markers"].items():
-            m.fits[name] = MarkerFit(name, f["trained"], f["reason"], f["temperature"], f["threshold"], f["metrics"],
+            m.fits[name] = MarkerFit(name, f["trained"], f["reason"], f["temperature"], list(f["thresholds"]), f["metrics"],
                                      ABMIL.load(out / f"{name}.npz") if f["trained"] else None)
         return m

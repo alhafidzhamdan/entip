@@ -1,6 +1,6 @@
 """``entip-panel``: train and run the glioma panel model (step 3 of the AI glioma workflow). Research use only.
 
-  entip-panel demo                                    # synthetic cohort: train, gate, predict (CPU, ~30 s)
+  entip-panel demo                                    # synthetic cohort: train, gate, predict (CPU, about a minute)
   entip-panel labels --cbioportal samples.tsv [--long extra.csv] --out labels.json
   entip-panel train --bags bags/ --labels labels.json --out model/ [--config configs/glioma_panel.json]
   entip-panel predict --model model/ --bags bags/ [--scan-map scans.csv] [--db http://127.0.0.1:8705]
@@ -85,7 +85,7 @@ def cmd_demo(a) -> int:
     from .predict import predict_patient, summarise
     from .synthetic import synthetic_cohort
     train, labels, _ = synthetic_cohort(a.n, seed=0)
-    test, tlabels, _ = synthetic_cohort(40, seed=1, prefix="TST")
+    test, tlabels, _ = synthetic_cohort(100, seed=1, prefix="TST")
     cfg = load_config(a.config, abmil={"hidden": 32, "attn": 16, "epochs": 15, "max_tiles": 128})
     m = PanelModel(cfg).fit(train, labels, source="synthetic")
     right = called = total = 0
@@ -114,7 +114,7 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     d = sub.add_parser("demo")
-    d.add_argument("--n", type=int, default=200)
+    d.add_argument("--n", type=int, default=400)
     d.add_argument("--config")
     d.add_argument("--out")
     d.set_defaults(fn=cmd_demo)
