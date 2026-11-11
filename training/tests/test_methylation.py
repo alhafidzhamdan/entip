@@ -365,3 +365,23 @@ def test_post_actions_keeps_a_registered_model(trained):
             post_actions(url, [{"action_id": "a", "verb": "boom", "provenance": {}}])
     finally:
         srv.shutdown()
+
+
+def test_calibration_block(trained):
+    m, data = trained
+    rec = m.predict([data[0][1]], "SYN-0001")
+    cal = rec["calibration"]
+    assert cal["method"] == "temperature" and cal["calibrated"] is True
+    assert cal["validated"] == (m.family_threshold <= 1.0) and cal["n_heldout"] == m.metrics["n_cases"]
+    assert cal["max_error"] == 0.05 and 0 <= cal["coverage"] <= 1
+    if cal["validated"]:
+        assert cal["error_upper"] <= cal["max_error"]
+    never = MethylationModel(**{**m.__dict__, "family_threshold": 1.01,
+                                "metrics": {**m.metrics, "family": {"selective": {"threshold": 1.01, "coverage": 0.0,
+                                            "error": None, "error_upper": None, "max_error": 0.05}}}})
+    cal2 = never.predict([data[0][1]], "SYN-0001")["calibration"]
+    assert cal2["validated"] is False and "error_upper" not in cal2
+    low = m.predict([data[0][1]], "SYN-0001", triage_call="metastasis")
+    assert low["calibration"] == {"method": "none", "calibrated": False}
+    for r in (rec, low):
+        _validate(r)
