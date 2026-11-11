@@ -44,7 +44,7 @@ OPEN_LICENCES = ("CC BY 4.0", "CC BY 3.0")
 
 IDC_SQL = """
 SELECT i.collection_id, i.PatientID, i.SeriesInstanceUID, i.license_short_name, i.Manufacturer,
-       i.series_size_MB, s.primaryAnatomicStructure_CodeMeaning AS site,
+       i.series_size_MB, i.transfer_syntax_name AS transfer_syntax, s.primaryAnatomicStructure_CodeMeaning AS site,
        s.admittingDiagnosis_CodeMeaning AS dx, s.min_PixelSpacing_2sf AS pixel_spacing_mm,
        s.ContainerIdentifier AS container_id,
        array_to_string(s.tissueFixative_CodeMeaning, '; ') AS fixative,
@@ -55,7 +55,7 @@ WHERE list_contains(s.staining_usingSubstance_CodeMeaning, 'hematoxylin stain')
 """
 
 FIELDS = ("collection_id", "PatientID", "SeriesInstanceUID", "license_short_name", "Manufacturer",
-          "series_size_MB", "site", "dx", "pixel_spacing_mm", "container_id", "fixative", "embedding", "prep",
+          "series_size_MB", "transfer_syntax", "site", "dx", "pixel_spacing_mm", "container_id", "fixative", "embedding", "prep",
           "label", "group")
 
 
