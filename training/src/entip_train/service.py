@@ -24,7 +24,7 @@ from . import __version__
 from .cache import EmbeddingCache
 from .encoders import Encoder
 from .heads import (HeadConfig, LiveHead, background_negatives, cv_balanced_accuracy, labels_from_annotations,
-                    review_queue)
+                    load_head_file, review_queue)
 from .ontology import NEGATIVE, POSITIVE, Annotation, Cell, Feature, Model, Region, Scan
 from .retrain import GateConfig, run_round
 from .slides import Reader, grid_regions
@@ -207,7 +207,7 @@ class TrainingService:
 
     def load_head(self, model_id: str) -> LiveHead:
         if model_id not in self.heads:
-            self.heads[model_id] = joblib.load(self.store.model(model_id).artifact)   # our own artifacts only
+            self.heads[model_id] = load_head_file(self.store.model(model_id).artifact, self.artifacts / "heads")
         return self.heads[model_id]
 
     def train(self, head_id: str, actor: str = "system", kind: Optional[str] = None) -> Model:
