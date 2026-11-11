@@ -13,6 +13,9 @@ Al's rule: every component must be openly licensed so it can be deployed in the 
 | H-optimus-0 weights | default encoder for real slides | Apache-2.0 (per MitoEd's LICENCES.md and licences.py) | open |
 | XGBoost | optional head kind (`[xgboost]`) | Apache-2.0 | open |
 | openslide-python / OpenSlide | optional WSI reader (`[slides]`), also reads DICOM slides from IDC | LGPL-2.1 | check with IG before deployment |
+| wsidicom, pydicom | DICOM slides OpenSlide cannot read (JPEG 2000, YBR_FULL_422; about 650 TCGA series on IDC) (`[slides]`) | Apache-2.0, MIT (package metadata, checked 2026-11-11) | open |
+| Pillow | antialiased tile resizing (`[slides]`) | MIT-CMU | open |
+| SciPy | exact binomial bound for the accept threshold | BSD-3-Clause | open |
 | idc-index, idc-index-data | triage manifest from the Imaging Data Commons (`[idc]`) | MIT (PyPI classifiers, checked 2026-11-10) | open |
 | wsi/abmil.py | attention-MIL, our own NumPy code after Ilse et al. 2018 (arXiv 1802.04712) | MIT (this package) | open; no CLAM code |
 

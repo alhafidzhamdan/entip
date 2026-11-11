@@ -6,16 +6,29 @@ Training (``TriageModel.fit``):
    almost no metastasis or lymphoma and no reactive brain; those classes wait for Edinburgh slides).
 2. ``folds``-fold cross-validation, patients never split across folds, gives an out-of-fold probability for
    every slide. Each fold trains an ABMIL with early stopping on a patient-held-out validation share.
-3. Temperature scaling and the accept threshold are fitted on those out-of-fold predictions, so the numbers
-   in the report are on slides the scoring model never saw.
-4. The final model is trained on everything and carries that temperature and threshold.
+3. Temperature scaling is fitted on those out-of-fold predictions. The accept threshold is fitted on one row
+   per patient (the patient's most abnormal slide, the same rule used at prediction), because slides of one
+   patient are not independent.
+4. A novelty check (``wsi/novelty.py``) learns how far training slides sit from their class centroids; its
+   cut-off also comes from out-of-fold slides.
+5. The final model is trained on everything and carries that temperature, threshold and novelty check.
+   The cross-validated numbers describe the fold models; the final model is assumed to behave alike.
 
-Two checks guard against shortcuts. Public sources are mostly single-class (all GTEx cortex is normal and
-PAXgene-fixed, all TCGA is glioma), so a model can learn the source rather than the tissue:
+A patient gets a confident call only if the chosen slide is above the threshold, is not novel, and no other
+slide of the patient confidently says something else.
+
+Checks against shortcuts and blind spots, all in the report:
 
 * ``source_check``: within one class, how well the source can be told apart from mean-pooled features
-  (high = strong source signal in the features);
-* ``leave_one_source_out``: for classes with several sources, accuracy on a source the model never saw.
+  (high = strong source signal in the features). Public sources are mostly single-class (all GTEx cortex is
+  normal and PAXgene-fixed, all TCGA is glioma), so a model can learn the source rather than the tissue;
+* ``leave_one_source_out``: for classes with several sources, accuracy on a source the model never saw;
+* ``unseen_classes``: slides of the left-out classes are scored by the final model. They can only be wrong,
+  so the report gives how many would have been accepted as a confident call, and how many the novelty check
+  catches.
+
+Probabilities reflect the class mix of the training data after balanced weighting, not Edinburgh's case mix.
+Recalibrate on local slides before any use.
 """
 from __future__ import annotations
 
@@ -32,6 +45,7 @@ from .. import __version__
 from ..wsi.abmil import ABMIL, _softmax
 from ..wsi.bags import Bag
 from ..wsi.calibrate import ece, fit_temperature, selective_threshold
+from ..wsi.novelty import Novelty, pooled
 from .labels import CLASSES, GLIAL, IDX, TUMOUR, derived
 
 CONTRACT = "entip.glioma_step/1"
@@ -56,6 +70,7 @@ class TriageConfig:
     # Adequacy is tissue area only (lesional content is not judged). 1 mm² is a placeholder for Al to set.
     min_area_mm2: float = 1.0
     top_k: int = 20
+    novelty_quantile: float = 0.99     # training slides beyond this out-of-fold distance count as novel
     seed: int = 0
 
 
@@ -89,9 +104,14 @@ def _folds(y, patients, k, seed):
                                                                                          patients))
 
 
-def _renorm(p: np.ndarray, trained: np.ndarray) -> np.ndarray:
-    q = p * trained
-    return q / q.sum(axis=-1, keepdims=True)
+def p_tumour(probs: np.ndarray) -> np.ndarray:
+    return np.atleast_2d(probs)[:, [IDX[c] for c in TUMOUR]].sum(1)
+
+
+def patient_rows(probs: np.ndarray, patients: np.ndarray) -> np.ndarray:
+    """Index of each patient's most abnormal slide (highest tumour probability): one row per patient."""
+    pt = p_tumour(probs)
+    return np.array([np.flatnonzero(patients == p)[np.argmax(pt[patients == p])] for p in np.unique(patients)])
 
 
 def metrics(probs: np.ndarray, y: np.ndarray, trained: np.ndarray) -> dict:
@@ -160,6 +180,7 @@ class TriageModel:
         self.report: dict = {}
         self.model_id = ""
         self.version = ""
+        self.novelty: Optional[Novelty] = None
 
     # ------------------------------------------------------------------ training
     def fit(self, bags: Sequence[Bag], labels: Sequence[str], groups: Sequence[str], patients: Sequence[str],
@@ -180,24 +201,35 @@ class TriageModel:
         y = np.array([IDX[c] for c in labels[keep]])
         P, G = patients[keep], groups[keep]
 
+        Z = pooled(X)
         oof = np.zeros((len(y), len(CLASSES)))
+        oof_dist = np.zeros(len(y))
         for f, (tr, te) in enumerate(_folds(y, P, cfg.folds, cfg.seed)):
             m = _fit_one(cfg, [X[i] for i in tr], y[tr], P[tr], cfg.seed + f)
             oof[te] = m.logits([X[i] for i in te])
+            oof_dist[te] = Novelty(quantile=cfg.novelty_quantile).fit(Z[tr], y[tr]).distance(Z[te])
         oof[:, ~self.trained] = -1e9
         raw = _softmax(oof, axis=1)
         self.temperature = fit_temperature(oof, y)
         cal = _softmax(oof / self.temperature, axis=1)
-        gate = selective_threshold(cal.max(1), cal.argmax(1) == y, cfg.max_error, cfg.min_accepted)
+        rows = patient_rows(cal, P)
+        gate = selective_threshold(cal[rows].max(1), cal[rows].argmax(1) == y[rows], cfg.max_error,
+                                   cfg.min_accepted)
+        gate["unit"] = "patient (most abnormal slide)"
         self.threshold = gate["threshold"]
+        self.novelty = Novelty(quantile=cfg.novelty_quantile).fit(Z, y)
+        self.novelty.fit_threshold(oof_dist)
 
         rep = {"n_slides": int(len(y)), "n_patients": int(len(np.unique(P))),
                "slides_per_class": {c: int((labels[keep] == c).sum()) for c in use},
                "patients_per_class": n_pat, "classes_trained": use,
                "classes_excluded": [c for c in CLASSES if c not in use],
                "cv": {"folds": cfg.folds, "split": "patient", "uncalibrated": metrics(raw, y, self.trained),
-                      "calibrated": metrics(cal, y, self.trained), "temperature": self.temperature,
-                      "gate": gate},
+                      "calibrated": metrics(cal, y, self.trained),
+                      "per_patient": metrics(cal[rows], y[rows], self.trained),
+                      "temperature": self.temperature, "gate": gate},
+               "novelty": {"threshold": self.novelty.threshold, "quantile": cfg.novelty_quantile,
+                           "share_of_training_slides_flagged": float((oof_dist > self.novelty.threshold).mean())},
                "per_source_accuracy": {str(g): float((cal.argmax(1)[G == g] == y[G == g]).mean())
                                        for g in np.unique(G)},
                "source_check": source_check(X, labels[keep], G, P, seed=cfg.seed)}
@@ -206,10 +238,24 @@ class TriageModel:
         self.mil = _fit_one(cfg, X, y, P, cfg.seed + 100)
         h = hashlib.sha1(b"".join(self.mil.p[k].tobytes() for k in sorted(self.mil.p))).hexdigest()[:8]
         self.model_id, self.version = f"cns-triage-{h}", f"{__version__}+{h}"
+        rep["unseen_classes"] = self._unseen([bags[i] for i in np.flatnonzero(~keep)], labels[~keep])
         rep.update({"model_id": self.model_id, "version": self.version, "encoder": self.encoder,
                     "config": asdict(self.cfg)})
         self.report = rep
         return rep
+
+    def _unseen(self, bags, labels) -> dict:
+        """Slides of classes the model was not trained on: every call is wrong, so count the accepted ones."""
+        out = {}
+        for c in np.unique(labels):
+            ps = [self.predict(b) for b, l in zip(bags, labels) if l == c and len(b)]
+            if not ps:
+                continue
+            acc = [p for p in ps if p["probs"].max() >= self.threshold]
+            out[str(c)] = {"n": len(ps), "called": dict(Counter(CLASSES[int(p["probs"].argmax())] for p in ps)),
+                           "above_threshold": len(acc), "flagged_novel": int(sum(p["novel"] for p in ps)),
+                           "accepted_wrongly": int(sum(not p["novel"] for p in acc))}
+        return out
 
     def _loso(self, X, y, G, P) -> dict:
         """For each source of a class that has another source too: train without it, test on it."""
@@ -230,68 +276,99 @@ class TriageModel:
 
     # ------------------------------------------------------------------ inference
     def predict(self, bag: Bag) -> dict:
+        """One slide: calibrated class probabilities, attention per tile, novelty distance."""
         if self.mil is None:
             raise RuntimeError("model is not trained or loaded")
         if bag.encoder != self.encoder:
             raise ValueError(f"bag encoder {bag.encoder!r} differs from the model's {self.encoder!r}")
         if len(bag) == 0:
-            return {"scan_id": bag.scan_id, "n_tiles": 0, "probs": None, "attention": np.zeros(0)}
+            return {"scan_id": bag.scan_id, "n_tiles": 0, "probs": None, "attention": np.zeros(0),
+                    "distance": None, "novel": False}
         lg = self.mil.logits([bag.features])[0]
         lg[~self.trained] = -1e9
         p = _softmax(lg / self.temperature)
-        return {"scan_id": bag.scan_id, "n_tiles": len(bag), "probs": p, "attention": self.mil.attention(bag.features)}
+        dist = float(self.novelty.distance(pooled([bag.features]))[0]) if self.novelty is not None else None
+        return {"scan_id": bag.scan_id, "n_tiles": len(bag), "probs": p,
+                "attention": self.mil.attention(bag.features), "distance": dist,
+                "novel": bool(dist is not None and dist > self.novelty.threshold)}
 
     def records(self, bags: Sequence[Bag], study_id: str) -> List[dict]:
         """Contract records (entip.glioma_step/1) for one patient: ``adequacy`` and ``tissue_class``.
-        Several H&E scans of one patient are combined by averaging their calibrated probabilities."""
+
+        With several H&E scans the call comes from the most abnormal one (highest tumour probability):
+        averaging would let three bland slides outvote the one that holds the tumour."""
         cfg = self.cfg
         model = {"model_id": self.model_id, "version": self.version, "licence": "MIT (code); see model card"}
         prov = {"kind": "model", "actor": self.model_id, "version": self.version}
-        preds = [self.predict(b) for b in bags]
         scan_ids = [b.scan_id for b in bags]
         area = float(sum(len(b) * b.tile_um ** 2 for b in bags) / 1e6)
         lo, hi = 0.5 * cfg.min_area_mm2, 2.0 * cfg.min_area_mm2
         adequate = area >= cfg.min_area_mm2
         clear = area >= hi or area < lo
+        val = {"tissue_area_mm2": round(area, 4), "min_area_mm2": cfg.min_area_mm2}
+        sharp = [b.sharpness for b in bags if b.sharpness is not None and len(b.sharpness)]
+        if sharp:
+            sh = np.concatenate(sharp)
+            val.update({"sharpness_median": round(float(np.median(sh)), 1),
+                        "sharpness_p10": round(float(np.percentile(sh, 10)), 1)})
         out = [{"contract": CONTRACT, "step": "triage", "finding": "adequacy", "study_id": study_id,
                 "scan_ids": scan_ids, "call": "adequate" if adequate else "inadequate", "source": "ai",
                 "confidence": 1.0 if clear else 0.5, "threshold": 0.9,
                 "status": "confident" if clear else "uncertain",
-                "probabilities": {}, "value": {"tissue_area_mm2": round(area, 4), "min_area_mm2": cfg.min_area_mm2},
+                "probabilities": {}, "value": val,
                 "evidence": [{"kind": "scan", "id": s} for s in scan_ids],
                 "order_test": None if (clear and adequate) else "additional_sampling",
                 "reasons": [f"{area:.2f} mm² of tissue tiles (rule: at least {cfg.min_area_mm2} mm²); "
-                            "tissue area only, lesional content not judged"],
+                            "tissue area only; lesional content and focus are reported, not judged"],
                 "model": {"model_id": "triage-adequacy-rule", "version": __version__, "licence": "MIT"},
                 "provenance": {"kind": "program", "actor": "entip-train triage", "version": __version__}}]
-        good = [p for p in preds if p["probs"] is not None]
-        if not good:
+        scored = [(self.predict(b), b) for b in bags]
+        scored = [(g, b) for g, b in scored if g["probs"] is not None]
+        if not scored:
             return out
-        p = np.mean([g["probs"] for g in good], axis=0)
+        g, b = max(scored, key=lambda gb: float(p_tumour(gb[0]["probs"])[0]))
+        p = g["probs"]
         call = CLASSES[int(p.argmax())]
         conf = float(p.max())
-        confident = conf >= self.threshold
+        never = self.threshold > 1.0
         reasons = [f"calibrated confidence {conf:.3f} vs threshold {min(self.threshold, 1.0):.3f}"]
+        problems = []
+        if never:
+            problems.append("no threshold met the error target in validation: this model never accepts")
+        elif conf < self.threshold:
+            problems.append("below threshold: pathologist to classify")
+        if g["novel"]:
+            problems.append(f"slide is unlike the training slides (distance {g['distance']:.2f} vs "
+                            f"{self.novelty.threshold:.2f}): possible unseen tumour type, stain or scanner")
+        others = sorted({CLASSES[int(o["probs"].argmax())] for o, _ in scored
+                         if o is not g and o["probs"].max() >= self.threshold} - {call})
+        if others:
+            problems.append(f"another slide of this patient is confidently called {', '.join(others)}")
+        confident = not problems
         order = None
-        if not confident:
+        if problems:
             order = "pathologist_review"
-            reasons.append("below threshold: pathologist to classify")
+            reasons += problems
         elif call in cfg.review_calls:
             order = "pathologist_review"
             reasons.append(f"{call}: outside the glioma pathway, pathologist to confirm and work up")
+        if len(scored) > 1:
+            reasons.append(f"call taken from the most abnormal of {len(scored)} slides ({b.scan_id})")
         evidence = []
-        for g, b in zip(good, bags):
-            top = np.argsort(-g["attention"])[:cfg.top_k]
-            for r, i in enumerate(top):
-                x, y = (float(v) for v in b.coords_um[i])
-                evidence.append({"kind": "tile", "id": tile_region_id(b.scan_id, self.model_id, r),
-                                 "x_um": x, "y_um": y, "w_um": b.tile_um, "h_um": b.tile_um,
-                                 "weight": float(g["attention"][i])})
+        for r, i in enumerate(np.argsort(-g["attention"])[:cfg.top_k]):
+            x, y = (float(v) for v in b.coords_um[i])
+            evidence.append({"kind": "tile", "id": tile_region_id(b.scan_id, self.model_id, r),
+                             "x_um": x, "y_um": y, "w_um": b.tile_um, "h_um": b.tile_um,
+                             "weight": float(g["attention"][i])})
         value = {k: round(v, 4) for k, v in derived(p).items()}
-        value.update({"n_tiles": int(sum(g["n_tiles"] for g in good)),
-                      "classes_trained": [c for c, t in zip(CLASSES, self.trained) if t]})
+        value.update({"n_tiles": int(g["n_tiles"]), "novel": g["novel"],
+                      "classes_trained": [c for c, t in zip(CLASSES, self.trained) if t],
+                      "per_scan": [{"scan_id": o["scan_id"], "call": CLASSES[int(o["probs"].argmax())],
+                                    "confidence": round(float(o["probs"].max()), 4),
+                                    "p_tumour": round(float(p_tumour(o["probs"])[0]), 4), "novel": o["novel"]}
+                                   for o, _ in scored]})
         out.append({"contract": CONTRACT, "step": "triage", "finding": "tissue_class", "study_id": study_id,
-                    "scan_ids": [g["scan_id"] for g in good], "call": call, "source": "ai",
+                    "scan_ids": [o["scan_id"] for o, _ in scored], "call": call, "source": "ai",
                     "confidence": round(conf, 4), "threshold": round(min(self.threshold, 1.0), 4),
                     "status": "confident" if confident else "uncertain",
                     "probabilities": {c: round(float(v), 4) for c, v, t in zip(CLASSES, p, self.trained) if t},
@@ -304,6 +381,8 @@ class TriageModel:
         d = Path(out_dir)
         d.mkdir(parents=True, exist_ok=True)
         self.mil.save(d / "abmil.npz")
+        if self.novelty is not None:
+            np.savez(d / "novelty.npz", **self.novelty.state())
         meta = {"model_id": self.model_id, "version": self.version, "encoder": self.encoder,
                 "temperature": self.temperature, "threshold": self.threshold,
                 "trained": [c for c, t in zip(CLASSES, self.trained) if t], "config": asdict(self.cfg),
@@ -319,6 +398,9 @@ class TriageModel:
         cfg["review_calls"] = tuple(cfg["review_calls"])
         m = cls(TriageConfig(**cfg))
         m.mil = ABMIL.load(d / "abmil.npz")
+        if (d / "novelty.npz").exists():
+            with np.load(d / "novelty.npz", allow_pickle=False) as z:
+                m.novelty = Novelty.from_state(z)
         m.model_id, m.version, m.encoder = meta["model_id"], meta["version"], meta["encoder"]
         m.temperature, m.threshold = float(meta["temperature"]), float(meta["threshold"])
         m.trained = np.array([c in meta["trained"] for c in CLASSES])
