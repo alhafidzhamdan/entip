@@ -40,7 +40,7 @@ def assay_frame(assay_id: str) -> str:
 @dataclass(frozen=True)
 class Provenance:
     """Who made an object: a person, or a model/program plus its version."""
-    kind: Literal["person", "model"]
+    kind: Literal["person", "model", "program"]
     actor: str
     version: Optional[str] = None
     at: str = field(default_factory=now_iso)
@@ -48,7 +48,7 @@ class Provenance:
     @classmethod
     def program(cls, step: str) -> "Provenance":
         from . import __version__
-        return cls(kind="model", actor=f"entip-spatial:{step}", version=__version__)
+        return cls(kind="program", actor=f"entip-spatial:{step}", version=__version__)
 
 
 @dataclass

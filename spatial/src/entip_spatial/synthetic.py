@@ -121,7 +121,7 @@ def make(out: str | Path, seed: int = 0, width_um: float = 2000.0, height_um: fl
                   "pxl_row_in_fullres": px[:, 1], "pxl_col_in_fullres": px[:, 0]}).to_csv(
         vd / "spatial" / "tissue_positions.csv", index=False)
     (vd / "spatial" / "scalefactors_json.json").write_text(json.dumps(
-        {"spot_diameter_fullres": 55.0 / um_per_px, "fiducial_diameter_fullres": 89.0 / um_per_px,
+        {"spot_diameter_fullres": 65.0 / um_per_px, "fiducial_diameter_fullres": 89.0 / um_per_px,
          "tissue_hires_scalef": 0.1, "tissue_lowres_scalef": 0.03}))
     pick = rng.choice(len(sp), 6, replace=False)
     pd.DataFrame({"assay_x_um": sp_assay[pick, 0], "assay_y_um": sp_assay[pick, 1],

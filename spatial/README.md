@@ -18,7 +18,8 @@ pytest -q
 1. **Load** (`loaders.py`). Each assay becomes an AnnData with `obsm["spatial_um"]` (micrometres, assay frame).
    - Visium: Space Ranger `outs/` (`filtered_feature_bc_matrix.h5`, `spatial/tissue_positions.csv` or
      `tissue_positions_list.csv`, `scalefactors_json.json`). Micrometres per full-res pixel =
-     55 / `spot_diameter_fullres` (55 µm spots). Visium HD is not handled yet.
+     65 / `spot_diameter_fullres` (10x define that field as the pixels across a theoretical 65 µm spot; the
+     capture spot itself is 55 µm). Visium HD is not handled yet.
    - Xenium: `cell_feature_matrix.h5` + `cells.csv.gz` (or `cells.parquet`); centroids are already µm.
      Control probes are dropped.
    - Slide-tags / any `.h5ad`: positions in `obsm["spatial"]`; units must be given (`--um-per-unit`).
@@ -35,8 +36,12 @@ pytest -q
      (`--min-fraction`). These are weak labels; confidence = that fraction.
    - unmatched or ambiguous nuclei are left out, never called negative.
 5. **Records** (`records.py`). Assay, Transform and SpatialObject records plus an append-only
-   `actions.jsonl`, written as JSON Lines until the pillar 5 schema and API exist. `JsonlSink` is the only
-   writer, so moving to the database means adding one sink.
+   `actions.jsonl` are always written as JSON Lines beside the outputs. With `--db` (or `$ENTIP_DB_URL`),
+   `register` also writes them to the central database (`db/`) as one logged action: the assay, its transform
+   (with its error in µm) and every spot or nucleus placed in the H&E frame. The section must already exist
+   there. Running it again for the same assay replaces the positions. The local file path is not sent; give
+   `--assay-uri` to record where the data are kept. If the database has a write token, put it in
+   `$ENTIP_DB_WRITE_TOKEN`.
 
 ## Inputs and outputs
 
@@ -65,6 +70,6 @@ code works; they say nothing about real tissue.
 - Landmark picking in the GUI (pillar 4); image-based registration (no landmarks).
 - Adjacent-section assays (Visium on a neighbouring section) need a non-rigid step; only affine here.
 - Cell-type deconvolution of spots is expected as input (`--fractions`), not computed here.
-- Swap `JsonlSink` for the pillar 5 API once the schema lands.
+- Training labels (`training_labels.csv`) are not yet written to the database as annotations.
 
 Dependencies and licences: [LICENCES.md](LICENCES.md).

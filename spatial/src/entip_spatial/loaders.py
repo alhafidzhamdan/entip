@@ -22,6 +22,11 @@ from .tenx import read_10x_h5
 
 # Visium (v1/v2 standard slides): 55 um spot diameter, 100 um centre to centre.
 VISIUM_SPOT_DIAMETER_UM = 55.0
+# scalefactors_json.json: "spot_diameter_fullres" is "the number of pixels that span the diameter of a
+# theoretical 65 um spot in the original, full-resolution image" (10x Space Ranger spatial outputs page,
+# https://www.10xgenomics.com/support/software/space-ranger/2.1/analysis/outputs/spatial-outputs).
+# So the pixel size comes from 65, not from the 55 um capture spot.
+VISIUM_SCALEFACTOR_SPOT_UM = 65.0
 
 
 def sha256(path: str | Path, chunk: int = 1 << 20) -> Optional[str]:
@@ -57,8 +62,9 @@ def _read_tissue_positions(spatial_dir: Path) -> pd.DataFrame:
 def load_visium(outs: str | Path, in_tissue_only: bool = True) -> ad.AnnData:
     """Space Ranger ``outs/`` folder: filtered_feature_bc_matrix.h5 + spatial/.
 
-    Micrometres per full-res pixel = 55 / spot_diameter_fullres (from
-    scalefactors_json.json). Visium HD (square bins) is not handled here.
+    Micrometres per full-res pixel = 65 / spot_diameter_fullres (from
+    scalefactors_json.json; that field spans a theoretical 65 um spot, not the
+    55 um capture spot). Visium HD (square bins) is not handled here.
     """
     outs = Path(outs)
     adata = read_10x_h5(outs / "filtered_feature_bc_matrix.h5")
@@ -72,7 +78,7 @@ def load_visium(outs: str | Path, in_tissue_only: bool = True) -> ad.AnnData:
         adata, pos = adata[keep].copy(), pos[keep]
     adata.obs[["in_tissue", "array_row", "array_col"]] = pos[["in_tissue", "array_row", "array_col"]].to_numpy()
     px = pos[["pxl_col_in_fullres", "pxl_row_in_fullres"]].to_numpy(dtype=np.float64)
-    um_per_px = VISIUM_SPOT_DIAMETER_UM / float(sf["spot_diameter_fullres"])
+    um_per_px = VISIUM_SCALEFACTOR_SPOT_UM / float(sf["spot_diameter_fullres"])
     adata.obsm["spatial"] = px
     adata.obsm["spatial_um"] = px * um_per_px
     adata.uns["scalefactors"] = sf
