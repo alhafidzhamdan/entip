@@ -49,23 +49,107 @@ class ArrayReader:
         return _resize_nn(out, out_px)
 
 
-class OpenSlideReader:
+def _resize(img: np.ndarray, out_px: int) -> np.ndarray:
+    """Antialiased resize for real slides (Pillow, already needed by OpenSlide); a 0.26 µm/px scan read for a
+    224 px tile is shrunk by a non-integer factor, where nearest-neighbour would alias."""
+    if img.shape[0] == out_px and img.shape[1] == out_px:
+        return img
+    from PIL import Image
+    kind = Image.LANCZOS if img.shape[0] > out_px else Image.BILINEAR
+    return np.asarray(Image.fromarray(img).resize((out_px, out_px), kind))
+
+
+class _LevelReader:
+    """Shared maths for pyramid readers. Subclasses set ``mpp``, ``width_px``, ``height_px``, ``levels``
+    (list of (key, downsample), finest first) and implement ``_read(key, x, y, w, h)`` in that level's pixels,
+    for a region that lies inside the level."""
+
+    @property
+    def width_um(self) -> float:
+        return self.width_px * self.mpp
+
+    @property
+    def height_um(self) -> float:
+        return self.height_px * self.mpp
+
+    def read_um(self, x_um: float, y_um: float, size_um: float, out_px: int) -> np.ndarray:
+        n = size_um / self.mpp                                   # field size in level-0 pixels
+        key, ds = max((lv for lv in self.levels if lv[1] <= max(1.0, n / out_px) * 1.01),
+                      key=lambda lv: lv[1], default=self.levels[0])
+        nl = max(1, int(round(n / ds)))
+        x0 = int(round((x_um / self.mpp - n / 2) / ds))
+        y0 = int(round((y_um / self.mpp - n / 2) / ds))
+        W, H = int(self.width_px / ds), int(self.height_px / ds)
+        out = np.full((nl, nl, 3), 255, np.uint8)                # white outside the slide
+        sx0, sy0, sx1, sy1 = max(0, x0), max(0, y0), min(W, x0 + nl), min(H, y0 + nl)
+        if sx1 > sx0 and sy1 > sy0:
+            out[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0] = self._read(key, sx0, sy0, sx1 - sx0, sy1 - sy0)
+        return _resize(out, out_px)
+
+
+class OpenSlideReader(_LevelReader):
     """Whole-slide images via OpenSlide (openslide-python, LGPL-2.1: dynamically linked library;
     check with your information governance team before NHS deployment). Optional."""
 
     def __init__(self, path: str, mpp: float | None = None):
         import openslide  # optional dependency
         self.s = openslide.OpenSlide(path)
-        self.mpp = float(mpp or self.s.properties.get("openslide.mpp-x"))
+        m = mpp or self.s.properties.get("openslide.mpp-x")
+        if not m:
+            raise ValueError(f"{path}: the slide does not state its pixel size; pass mpp (µm per pixel)")
+        self.mpp = float(m)
+        self.width_px, self.height_px = self.s.dimensions
+        self.levels = list(enumerate(self.s.level_downsamples))
 
-    def read_um(self, x_um: float, y_um: float, size_um: float, out_px: int) -> np.ndarray:
-        n = max(1, int(round(size_um / self.mpp)))
-        level = self.s.get_best_level_for_downsample(max(1.0, n / out_px))
-        ds = self.s.level_downsamples[level]
-        nl = max(1, int(round(n / ds)))
-        x0, y0 = int(round(x_um / self.mpp - n / 2)), int(round(y_um / self.mpp - n / 2))
-        img = np.asarray(self.s.read_region((x0, y0), level, (nl, nl)).convert("RGB"))
-        return _resize_nn(img, out_px)
+    def _read(self, key, x, y, w, h) -> np.ndarray:
+        ds = self.s.level_downsamples[key]
+        rgba = self.s.read_region((int(round(x * ds)), int(round(y * ds))), key, (w, h))
+        from PIL import Image
+        bg = Image.new("RGB", rgba.size, (255, 255, 255))        # unscanned areas are transparent: make white
+        bg.paste(rgba, mask=rgba.split()[3])
+        return np.asarray(bg)
+
+
+class WsiDicomReader(_LevelReader):
+    """DICOM whole-slide series via wsidicom (Apache-2.0) and pydicom (MIT). Needed for the IDC slides that
+    OpenSlide 4.0.1 refuses: JPEG 2000 with YBR_FULL_422 photometric interpretation (about 650 TCGA-GBM/LGG
+    series in IDC v25). ``path`` is the series folder or any file in it."""
+
+    def __init__(self, path: str, mpp: float | None = None):
+        from pathlib import Path
+        from wsidicom import WsiDicom  # optional dependency
+        p = Path(path)
+        self.s = WsiDicom.open(p if p.is_dir() else p.parent)
+        lv = sorted(self.s.pyramid, key=lambda l: l.mpp.width)
+        base = lv[0]
+        self.mpp = float(mpp or base.mpp.width)
+        self.width_px, self.height_px = base.size.width, base.size.height
+        self.levels = [(l.level, l.mpp.width / base.mpp.width) for l in lv]
+
+    def _read(self, key, x, y, w, h) -> np.ndarray:
+        return np.asarray(self.s.read_region((x, y), key, (w, h)).convert("RGB"))
+
+
+def open_slide(path: str, mpp: float | None = None):
+    """OpenSlide first; wsidicom when OpenSlide cannot read a DICOM series. ``path``: a slide file, a DICOM
+    file, or a DICOM series folder."""
+    from pathlib import Path
+    p = Path(path)
+    first = p if p.is_file() else next(iter(sorted(p.glob("*.dcm"))), None)
+    if first is None:
+        raise FileNotFoundError(f"no slide file in {path}")
+    try:
+        return OpenSlideReader(str(first), mpp)
+    except ValueError:
+        raise
+    except Exception as e:                                       # OpenSlideError, or OpenSlide not installed
+        if first.suffix.lower() != ".dcm":
+            raise
+        try:
+            return WsiDicomReader(str(p), mpp)
+        except ImportError:
+            raise RuntimeError(f"OpenSlide cannot read {first.name} ({e}); install wsidicom for this "
+                               "DICOM series: pip install 'entip-train[slides]'") from e
 
 
 # ------------------------------------------------------------------ synthetic slide
