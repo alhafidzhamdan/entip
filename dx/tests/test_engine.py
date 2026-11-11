@@ -308,3 +308,14 @@ def test_orders_keep_separate_reasons_and_skip_not_assessed():
                     ai("IDH", "mutant", status="not_assessed")])
     assert [o["finding"] for o in out["orders"]] == ["adequacy", "tissue_class"]
     assert out["layers"]["molecular"] == []
+
+
+def test_calibration_block_is_optional_checked_and_passed_through():
+    cal = {"method": "temperature", "calibrated": True, "validated": False, "max_error": 0.05, "n_heldout": 120}
+    out = diagnose(GLIOMA + [ai("IDH", "mutant", calibration=cal)])
+    assert out["layers"]["molecular"][0]["calibration"] == cal
+    step = json.loads((Path(__file__).resolve().parents[1] / "contract" / "glioma_step.schema.json").read_text())
+    jsonschema.validate(contract.validate_finding(ai("IDH", "mutant", calibration=cal)), step)
+    for bad in ({"method": "magic"}, {"method": "platt", "n_heldout": 1.5}, {"method": "platt", "extra": 1}):
+        with pytest.raises(contract.ContractError):
+            contract.validate_finding(ai("IDH", "mutant", calibration=bad))

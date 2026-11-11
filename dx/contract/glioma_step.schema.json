@@ -72,6 +72,47 @@
         "type": "number"
       }
     },
+    "calibration": {
+      "type": "object",
+      "required": [
+        "method"
+      ],
+      "additionalProperties": false,
+      "description": "Optional. How confidence was calibrated and checked on held-out data.",
+      "properties": {
+        "method": {
+          "enum": [
+            "temperature",
+            "platt",
+            "isotonic",
+            "rule",
+            "none"
+          ]
+        },
+        "calibrated": {
+          "type": "boolean"
+        },
+        "validated": {
+          "type": "boolean",
+          "description": "threshold met its error target on held-out data"
+        },
+        "max_error": {
+          "type": "number",
+          "description": "agreed error rate the threshold was set for"
+        },
+        "error_upper": {
+          "type": "number",
+          "description": "upper bound of the held-out error at threshold"
+        },
+        "coverage": {
+          "type": "number",
+          "description": "share of held-out cases at or above threshold"
+        },
+        "n_heldout": {
+          "type": "integer"
+        }
+      }
+    },
     "value": {
       "type": "object",
       "description": "Extras, e.g. mitoses_per_mm2, area_mm2; methylation: class, classifier."

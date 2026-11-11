@@ -472,6 +472,7 @@ def _layer(c: Ctx, names: tuple[str, ...]) -> list[dict]:
             "method": (rec.get("value") or {}).get("method"),
             "evidence": rec.get("evidence") or [],
             "value": rec.get("value") or {},
+            "calibration": rec.get("calibration"),
         })
     return rows
 

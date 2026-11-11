@@ -109,6 +109,11 @@ DEFAULT_TEST: dict[str, str] = {
 FORBIDDEN_KEYS = ("age", "age_years", "site", "location", "radiology", "imaging", "sex",
                   "chi", "nhs_number", "dob", "patient_name", "accession", "postcode")
 
+# Optional: how the confidence was calibrated, so a reader can tell a calibrated probability from a raw score.
+CALIBRATION_METHODS = ("temperature", "platt", "isotonic", "rule", "none")
+CALIBRATION_KEYS = {"method": str, "calibrated": bool, "validated": bool, "max_error": (int, float),
+                    "error_upper": (int, float), "coverage": (int, float), "n_heldout": int}
+
 EVIDENCE_KINDS = ("scan", "region", "cell", "tile", "prediction", "annotation", "genomic_finding", "assay")
 
 
@@ -187,6 +192,16 @@ def validate_finding(rec: dict) -> dict:
     for ev in r.get("evidence", []) or []:
         if not isinstance(ev, dict) or ev.get("kind") not in EVIDENCE_KINDS or not ev.get("id"):
             raise ContractError(f"{finding}: evidence items need kind (one of {EVIDENCE_KINDS}) and id")
+    cal = r.get("calibration")
+    if cal is not None:
+        if not isinstance(cal, dict) or cal.get("method") not in CALIBRATION_METHODS:
+            raise ContractError(f"{finding}: calibration needs method, one of {CALIBRATION_METHODS}")
+        for k, v in cal.items():
+            want = CALIBRATION_KEYS.get(k)
+            if want is None:
+                raise ContractError(f"{finding}: unknown calibration key {k!r}; one of {tuple(CALIBRATION_KEYS)}")
+            if not isinstance(v, want) or (want is not bool and isinstance(v, bool)):
+                raise ContractError(f"{finding}: calibration.{k} has the wrong type")
     prov = r.get("provenance")
     if prov is None:
         if r["source"] == "ai":
@@ -231,6 +246,17 @@ def step_json_schema() -> dict:
             "status": {"enum": list(STATUSES),
                        "description": "confident = use it; uncertain = order the real test."},
             "probabilities": {"type": "object", "additionalProperties": {"type": "number"}},
+            "calibration": {
+                "type": "object", "required": ["method"], "additionalProperties": False,
+                "description": "Optional. How confidence was calibrated and checked on held-out data.",
+                "properties": {
+                    "method": {"enum": list(CALIBRATION_METHODS)},
+                    "calibrated": {"type": "boolean"},
+                    "validated": {"type": "boolean", "description": "threshold met its error target on held-out data"},
+                    "max_error": {"type": "number", "description": "agreed error rate the threshold was set for"},
+                    "error_upper": {"type": "number", "description": "upper bound of the held-out error at threshold"},
+                    "coverage": {"type": "number", "description": "share of held-out cases at or above threshold"},
+                    "n_heldout": {"type": "integer"}}},
             "value": {"type": "object",
                       "description": "Extras, e.g. mitoses_per_mm2, area_mm2; methylation: class, classifier."},
             "evidence": {"type": "array", "items": {
