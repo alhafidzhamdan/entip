@@ -60,5 +60,6 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
   come from db/ and scores are written back there.
 - Cells must be supplied (from a segmenter upstream); this pillar does not segment.
 - Probabilities are not calibrated beyond what the classifier gives; the gate checks ECE on the locked set.
-- Joblib artifacts are only loaded from this service's own directory; do not load heads from elsewhere.
+- Saved heads are joblib (pickle) files. The service loads them only from its own `heads/` folder and refuses
+  any other path, because loading a pickle runs the code inside it.
 - Results so far are on synthetic data only. Nothing has been run with H-optimus-0 on real slides.

@@ -37,7 +37,9 @@ marker, e.g. `{"IDH": "mutant", "1p19q": "codeleted"}`), `molecular_detail`, cou
 
 - **No identifiers.** Patients are known only by `study_id`. Keys such as `chi`, `nhs_number`, `dob`,
   `patient_name`, `accession`, `postcode` are refused anywhere in a payload, and a bare 10-digit number in an id
-  is refused. The CHI-to-study_id key stays in pillar 1's NHS-side store. No calendar dates: use day offsets.
+  is refused. Any text value, anywhere in a payload, that holds a 10-digit number with a valid CHI check digit
+  (written on its own, also as 6 + 4 digits) is refused too. The CHI-to-study_id key stays in pillar 1's
+  NHS-side store. No calendar dates: use day offsets.
 - **Micrometres in a named frame.** `scan:<scan_id>` (level 0, origin top-left), `assay:<assay_id>`,
   `section:<section_id>`. Cells, regions and annotations must be in their own scan's frame. A spatial object in
   any frame other than its assay's must name the `transform_id` that put it there, and a transform must carry
@@ -70,11 +72,27 @@ marker, e.g. `{"IDH": "mutant", "1p19q": "codeleted"}`), `molecular_detail`, cou
   lower-case verb (`fork_slide`, `train`, `promote`) records an event with `detail` and no records.
 - `object_type` may be left out if every record carries `"type"` (`"Patient"`, `"SpatialObject"`, ...): one
   action can then register a whole patient chain, in order.
-- `action_id` is optional; send your own to make retries safe.
+- `action_id` is optional; send your own to make retries safe. A repeat of an `action_id` already applied is
+  not applied again: it returns HTTP 200 with the first result and `"replayed": true`. Reusing an id for a
+  different verb or object type is refused.
 - Geometry: `{"type": "point", "x_um", "y_um"}`, `{"type": "polygon", "points_um": [[x, y], ...]}`,
   `{"type": "box", "x_um", "y_um", "w_um", "h_um"}`, or GeoJSON in micrometres. Regions also take
   `x_um, y_um, w_um, h_um` directly. Cells take `outline_um` (a ring).
 - Errors come back as HTTP 422 with a plain message; nothing is written.
+
+## Access
+
+With no tokens set the API is open; that is for localhost only, and `entip-db serve` refuses a non-local
+`--host` unless a write token is set (or `--open` is passed).
+
+- `ENTIP_DB_WRITE_TOKEN`: `POST /actions` needs `Authorization: Bearer <token>`.
+- `ENTIP_DB_READ_TOKEN`: every `GET` except `/health` needs the read token or a write token. With only a read
+  token set, writes are refused.
+- Several tokens can be listed, separated by commas, so one can be replaced without downtime.
+
+These are shared secrets for services (fork, training, spatial, the GUI's `dbToken`), not sign-in for people;
+the name in `provenance.actor` is still whatever the client sends. NHS single sign-on belongs in a gateway in
+front of the API.
 
 ## Reading
 

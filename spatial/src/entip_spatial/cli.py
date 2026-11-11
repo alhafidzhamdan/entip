@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import anndata as ad
@@ -61,12 +62,22 @@ def cmd_register(a) -> dict:
     sink = R.JsonlSink(out / "records")
     prov = Provenance.program("register")
     src_file = Path(a.assay)
-    R.write_assay(sink, Assay(assay_id=assay_id, section_id=a.section_id, kind=a.kind, frame=assay_frame(assay_id),
-                              n_obs=adata.n_obs, n_vars=adata.n_vars, source_path=str(src_file),
-                              source_sha256=sha256(src_file), provenance=prov,
-                              meta={k: v for k, v in adata.uns["entip"].items() if k != "source"}))
+    assay = Assay(assay_id=assay_id, section_id=a.section_id, kind=a.kind, frame=assay_frame(assay_id),
+                  n_obs=adata.n_obs, n_vars=adata.n_vars, source_path=str(src_file),
+                  source_sha256=sha256(src_file), provenance=prov,
+                  meta={k: v for k, v in adata.uns["entip"].items() if k != "source"})
+    objs = R.spatial_objects(adata, assay_id, tf)
+    R.write_assay(sink, assay)
     R.write_transform(sink, tf)
-    R.write_objects(sink, R.spatial_objects(adata, assay_id, tf), prov)
+    R.write_objects(sink, objs, prov)
+    db = getattr(a, "db", None)
+    if db:
+        try:
+            res = R.DbSink(db).register(assay, tf, objs, prov, uri=getattr(a, "assay_uri", None))
+        except R.DbError as e:
+            raise SystemExit(f"registered locally in {out}, but not in the database: {e}")
+        print(f"database: assay {assay_id}, transform {tf.transform_id} and {len(objs)} objects written "
+              f"in {len(res)} action(s)")
     loo = "n/a" if tf.loo_rmse_um is None else f"{tf.loo_rmse_um:.2f}"
     print(f"{tf.transform_id}: {tf.method}, landmark RMSE {tf.rmse_um:.2f} um, leave-one-out {loo} um, "
           f"worst {tf.max_err_um:.2f} um" + (f", ICP matched {tf.meta['icp_matched']}" if "icp_matched" in tf.meta else ""))
@@ -174,6 +185,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--max-dist", type=float, default=10.0, help="ICP match distance, micrometres")
     s.add_argument("--um-per-unit", type=float, default=1.0, help=".h5ad only: micrometres per obsm['spatial'] unit")
     s.add_argument("--out", required=True)
+    s.add_argument("--db", default=os.environ.get("ENTIP_DB_URL") or None,
+                   help="central database API, e.g. http://127.0.0.1:8705 (default: $ENTIP_DB_URL): also write the "
+                        "assay, transform and objects there. The section must already exist (pillar 1 makes it). "
+                        "A write token is read from $ENTIP_DB_WRITE_TOKEN.")
+    s.add_argument("--assay-uri", help="where the assay files are kept, to store in the database; the local "
+                                       "path is not sent, because folder names often carry laboratory numbers")
     s.set_defaults(func=cmd_register)
 
     s = sub.add_parser("spot-table", help="summarise H&E cells under each spot")

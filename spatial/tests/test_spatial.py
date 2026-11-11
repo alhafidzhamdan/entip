@@ -115,3 +115,92 @@ def test_demo_end_to_end(tmp_path, capsys):
     assert tf.dst_frame == "scan:scan_demo"
     spot = pd.read_csv(tmp_path / "demo" / "visium" / "spot_table.csv", index_col=0)
     assert "n_mitosis" in spot and spot["n_cells"].sum() > 0
+
+
+def test_visium_pixel_size_uses_the_65_um_scale_factor(data):
+    """10x define spot_diameter_fullres as the pixels across a theoretical 65 um spot (not the 55 um spot)."""
+    d, _ = data
+    sf = json.loads((d / "visium" / "spatial" / "scalefactors_json.json").read_text())
+    v = load_visium(d / "visium")
+    assert v.uns["entip"]["um_per_unit"] == pytest.approx(65.0 / sf["spot_diameter_fullres"])
+    # spots are 100 um apart centre to centre: the nearest-neighbour distance checks the scale end to end
+    from scipy.spatial import cKDTree
+    dist, _ = cKDTree(v.obsm["spatial_um"]).query(v.obsm["spatial_um"], k=2)
+    assert np.median(dist[:, 1]) == pytest.approx(100.0, abs=0.5)
+
+
+def test_records_follow_the_database_contract():
+    from entip_spatial.ontology import Assay, Provenance
+    prov = Provenance.program("register")
+    assert prov.kind == "program"
+    a = Assay("assay_1", "sec_1", "visium", "assay:assay_1", 10, 5, "/data/NP-24-1234/outs", "ab" * 32, prov,
+              meta={"kind": "visium"})
+    rec = R.assay_record(a)
+    assert "source_path" not in rec and "uri" not in rec and "NP-24-1234" not in json.dumps(rec)
+    assert rec["sha256"] == "ab" * 32 and rec["provenance"]["kind"] == "program"
+    assert R.assay_record(a, uri="s3://bucket/assay_1")["uri"] == "s3://bucket/assay_1"
+    tf = G.register("assay_1", "scan_1", [[0, 0], [100, 0], [0, 100], [90, 80]],
+                    [[1, 1], [101, 1], [1, 101], [91, 81]])
+    t = R.transform_record(tf)
+    assert t["type"] == "Transform" and t["src_frame"] == "assay:assay_1" and len(t["matrix"]) == 3
+
+
+def test_db_sink_chunks_large_assays(monkeypatch):
+    from entip_spatial.ontology import Assay, Provenance, SpatialObject
+    prov = Provenance.program("register")
+    a = Assay("assay_1", "sec_1", "xenium", "assay:assay_1", 5, 5, "x", None, prov)
+    tf = G.register("assay_1", "scan_1", [[0, 0], [100, 0], [0, 100]], [[0, 0], [100, 0], [0, 100]])
+    objs = [SpatialObject(f"assay_1:{i}", "assay_1", "nucleus", str(i), tf.dst_frame, float(i), 0.0, None,
+                          tf.transform_id) for i in range(5)]
+    sent = []
+    sink = R.DbSink("http://db.invalid", token="", chunk=2)
+    monkeypatch.setattr(sink, "post_action", lambda body: sent.append(body) or {"n": len(body["records"])})
+    sink.register(a, tf, objs, prov)
+    assert [[r["type"] for r in b["records"]] for b in sent] == [
+        ["Assay", "Transform", "SpatialObject", "SpatialObject"], ["SpatialObject"] * 2, ["SpatialObject"]]
+    assert len({b["action_id"] for b in sent}) == 3 and all(b["verb"] == "upsert" for b in sent)
+
+
+def test_register_writes_to_the_real_database(tmp_path, data, live_db, monkeypatch, capsys):
+    import urllib.request
+    d, _ = data
+    monkeypatch.setenv("ENTIP_DB_WRITE_TOKEN", live_db["token"])
+    prov = {"kind": "program", "actor": "test"}
+    chain = [{"type": "Patient", "study_id": "SYN-SPATIAL", "synthetic": True},
+             {"type": "Specimen", "specimen_id": "SP-1", "study_id": "SYN-SPATIAL"},
+             {"type": "Block", "block_id": "BL-1", "specimen_id": "SP-1"},
+             {"type": "Section", "section_id": "section_demo", "block_id": "BL-1", "stain": "H&E"},
+             {"type": "Scan", "scan_id": "scan_demo", "section_id": "section_demo", "mpp": 0.25,
+              "width_px": 16000, "height_px": 12000}]
+    R.DbSink(live_db["url"]).post_action({"verb": "create", "provenance": prov, "records": chain})
+
+    def get(path):
+        with urllib.request.urlopen(live_db["url"] + path) as r:
+            return json.loads(r.read())
+
+    def run():
+        main(["register", "--kind", "visium", "--assay", str(d / "visium"), "--landmarks",
+              str(d / "visium_landmarks.csv"), "--scan-id", "scan_demo", "--section-id", "section_demo",
+              "--assay-id", "assay_visium_db", "--out", str(tmp_path / "v"), "--db", live_db["url"]])
+
+    run()
+    assay = get("/assays/assay_visium_db")
+    assert assay["kind"] == "visium" and assay["study_id"] == "SYN-SPATIAL" and assay.get("uri") is None
+    assert str(d) not in json.dumps(assay)                       # the local path is not sent
+    objs = get("/assays/assay_visium_db/objects")
+    assert len(objs) == assay["n_obs"] and {o["frame"] for o in objs} == {"scan:scan_demo"}
+    tfs = get("/transforms?frame=scan:scan_demo")
+    assert len(tfs) == 1 and tfs[0]["rmse_um"] > 0 and objs[0]["transform_id"] == tfs[0]["transform_id"]
+    tree = get("/patients/SYN-SPATIAL")
+    assert tree["assay_ids"] == ["assay_visium_db"]
+    # a second run replaces the positions rather than adding a second set
+    run()
+    again = get("/assays/assay_visium_db/objects")
+    assert len(again) == len(objs) and len(get("/transforms?frame=scan:scan_demo")) == 2
+    assert {o["transform_id"] for o in again} != {o["transform_id"] for o in objs}
+    # an unknown section is refused with a plain message, and the local records are still written
+    with pytest.raises(SystemExit, match="missing parent"):
+        main(["register", "--kind", "visium", "--assay", str(d / "visium"), "--landmarks",
+              str(d / "visium_landmarks.csv"), "--scan-id", "scan_demo", "--section-id", "no_such_section",
+              "--assay-id", "assay_orphan", "--out", str(tmp_path / "o"), "--db", live_db["url"]])
+    assert (tmp_path / "o" / "records" / "assay.jsonl").exists()

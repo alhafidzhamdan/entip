@@ -35,3 +35,9 @@ First milestone: open a slide, click cells, watch the queue update.
 ## P5 Central database
 Scope: PostgreSQL + PostGIS schema for the ontology, action log, one-row-per-patient view, API.
 First milestone: migrations, a seeded synthetic patient, an API that returns the patient row with linked scans and assays.
+
+## State on 11 Nov 2026
+- Fork and spatial write to P5 through `POST /actions` (`--db URL` or `$ENTIP_DB_URL`); training does so in PR #7.
+- P5 takes optional shared tokens (`ENTIP_DB_WRITE_TOKEN`, `ENTIP_DB_READ_TOKEN`) and applies an `action_id` once, so clients can retry.
+- Tests for every pillar run on each pull request (`.github/workflows/tests.yml`).
+- Review findings and open decisions: [code_review_2026-11.md](code_review_2026-11.md).

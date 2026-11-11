@@ -3,12 +3,12 @@
   "package_version": "0.1.0",
   "schema_version": "0001",
   "rules": {
-    "identifiers": "No direct identifiers. Patients are known by study_id only; the CHI-to-study_id key stays in pillar 1's NHS-side key store. Payloads with these keys are refused: accession, accession_number, address, birth_date, chi, chi_number, clinical_uri, date_of_birth, dob, email, first_name, forename, hospital_number, last_name, mrn, name_of_patient, nhs_no, nhs_number, original_name, patient_name, phone, post_code, postcode, surname. A bare 10-digit number in an id is refused.",
+    "identifiers": "No direct identifiers. Patients are known by study_id only; the CHI-to-study_id key stays in pillar 1's NHS-side key store. Payloads with these keys are refused: accession, accession_number, address, birth_date, chi, chi_number, clinical_uri, date_of_birth, dob, email, first_name, forename, hospital_number, last_name, mrn, name_of_patient, nhs_no, nhs_number, original_name, patient_name, phone, post_code, postcode, surname. A bare 10-digit number in an id is refused, and so is any text value holding a 10-digit number with a valid CHI check digit.",
     "dates": "No calendar dates for patients. Use day offsets (specimen.day_offset, genomic_finding.reported_day).",
     "units": "Positions and sizes in micrometres. PostGIS SRID 0 means micrometres in the object's frame.",
     "frames": "Frame names: 'scan:<scan_id>' (level-0 image, origin top-left), 'assay:<assay_id>', 'section:<section_id>'. Moving between frames needs a stored transform with rmse_um.",
     "provenance": "Every object carries provenance {kind: person|model|program, actor, version?}. If a record has none, the action's provenance is used.",
-    "actions": "Every write is a logged action (POST /actions). The database refuses writes outside an action and records each change in entip.change. action and change are append-only.",
+    "actions": "Every write is a logged action (POST /actions). The database refuses writes outside an action and records each change in entip.change. action and change are append-only. Sending an action_id again returns the first result (replayed: true) and changes nothing.",
     "deletes": "Only cell, prediction, region, spatial_object rows can be deleted (to replace a run). Annotations are retracted, never deleted.",
     "data": "Research use only. Synthetic or public data only in any repository or test."
   },

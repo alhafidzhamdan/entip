@@ -12,7 +12,8 @@ from .db import DELETABLE, FORBIDDEN_KEYS, OBJECT_TYPES, VERBS_WRITE, tables
 RULES = {
     "identifiers": "No direct identifiers. Patients are known by study_id only; the CHI-to-study_id key stays "
                    "in pillar 1's NHS-side key store. Payloads with these keys are refused: "
-                   + ", ".join(sorted(FORBIDDEN_KEYS)) + ". A bare 10-digit number in an id is refused.",
+                   + ", ".join(sorted(FORBIDDEN_KEYS)) + ". A bare 10-digit number in an id is refused, and so is "
+                   "any text value holding a 10-digit number with a valid CHI check digit.",
     "dates": "No calendar dates for patients. Use day offsets (specimen.day_offset, genomic_finding.reported_day).",
     "units": "Positions and sizes in micrometres. PostGIS SRID 0 means micrometres in the object's frame.",
     "frames": "Frame names: 'scan:<scan_id>' (level-0 image, origin top-left), 'assay:<assay_id>', "
@@ -20,7 +21,8 @@ RULES = {
     "provenance": "Every object carries provenance {kind: person|model|program, actor, version?}. "
                   "If a record has none, the action's provenance is used.",
     "actions": "Every write is a logged action (POST /actions). The database refuses writes outside an action "
-               "and records each change in entip.change. action and change are append-only.",
+               "and records each change in entip.change. action and change are append-only. Sending an "
+               "action_id again returns the first result (replayed: true) and changes nothing.",
     "deletes": "Only " + ", ".join(sorted(DELETABLE)) + " rows can be deleted (to replace a run). "
                "Annotations are retracted, never deleted.",
     "data": "Research use only. Synthetic or public data only in any repository or test.",

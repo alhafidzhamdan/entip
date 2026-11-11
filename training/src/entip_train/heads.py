@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -47,11 +48,15 @@ def labels_from_annotations(items: Sequence, annotations: Sequence[Annotation], 
     xy = np.asarray(centres(items), float)
     out: Dict[int, Tuple[int, str]] = {}
     is_cell = level == "cell"
+    by_id: Optional[Dict[str, int]] = None                # built once, on the first mark that names an object
     for a in annotations:
         y = 1 if a.label == POSITIVE else 0
         g = a.geometry
         if g.get("type") == "object":                     # explicit object id (cell_id / region_id)
-            idx = [i for i, it in enumerate(items) if _oid(it) == g["object_id"]]
+            if by_id is None:
+                by_id = {_oid(it): i for i, it in enumerate(items)}
+            j = by_id.get(g["object_id"])
+            idx = [] if j is None else [j]
         elif g.get("type") == "point":
             px, py = float(g["x_um"]), float(g["y_um"])
             if is_cell:
@@ -63,7 +68,10 @@ def labels_from_annotations(items: Sequence, annotations: Sequence[Annotation], 
                        if it.x_um <= px < it.x_um + it.w_um and it.y_um <= py < it.y_um + it.h_um]
         elif g.get("type") == "polygon":
             pts = g["points_um"]
-            idx = [i for i, (cx, cy) in enumerate(xy) if point_in_polygon(cx, cy, pts)]
+            p = np.asarray(pts, float)                    # only test objects inside the polygon's bounding box
+            near = np.flatnonzero((xy[:, 0] >= p[:, 0].min()) & (xy[:, 0] <= p[:, 0].max())
+                                  & (xy[:, 1] >= p[:, 1].min()) & (xy[:, 1] <= p[:, 1].max()))
+            idx = [int(i) for i in near if point_in_polygon(xy[i, 0], xy[i, 1], pts)]
         else:
             raise ValueError(f"unknown geometry {g.get('type')}")
         for i in idx:
@@ -82,9 +90,11 @@ def background_negatives(items: Sequence, labelled: Dict[int, Tuple[int, str]], 
     if not pos:
         return []
     want = max(cfg.bg_min, int(cfg.bg_ratio * len(pos))) - n_neg
+    if want <= 0:
+        return []
+    from sklearn.neighbors import KDTree
     xy = np.asarray(centres(items), float)
-    pxy = xy[pos]
-    d = np.sqrt(((xy[:, None, :] - pxy[None, :, :]) ** 2).sum(-1)).min(1)
+    d = KDTree(xy[pos]).query(xy, k=1)[0][:, 0]           # distance to the nearest positive; memory stays O(n)
     pool = [i for i in range(len(items)) if i not in labelled and d[i] > cfg.bg_exclusion_um]
     if not pool or want <= 0:
         return []
@@ -143,6 +153,23 @@ class LiveHead:
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return self.clf.predict_proba(self.scaler.transform(X))[:, 1]
+
+
+def load_head_file(path: str | Path, root: str | Path) -> "LiveHead":
+    """Load a saved head, but only from inside ``root`` (the service's own heads folder).
+
+    Heads are saved with joblib, which is pickle: loading a file runs whatever code it holds. The path
+    comes from a Model row, and with a shared database anyone who can write a Model row could point it
+    at a file of their own. So a path outside ``root``, or one that is not a LiveHead, is refused.
+    """
+    import joblib
+    p, root = Path(path).resolve(), Path(root).resolve()
+    if root not in p.parents or p.suffix != ".joblib":
+        raise ValueError(f"refusing to load a model from outside {root}: {path}")
+    head = joblib.load(p)
+    if not isinstance(head, LiveHead):
+        raise ValueError(f"{path} is not a saved live head")
+    return head
 
 
 def cv_balanced_accuracy(X: np.ndarray, y: np.ndarray, cfg: HeadConfig, w: Optional[np.ndarray] = None,

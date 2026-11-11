@@ -6,5 +6,6 @@ window.ENTIP_CONFIG = {
   mode: /[?&]api=http\b/.test(location.search) ? "http" : "mock",
   base: "mock",
   dbBase: "http://127.0.0.1:8705",
+  dbToken: "", // only if the database was started with ENTIP_DB_WRITE_TOKEN; a gateway with sign-in replaces this
   trainBase: "http://127.0.0.1:8100",
 };

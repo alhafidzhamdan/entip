@@ -193,8 +193,37 @@ def check_no_chi_like(record: dict, table: str) -> None:
             raise EntipError(f"{table}.{k} looks like a CHI number (10 digits); use the study id")
 
 
+def chi_check_ok(digits: str) -> bool:
+    """True when 10 digits carry a valid CHI check digit (Modulus-11, weights 10..2)."""
+    r = 11 - sum(int(d) * w for d, w in zip(digits[:9], range(10, 1, -1))) % 11
+    return r != 10 and r % 11 == int(digits[9])
+
+
+# A CHI written on its own: 10 digits (optionally split 6 + 4), not part of a longer code or hash.
+_CHI_IN_TEXT = re.compile(r"(?<![0-9A-Za-z])(\d{6})[ -]?(\d{4})(?![0-9A-Za-z])")
+
+
+def check_no_chi_values(payload: Any, path: str = "") -> None:
+    """Refuse any text value that holds a 10-digit number with a valid CHI check digit.
+
+    Keys are checked by :func:`check_no_identifiers`; this catches a CHI typed into a free-text
+    field (a note, a site, a label). Numbers sent as JSON numbers are not text and are not checked.
+    """
+    if isinstance(payload, dict):
+        for k, v in payload.items():
+            check_no_chi_values(v, f"{path}{k}.")
+    elif isinstance(payload, (list, tuple)):
+        for v in payload:
+            check_no_chi_values(v, path)
+    elif isinstance(payload, str):
+        for m in _CHI_IN_TEXT.finditer(payload):
+            if chi_check_ok(m.group(1) + m.group(2)):
+                raise EntipError(f"'{path.rstrip('.')}' holds a number that passes the CHI check digit; "
+                                 "identifiers are not allowed in the research database")
+
+
 def provenance_doc(p: dict) -> dict:
-    if not isinstance(p, dict) or "actor" not in p:
+    if not isinstance(p, dict) or not isinstance(p.get("actor"), str) or not p["actor"].strip():
         raise EntipError("provenance needs at least {'kind': 'person'|'model'|'program', 'actor': ...}")
     p = dict(p)
     p.setdefault("kind", "person")
@@ -241,6 +270,20 @@ def shape_record(table: Table, rec: dict, prov: dict, for_update: bool = False) 
 
 def new_action_id() -> str:
     return f"act_{uuid.uuid4().hex}"
+
+
+def _replay(conn, action_id: str, verb: str, object_type: str | None) -> dict | None:
+    """The stored result of an action already applied under this id, for a safe retry."""
+    a = conn.execute("SELECT verb, object_type FROM entip.action WHERE action_id = %s", (action_id,)).fetchone()
+    if a is None:
+        return None
+    if a["verb"] != verb or a["object_type"] != object_type:
+        raise EntipError(f"action_id {action_id} was already used for a different action "
+                         f"({a['verb']} {a['object_type'] or ''}); use a new id".replace(" )", ")"))
+    c = conn.execute("SELECT count(*) AS c, coalesce(sum(n_rows), 0) AS n FROM entip.change WHERE action_id = %s",
+                     (action_id,)).fetchone()
+    return {"action_id": action_id, "verb": verb, "object_type": object_type, "n": int(c["n"]),
+            "changes": int(c["c"]), "replayed": True}
 
 
 def _key_where(table: Table, rec: dict) -> tuple[sql.Composed, list]:
@@ -356,11 +399,24 @@ def _apply_batch(conn, table: Table, verb: str, records: list[dict], prov: dict)
 
 def apply_action(conn: psycopg.Connection, *, verb: str, object_type: str | None, records: Iterable[dict] = (),
                  provenance: dict, detail: dict | None = None, action_id: str | None = None) -> dict:
-    """Run one logged action in one transaction. Returns {action_id, n, changes}."""
+    """Run one logged action in one transaction. Returns {action_id, n, changes, replayed}.
+
+    Sending the same ``action_id`` again does not apply the action twice: the first result comes
+    back with ``replayed`` true, so a client can retry after a dropped connection.
+    """
     records = list(records or [])
     prov = provenance_doc(provenance)
     detail = detail or {}
+    if any(not isinstance(r, dict) for r in records):
+        raise EntipError("each record must be an object")
     check_no_identifiers({"records": records, "detail": detail, "provenance": prov})
+    check_no_chi_values({"records": records, "detail": detail, "provenance": prov})
+    if action_id is not None:
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", action_id):
+            raise EntipError("action_id must be 1 to 128 letters, digits, '_', '.', ':', '-'")
+        done = _replay(conn, action_id, verb, object_type)
+        if done is not None:
+            return done
     action_id = action_id or new_action_id()
     if verb in VERBS_WRITE:
         if object_type is None:
@@ -386,6 +442,10 @@ def apply_action(conn: psycopg.Connection, *, verb: str, object_type: str | None
             changes = conn.execute("SELECT count(*) AS c FROM entip.change WHERE action_id = %s",
                                    (action_id,)).fetchone()["c"]
     except psycopg.errors.UniqueViolation as e:
+        if e.diag.constraint_name == "action_pkey":      # the same action_id arrived twice at once
+            done = _replay(conn, action_id, verb, object_type)
+            if done is not None:
+                return done
         raise EntipError(f"already exists: {e.diag.message_detail or e}") from e
     except psycopg.errors.ForeignKeyViolation as e:
         raise EntipError(f"missing parent: {e.diag.message_detail or e}") from e
@@ -396,4 +456,7 @@ def apply_action(conn: psycopg.Connection, *, verb: str, object_type: str | None
                                                         else "")) from e
     except psycopg.errors.InternalError_ as e:
         raise EntipError(str(e.diag.message_primary)) from e
-    return {"action_id": action_id, "verb": verb, "object_type": object_type, "n": n, "changes": changes}
+    except psycopg.DataError as e:                        # e.g. a NUL byte in text, refused by the driver
+        raise EntipError(f"bad value: {e}") from e
+    return {"action_id": action_id, "verb": verb, "object_type": object_type, "n": n, "changes": changes,
+            "replayed": False}
