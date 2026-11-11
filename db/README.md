@@ -24,6 +24,8 @@ pytest                               # needs a server; set ENTIP_TEST_ADMIN_DSN 
 - `src/entip_db/migrations/`: numbered SQL migrations (the schema itself).
 - `db.py`: connections, migrations, payload checks and `apply_action`, the only write path.
 - `queries.py`: patient row and tree, slide objects, the log.
+- `confidence.py`: per-step model confidence for a patient (`GET /patients/{study_id}/confidence`), read from
+  the workflow steps' own records in the log.
 - `api.py`: FastAPI app. `contract.py`: the machine-readable contract. `seed.py`: synthetic patients.
 
 ## Not done yet

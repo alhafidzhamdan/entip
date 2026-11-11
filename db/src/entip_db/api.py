@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from . import SCHEMA_VERSION, __version__, queries
+from .confidence import patient_confidence
 from .db import OBJECT_TYPES, connect, dsn, schema_version
 from .db import apply_action as _apply
 from .db_errors import EntipError
@@ -124,6 +125,13 @@ def create_app(conninfo: str | None = None) -> FastAPI:
                         conn=Depends(get_conn)):
         _404(queries.patient_row(conn, study_id), "patient")
         return queries.actions(conn, study_id=study_id, since=since, limit=limit)
+
+    @app.get("/patients/{study_id}/confidence")
+    def patient_step_confidence(study_id: str, conn=Depends(get_conn)):
+        """For each step of the AI glioma workflow: what it predicted, its confidence, the accept threshold
+        and whether it passed. Read-only; built from the steps' own records in the action log."""
+        _404(queries.patient_row(conn, study_id), "patient")
+        return patient_confidence(conn, study_id)
 
     # -- scans -------------------------------------------------------------
     @app.get("/scans/{scan_id}")

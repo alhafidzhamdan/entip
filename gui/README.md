@@ -9,6 +9,10 @@ Two views over the same data, switched at the top of every page and remembered p
 - **Cases**: one row per patient (pseudonymised study ID), diagnosis, key markers, model findings, review status.
 - **Patient page**: a summary laid out like a WHO CNS5 integrated report (integrated diagnosis, grade,
   molecular information, methylation class), model findings with their source, slides, recent activity.
+- **Model confidence by step** (patient page, both views): for each step of the AI glioma workflow, what it
+  predicted, its confidence as a bar with the accept threshold marked, and passed / below threshold / held
+  back / no call, with one plain sentence when a call did not pass. Step 5 (the rules engine) has no score of
+  its own and says so. Data: `GET /patients/{study_id}/confidence` in the database.
 - **Slide page**: the finding as a number (e.g. mitotic figures per mm²), then a gallery of the model's
   detections cut from the slide. Agree (`1`) or disagree (`2`) with each; answers are saved as marks with the
   person's name and also teach the live head. Borderline cells just under the cut-off are one click away.
@@ -54,6 +58,9 @@ All data access is in `web/js/api.js`; `web/config.js` picks the mode.
   verb `retract`), then sent to the training service for the live head. If the training service does not know
   the slide yet, the mark is still saved, the GUI says so, and the review queue comes from the database's
   uncertainty order for an existing model (`/predictions?order=uncertain`).
+
+The mock confidence panel reads `web/mock/confidence.json`, written by `python gui/tools/make_mock_confidence.py`
+(invented scores, summarised by the same code as the database endpoint; no extra packages needed).
 
 To try `http` mode with the mock cases:
 

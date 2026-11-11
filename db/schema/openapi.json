@@ -238,6 +238,44 @@
         }
       }
     },
+    "/patients/{study_id}/confidence": {
+      "get": {
+        "summary": "Patient Step Confidence",
+        "description": "For each step of the AI glioma workflow: what it predicted, its confidence, the accept threshold\nand whether it passed. Read-only; built from the steps' own records in the action log.",
+        "operationId": "patient_step_confidence_patients__study_id__confidence_get",
+        "parameters": [
+          {
+            "name": "study_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Study Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scans/{scan_id}": {
       "get": {
         "summary": "Get Scan",

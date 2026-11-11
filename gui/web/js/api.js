@@ -77,6 +77,13 @@
       throw new Error(`No scan ${scanId}`);
     }
 
+    async getStepConfidence(studyId) { // per-step model confidence (mock: gui/tools/make_mock_confidence.py)
+      try {
+        if (!this._confidence) this._confidence = await getJSON(`${this.base}/confidence.json`);
+      } catch (e) { this._confidence = {}; }
+      return this._confidence[studyId] || null;
+    }
+
     async getCells(scanId) {
       if (!this._cells.has(scanId)) this._cells.set(scanId, await getJSON(`${this.base}/slides/${scanId}/cells.json`));
       return this._cells.get(scanId);
@@ -246,6 +253,10 @@
       }
       p.model_outputs = outputs;
       return p;
+    }
+
+    async getStepConfidence(studyId) { // what each workflow step predicted and how sure it is
+      return getJSON(`${this.db}/patients/${encodeURIComponent(studyId)}/confidence`);
     }
 
     async getScan(id) {
