@@ -42,6 +42,7 @@ methylation class. A step that makes several calls emits several records.
 | `threshold` | The calibrated accept threshold for this finding and model version (set on held-out data at an agreed error rate). |
 | `status` | `confident` (use it), `uncertain` (order the real test), `not_assessed`. If left out, it is `confident` when `confidence >= threshold`. |
 | `order_test` | The real test to run when uncertain, from the test list. Filled from the default table if left out. |
+| `calibration` | Optional: `{"method": "temperature" | "platt" | "isotonic" | "rule" | "none", "calibrated": bool, "validated": bool, "max_error": 0.05, "error_upper": float, "coverage": float, "n_heldout": int}`. Says how `confidence` was calibrated and whether the threshold met its error target on held-out data. |
 | `evidence` | Pointers into the db: `{"kind": "region" | "cell" | "tile" | "prediction" | "scan" | ..., "id": ...}`, optional `x_um, y_um, w_um, h_um, weight`. |
 | `model`, `provenance` | `model.model_id` is required for `ai`. Provenance as in the db (`kind`, `actor`, `version`). |
 
