@@ -154,11 +154,20 @@ def write_research_copy(
     *,
     research_meta: dict,
     compression: str = "zlib",
+    mpp: float | None = None,
 ) -> SourceInfo:
-    """Write the pyramid of ``src`` to ``dst`` with rebuilt, allow-listed metadata only."""
+    """Write the pyramid of ``src`` to ``dst`` with rebuilt, allow-listed metadata only.
+
+    The pixel size is read from the file. ``mpp`` is used only when the file states none; a slide
+    with no pixel size at all is refused, because nothing on it could be placed in micrometres.
+    """
     src, dst = Path(src), Path(dst)
     with tifffile.TiffFile(src) as tif:
         info = inspect(tif)
+        if info.mpp is None:
+            info.mpp = mpp
+        if info.mpp is None or not info.mpp > 0:
+            raise ValueError("the slide does not state its pixel size; give it in micrometres per pixel (mpp)")
         series = tif.series[0]
         page0 = series.levels[0].keyframe
         photometric = "rgb" if page0.samplesperpixel >= 3 else "minisblack"

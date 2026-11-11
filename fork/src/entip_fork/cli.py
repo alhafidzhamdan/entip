@@ -3,6 +3,7 @@
     entip-fork synth OUT.svs [--seed N]
     entip-fork fork SLIDE --nhs-root DIR --research-root DIR --chi .. --accession .. --block .. --section .. --stain ..
     entip-fork batch MANIFEST.csv --nhs-root DIR --research-root DIR
+    entip-fork replay --research-root DIR --db URL                post waiting registrations to the database
     entip-fork reidentify CODE --nhs-root DIR --reason TEXT      (NHS side only, audited)
     entip-fork check FILE --identifier X [--identifier Y ...]
     entip-fork licences
@@ -14,6 +15,7 @@ import argparse
 import csv
 import getpass
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -30,7 +32,13 @@ LICENCES = [
 
 
 def _stores(a) -> Stores:
-    return Stores(a.nhs_root, a.research_root, allow_real_identifiers=a.allow_real_identifiers)
+    return Stores(a.nhs_root, a.research_root, allow_real_identifiers=a.allow_real_identifiers, db_url=a.db)
+
+
+def _add_db_arg(p):
+    p.add_argument("--db", default=os.environ.get("ENTIP_DB_URL") or None,
+                   help="central database API, e.g. http://127.0.0.1:8705 (default: $ENTIP_DB_URL). Without it "
+                        "registrations wait in the outbox. A write token is read from $ENTIP_DB_WRITE_TOKEN.")
 
 
 def _add_store_args(p, research=True):
@@ -42,16 +50,24 @@ def _add_store_args(p, research=True):
                    help="accept CHIs with a real date of birth (only once governance approval is in place)")
 
 
+def _mpp(v) -> float | None:
+    return float(v) if v not in (None, "") else None
+
+
 def _do_fork(stores, slide, row, actor, compression):
     r = fork_slide(
         stores, slide, chi=row["chi"], accession=row["accession"], block=row["block"],
         section=row["section"], stain=row["stain"], actor=actor,
         patient_name=row.get("patient_name") or None,
         extra_identifiers=[x for x in (row.get("extra_identifiers") or "").split(";") if x],
-        compression=compression,
+        compression=compression, mpp=_mpp(row.get("mpp")),
     )
-    return {"slide": str(slide), "link_code": r.link_code, "study_id": r.study_id,
-            "research_copy": str(r.research_path), "reused": r.reused, "dropped": r.dropped}
+    out = {"slide": str(slide), "link_code": r.link_code, "study_id": r.study_id,
+           "research_copy": str(r.research_path), "reused": r.reused, "dropped": r.dropped,
+           "registered": r.registered}
+    if r.register_error:
+        out["register_error"] = r.register_error + " (kept in the outbox; run entip-fork replay)"
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -70,12 +86,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--patient-name")
     p.add_argument("--extra-identifier", action="append", default=[])
     p.add_argument("--compression", default="zlib", choices=["zlib", "jpeg", "none"])
+    p.add_argument("--mpp", type=float, help="micrometres per pixel, only for a slide that does not state it")
     _add_store_args(p)
+    _add_db_arg(p)
 
     p = sub.add_parser("batch", help="fork every slide in a CSV manifest")
-    p.add_argument("manifest", type=Path, help="CSV: slide,chi,accession,block,section,stain[,patient_name,extra_identifiers]")
+    p.add_argument("manifest", type=Path,
+                   help="CSV: slide,chi,accession,block,section,stain[,patient_name,extra_identifiers,mpp]")
     p.add_argument("--compression", default="zlib", choices=["zlib", "jpeg", "none"])
     _add_store_args(p)
+    _add_db_arg(p)
+
+    p = sub.add_parser("replay", help="post registrations waiting in the outbox to the central database")
+    p.add_argument("--research-root", required=True, type=Path, help="research-side folder")
+    _add_db_arg(p)
 
     p = sub.add_parser("reidentify", help="NHS side: show the clinical identifiers behind a research ID (audited)")
     p.add_argument("code")
@@ -100,7 +124,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if a.cmd == "fork":
         row = {"chi": a.chi, "accession": a.accession, "block": a.block, "section": a.section,
-               "stain": a.stain, "patient_name": a.patient_name, "extra_identifiers": ";".join(a.extra_identifier)}
+               "stain": a.stain, "patient_name": a.patient_name, "extra_identifiers": ";".join(a.extra_identifier),
+               "mpp": a.mpp}
         try:
             print(json.dumps(_do_fork(_stores(a), a.slide, row, a.actor, comp), indent=2))
         except IdentifierLeak as e:
@@ -119,6 +144,20 @@ def main(argv: list[str] | None = None) -> int:
                     failed += 1
                     print(json.dumps({"slide_row": row["slide"], "error": type(e).__name__}), file=sys.stderr)
         return 1 if failed else 0
+    if a.cmd == "replay":
+        from . import registry
+        if not a.db:
+            print("give the database with --db or $ENTIP_DB_URL", file=sys.stderr)
+            return 2
+        box = registry.OutboxRegistry(a.research_root / "outbox" / "p5.jsonl")
+        waiting = len(box.pending())
+        try:
+            n = box.replay(registry.DbRegistry(registry.DbClient(a.db)))
+        except registry.DbError as e:
+            print(json.dumps({"posted": waiting - len(box.pending()), "waiting": len(box.pending()), "error": str(e)}))
+            return 1
+        print(json.dumps({"posted": n, "waiting": 0}))
+        return 0
     if a.cmd == "reidentify":
         from .keystore import KeyStore
         with KeyStore(a.nhs_root / "keystore.sqlite") as ks:
