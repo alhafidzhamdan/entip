@@ -23,20 +23,25 @@ pytest dx
 ## How it decides
 
 1. A real test beats a pathologist's call, which beats a confident AI call. An uncertain AI call is shown as
-   "pending (AI suggests ...)" and its test is ordered.
-2. Inadequate tissue or a non-glioma triage call stops the glioma rules and goes to the pathologist.
-3. H3 K27-altered gives diffuse midline glioma; H3 G34-mutant gives diffuse hemispheric glioma (location is
+   "pending (AI suggests ...)" and its test is ordered. A newer AI run on the same scans replaces the older
+   one. Across scans, a high-grade feature counts if any scan shows it, and is absent only when every scan is
+   confidently absent; other AI calls that differ between scans are treated as uncertain. Confident AI calls
+   that a test overrules are listed for retraining.
+2. Negative IDH1 R132H immunohistochemistry is not taken as IDH-wildtype on its own: IDH sequencing is ordered,
+   and a sequencing result beats IHC whatever order they arrive in.
+3. Inadequate tissue or a non-glioma triage call stops the glioma rules and goes to the pathologist.
+4. H3 K27-altered gives diffuse midline glioma; H3 G34-mutant gives diffuse hemispheric glioma (location is
    left for the pathologist to confirm against the clinical record; the report never states it).
-4. IDH-mutant: 1p/19q codeleted gives oligodendroglioma (grade 2 or 3, graded by the pathologist); otherwise
+5. IDH-mutant: 1p/19q codeleted gives oligodendroglioma (grade 2 or 3, graded by the pathologist); otherwise
    astrocytoma, grade 4 with necrosis, microvascular proliferation or CDKN2A/B homozygous deletion
    (cIMPACT-NOW 5), else grade 3 with significant mitotic activity, else grade 2. A lower grade is only given
    once all grade 4 criteria are known to be absent.
-5. IDH-wildtype and H3-wildtype: necrosis, microvascular proliferation, TERT promoter mutation, EGFR
+6. IDH-wildtype and H3-wildtype: necrosis, microvascular proliferation, TERT promoter mutation, EGFR
    amplification or +7/-10 gives glioblastoma, grade 4 (WHO CNS5; cIMPACT-NOW 3). Only the criteria still
-   unknown are ordered. With none present it is NEC and a methylation array is suggested.
-6. A methylation class that disagrees with the markers makes the draft provisional and orders a methylation
+   unknown are ordered. With none present and H3 confirmed wildtype it is NEC and a methylation array is suggested.
+7. A methylation class that disagrees with the markers makes the draft provisional and orders a methylation
    array (if the class was AI) and a pathologist review.
-7. MGMT is reported and ordered if missing, but never blocks the diagnosis.
+8. MGMT is reported and ordered if missing, but never blocks the diagnosis.
 
 The output (`entip.integrated_dx/1`) lists each criterion as met, not met or pending, the tests to order
 (blocking or not), discrepancies, which decisive findings were AI-only, and the draft text. The GUI shows the

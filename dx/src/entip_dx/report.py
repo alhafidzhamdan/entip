@@ -3,7 +3,7 @@ CNS WHO grade, molecular information). Every AI line says so and gives its confi
 result reads "pending". Age, site and imaging are never written here."""
 from __future__ import annotations
 
-from .contract import TESTS  # noqa: F401  (test names appear verbatim)
+from .rules import FAMILY_TO_TYPE, TYPES
 
 LABELS = {
     "adequacy": "Adequacy", "tissue_class": "Tissue", "glioma_pattern": "Growth pattern",
@@ -41,6 +41,8 @@ TEST_WORDS = {
 def _word(finding: str, call: str | None) -> str:
     if call is None:
         return "pending"
+    if finding == "methylation_class" and call in FAMILY_TO_TYPE:
+        return f"matches {TYPES[FAMILY_TO_TYPE[call]]}"
     if finding == "chr7_chr10" and call == "absent":
         return "no +7/-10"
     return WORDS.get(call, call.replace("_", " "))
@@ -51,7 +53,10 @@ def _line(row: dict) -> str:
     if row["status"] == "pending":
         guess = _word(row["finding"], row["call"])
         conf = row.get("confidence")
-        tail = f" (AI suggests {guess}, {conf:.2f}, below threshold)" if conf is not None else ""
+        if row["call"] == "indeterminate":
+            tail = " (AI could not call it)"
+        else:
+            tail = f" (AI suggests {guess}, {conf:.2f}, below threshold)" if conf is not None else ""
         return f"- {label}: pending{tail}"
     word = _word(row["finding"], row["call"])
     if row["finding"] == "methylation_class" and row["value"].get("class"):
@@ -97,6 +102,9 @@ def render(dx: dict) -> str:
             lines.append(f"- {TEST_WORDS.get(o['test'], o['test'])}: {o['reason']}{flag}")
     if dx["conflicts"]:
         lines += ["", "Discrepancies:", *[f"- {x}" for x in dx["conflicts"]]]
+    if dx.get("ai_disagreements"):
+        lines += ["", "AI calls overruled by a test or pathologist (logged for retraining):",
+                  *[f"- {x}" for x in dx["ai_disagreements"]]]
     if dx["notes"]:
         lines += ["", "Comment:", *[f"- {x}" for x in dx["notes"]]]
     refs = sorted({b["citation"] for b in dx["based_on"]})

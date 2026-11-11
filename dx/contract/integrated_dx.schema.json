@@ -404,6 +404,20 @@
         "type": "string"
       }
     },
+    "ai_decisive": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "findings that met a criterion on AI calls alone"
+    },
+    "ai_disagreements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "confident AI calls overruled by a test or pathologist"
+    },
     "report_text": {
       "type": "string"
     },
