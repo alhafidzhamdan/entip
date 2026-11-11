@@ -115,6 +115,12 @@ def predict_patient(model: PanelModel, pb: PatientBag, known: Optional[Dict[str,
                    value={"auroc_oof": fit.metrics.get("auroc_oof"), "coverage_oof": fit.metrics.get("coverage_oof"),
                           "call_error_upper_oof": acc.get("error_upper"), "call_miss_upper_oof": acc.get("miss_upper"),
                           "n_tiles": int(len(pb)), **({"ood_distance": ood} if ood is not None else {})})
+        cal = {"method": "temperature", "calibrated": True, "validated": raw_thr <= 1.0, "max_error": float(m.max_error),
+               "coverage": float(acc.get("coverage") or 0.0),
+               "n_heldout": int(fit.metrics.get("n_scored_oof", 0))}
+        if acc.get("error_upper") is not None:
+            cal["error_upper"] = float(acc["error_upper"])
+        rec["calibration"] = cal        # held-out = out-of-fold patients in site-grouped cross-validation
         if raw_thr > 1.0:
             gates.append(f"a '{m.calls[c]}' call never met the error and miss limits in cross-validation "
                          f"({acc.get('n_other_class', 0)} patients of the other class seen)")
