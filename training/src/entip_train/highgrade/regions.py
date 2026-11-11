@@ -198,7 +198,8 @@ class RegionDetector:
                                   cv=StratifiedKFold(k, shuffle=True, random_state=0))[:, 1]
             sel = selective_threshold(np.maximum(p, 1 - p), (p >= 0.5) == (y == 1), self.cfg.max_error,
                                       self.cfg.min_accepted)
-            info.update(threshold=min(sel["threshold"], 1.0), threshold_from="held-out slides", **{
+            info.update(threshold=min(sel["threshold"], 1.0), threshold_from="held-out slides",
+                        met_target=bool(sel["n_accepted"] > 0), **{
                 k2: sel[k2] for k2 in ("coverage", "error", "error_upper", "n_accepted", "max_error")})
         self.threshold = float(info["threshold"])
         self.metrics["slide_calibration"] = info
@@ -274,8 +275,20 @@ class RegionDetector:
         enc = (self.encoder_version or "").split("@")[0]
         res = FeatureResult(cfg.feature, [b.scan_id for b in bags], call, float(p_present), conf, self.threshold,
                             status, self.model_id, self.encoder_version or "", ENCODER_LICENCE.get(enc, "unknown"),
-                            value, comps[:cfg.max_evidence], order_test, reasons)
+                            value, comps[:cfg.max_evidence], order_test, reasons, self.calibration_block())
         return res, per_scan
+
+    def calibration_block(self) -> dict:
+        """The contract's ``calibration`` block. ``validated`` here means the threshold met ``max_error`` on
+        held-out specimens; the person's sign-off (``cfg.validated``) is a separate guard."""
+        info = self.metrics.get("slide_calibration") or {}
+        out = {"method": "platt" if self.slide_cal else "none", "calibrated": self.slide_cal is not None,
+               "validated": bool(info.get("met_target", False)), "max_error": float(self.cfg.max_error),
+               "n_heldout": int(info.get("n_specimens", 0))}
+        for k in ("error_upper", "coverage"):
+            if info.get(k) is not None:
+                out[k] = float(info[k])
+        return out
 
     # ------------------------------------------------------------------ persistence
     def model_record(self, status: str = "draft") -> dict:

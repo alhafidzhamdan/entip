@@ -73,6 +73,8 @@ def test_mitotic_activity_calls(ps, call):
     assert r.call == call
     assert (r.status == "confident") == (call != "indeterminate")
     assert (r.order_test == "pathologist_review") == (call == "indeterminate")
+    assert r.to_record("SYN-0001")["calibration"] == {"method": "rule", "calibrated": False, "validated": False,
+                                                      "n_heldout": 0}
     counted = [p for p in ps if p >= 0.2]                       # the floor for tables without a MitoEd call
     assert r.value["n_counted"] == len(counted) and r.value["n_candidates"] == len(ps)
     assert [e["weight"] for e in r.evidence[:1]] == sorted(counted)[-1:]
@@ -135,6 +137,21 @@ def test_slide_calibration(train_set, held_out):
     assert info["threshold_from"] == "config" and det.model_id != before   # too few slides to set a threshold
     r, _ = det.assess([held_out[1][1]])
     assert r.status == "confident" and r.call == "present" and r.model_id == det.model_id
+    cal = r.to_record("SYN-0001")["calibration"]                 # fitted, but too few slides to meet the target
+    assert cal == {"method": "platt", "calibrated": True, "validated": False, "max_error": 0.05, "n_heldout": 8}
+
+
+def test_threshold_set_from_held_out_specimens(train_set, held_out):
+    """With 40+ held-out specimens the threshold comes from their error bound and the block reports it."""
+    labels = [tile_labels(b, s.necrosis_polys, s.tumour_polys) for s, b in train_set]
+    det = RegionDetector(RegionConfig("necrosis", min_accepted=20, max_error=0.15)).fit(
+        [b for _, b in train_set], labels)
+    many = [[b] for _, b in held_out] * 6                         # 48 specimens (repeats: mechanics only)
+    info = det.calibrate_slides(many, [i % 2 for i in range(len(held_out))] * 6)
+    cal = det.calibration_block()
+    assert info["threshold_from"] == "held-out slides" and info["met_target"] and cal["validated"]
+    assert cal["n_heldout"] == 48 and cal["error_upper"] <= 0.15 and 0 < cal["coverage"] <= 1
+    assert det.threshold == info["threshold"] <= 1.0
 
 
 def test_features_are_specific(detectors):
