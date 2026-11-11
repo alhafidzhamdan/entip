@@ -23,6 +23,9 @@ Thousands of those would add up to a spurious count, so a candidate counts only 
 Limits. Candidates are assumed independent and distinct: the same mitosis seen on two serial sections is
 counted twice. Pool scans of different blocks, not levels of one block.
 
+The specimen-level probability is a rule on top of MitoEd's per-candidate p. It has not been calibrated or
+checked on held-out specimens, and the record's ``calibration`` block says so.
+
 Guards (force ``uncertain``): the mitosis model is not validated on CNS tumours (the default: MitoEd is
 trained on MIDOG++, whose released data has no CNS tumours; the MIDOG 2022 test set with astrocytoma and
 meningioma was never released, see MitoEd's LICENCES.md), or the tissue area is unknown.
@@ -106,7 +109,8 @@ class MitosisCounter:
                  "mitoses_per_mm2": (round(expected / tissue_mm2, 3) if tissue_mm2 else None),
                  "criterion": "cIMPACT-NOW 5: >= 2 in whole specimen (1 in very small biopsy); not validated"}
         return FeatureResult("mitotic_activity", list(scan_ids), call, p_present, conf, cfg.threshold, status,
-                             self.model_id, self.version, self.licence, value, evidence, order_test, reasons)
+                             self.model_id, self.version, self.licence, value, evidence, order_test, reasons,
+                             {"method": "rule", "calibrated": False, "validated": False, "n_heldout": 0})
 
     def counted(self, candidates: Sequence[dict]) -> List[dict]:
         """Candidates that enter the count (and the database): not MitoEd mimics, not below the floor."""

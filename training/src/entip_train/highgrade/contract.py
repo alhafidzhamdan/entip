@@ -6,6 +6,8 @@ The contract lives in ``dx/contract/README.md`` (step-5 rules engine). One recor
 ``confidence``  calibrated probability that ``call`` is right
 ``threshold``   the accept threshold for this finding and model version
 ``status``      confident (use it) | uncertain (order the real test, here ``pathologist_review``)
+``calibration`` how ``confidence`` was calibrated and whether the threshold met its error target on held-out
+                specimens (``validated``); this is what the per-step confidence endpoint shows
 ``evidence``    pointers into the db: regions, tiles or cells to look at first
 
 Calls: with p = probability the feature is present and t = threshold, the call is ``present`` when p >= t,
@@ -40,6 +42,7 @@ class FeatureResult:
     evidence: List[dict] = field(default_factory=list)  # [{kind, id, x_um, y_um, w_um?, h_um?, weight}]
     order_test: Optional[str] = None
     reasons: List[str] = field(default_factory=list)
+    calibration: Optional[dict] = None                  # contract block: method, calibrated, validated, ...
 
     def __post_init__(self):
         if self.call not in CALLS:
@@ -52,7 +55,7 @@ class FeatureResult:
 
     def to_record(self, study_id: str) -> dict:
         """The ``entip.glioma_step/1`` record the rules engine reads."""
-        return {
+        rec = {
             "contract": CONTRACT, "step": STEP, "finding": self.finding, "study_id": study_id,
             "scan_ids": list(self.scan_ids), "call": self.call, "source": "ai",
             "confidence": round(float(self.confidence), 4), "threshold": float(self.threshold),
@@ -66,6 +69,9 @@ class FeatureResult:
             "model": {"model_id": self.model_id, "version": self.model_version, "licence": self.licence},
             "provenance": {"kind": "model", "actor": f"model:{self.model_id}", "version": self.model_version},
         }
+        if self.calibration:
+            rec["calibration"] = self.calibration
+        return rec
 
 
 def decide(p: float, threshold: float, guards: Optional[List[str]] = None):
