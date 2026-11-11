@@ -219,6 +219,68 @@
     return m[v] || v;
   }
 
+  /* ---------- model confidence by step ---------- */
+  // GET /patients/{id}/confidence: for each workflow step, each finding's call, confidence, accept threshold
+  // and whether it passed. The numbers are the steps' own; nothing is recomputed here.
+  const STEP_STATUS = { passed: ["Passed", "ok"], needs_review: ["Needs review", "warn"], not_run: ["Not run", ""],
+    complete: ["Ready for sign-off", "ok"], provisional: ["Provisional", "warn"], pending: ["Tests pending", "warn"],
+    not_diffuse_glioma: ["Outside glioma rules", ""], inadequate: ["Inadequate", "warn"] };
+  const pct = (v) => `${Math.round(Math.max(0, Math.min(1, v)) * 1000) / 10}%`;
+  const fmtP = (v) => (v >= 0.995 && v < 1 ? ">0.99" : v.toFixed(2));
+  const word = (v) => String(v ?? "").replace(/_/g, " ");
+
+  function confidenceRow(f) {
+    const scored = f.confidence != null;
+    const cls = f.passed ? "ok" : scored ? "warn" : "none";
+    const tag = f.passed ? "Passed" : f.score.kind === "none" ? "No call" : f.above_threshold ? "Held back" : "Below threshold";
+    const bar = scored ? `
+        <span class="cbar ${cls}" role="img" aria-label="Confidence ${esc(fmtP(f.confidence))}${f.threshold != null ? `, accept threshold ${esc(fmtP(f.threshold))}` : ""}">
+          <span class="fill" style="width:${pct(f.confidence)}"></span>
+          ${f.threshold != null && f.threshold < 1 ? `<span class="tick" style="left:${pct(f.threshold)}"></span>` : ""}
+        </span><span class="cnum">${esc(fmtP(f.confidence))}</span>`
+      : `<span class="cnote">${f.score.kind === "rule" ? "fixed rule" : f.score.kind === "not_a_model" ? "lab or person" : "no score"}</span>`;
+    return `
+      <li class="crow">
+        <span class="cwhat">${esc(f.predicts)}</span><span class="tag c-${cls}">${tag}</span>
+        <span class="ccall">${esc(word(f.call))}</span><span class="cscore">${bar}</span>
+        <span class="cwhy${f.passed && f.score.kind !== "rule" ? " quiet" : ""}">${esc(f.explain)}${f.score.kind === "uncalibrated" ? " Score not calibrated." : ""}</span>
+      </li>`;
+  }
+
+  function confidencePanel(c) {
+    if (!c || !c.steps) return "";
+    if (!c.steps.some((s) => s.status !== "not_run")) {
+      return `<section class="panel" aria-labelledby="t-conf"><div class="box"><h2 id="t-conf">Model confidence by step</h2>
+        <p class="empty-note">No workflow step has run on this case yet.</p></div></section>`;
+    }
+    const steps = c.steps.map((s) => {
+      const [label, cls] = STEP_STATUS[s.status] || [word(s.status), ""];
+      const head = `<summary><span class="cn">${esc(s.n)}</span><span class="ct">${esc(s.title)}</span>
+        <span class="muted">${s.findings && s.n_findings ? `${esc(s.n_passed)} of ${esc(s.n_findings)} passed` : ""}</span>
+        <span class="tag c-${cls || "none"}">${esc(label)}</span></summary>`;
+      let body;
+      if (s.step === "integrated_diagnosis") {
+        const w = s.weakest_ai_input;
+        body = s.diagnosis ? `<div class="cdx"><b>${esc(s.diagnosis.text)}</b>
+            <span class="cwhy">${esc(s.score.note)}</span>
+            ${w ? `<span class="cwhy">Weakest model call it used: ${esc(word(w.finding))} ${esc(word(w.call))}, confidence ${esc(fmtP(w.confidence))}.</span>` : `<span class="cwhy">It used no model calls.</span>`}
+            ${s.n_tests_ordered ? `<span class="cwhy">${esc(s.n_tests_ordered)} test${s.n_tests_ordered === 1 ? "" : "s"} asked for before sign-off.</span>` : ""}</div>`
+          : `<p class="empty-note">No draft diagnosis yet.</p>`;
+      } else {
+        body = s.n_findings ? `<ul class="crows">${s.findings.map(confidenceRow).join("")}</ul>` : `<p class="empty-note">This step has not run.</p>`;
+      }
+      return `<details class="cstep"${s.status === "passed" || s.status === "not_run" ? "" : " open"}>${head}${body}</details>`;
+    }).join("");
+    const o = c.overall || {};
+    return `
+      <section class="panel conf" aria-labelledby="t-conf"><div class="box">
+        <h2 id="t-conf">Model confidence by step</h2>
+        <p class="help">${esc(o.n_passed)} of ${esc(o.n_findings)} model calls passed their accept threshold. The bar is the model's confidence in its call; the mark on it is the threshold set on held-out cases.</p>
+        ${steps}
+        <p class="help">Scores are per finding and are not combined into one number. Research use only.</p>
+      </div></section>`;
+  }
+
   /* ---------- patient page ---------- */
   async function caseView(id) {
     const p = await api.getPatient(id);
@@ -234,6 +296,8 @@
     const scans = [], assays = [];
     walk(p, (k, o, trail) => { if (k === "scan") scans.push({ ...o, trail }); if (k === "assay") assays.push({ ...o, trail }); });
     const firstHE = scans.find((s) => s.tile_source);
+
+    const confPanel = confidencePanel(api.getStepConfidence ? await api.getStepConfidence(id).catch(() => null) : null);
 
     const cards = scans.map((sc) => sc.tile_source ? `
       <a class="panel slidecard" href="#slide-${esc(sc.scan_id)}">
@@ -283,6 +347,7 @@
               <section class="sect" aria-labelledby="t-slides"><h2 id="t-slides">Slides</h2><div class="slides">${cards}</div></section>
             </div>
             <div class="sect" style="gap:20px">
+              ${confPanel}
               <section class="panel" aria-labelledby="t-out"><div class="box"><h2 id="t-out">Model findings</h2>
                 <div class="outputs">${outputs || `<p class="empty-note">No model findings yet.</p>`}</div>
                 ${firstHE && outputs ? `<a class="btn" href="#slide-${esc(firstHE.scan_id)}">Check the detections on the slide</a>` : ""}
@@ -317,6 +382,7 @@
             <section class="panel" aria-labelledby="t-out"><div class="box"><h2 id="t-out">Model outputs and assays</h2>
               <div class="outputs">${outputs || `<p class="empty-note">No model outputs yet.</p>`}${assayList}</div>
               <p class="help">Each result names the model and version that produced it. Mock values, not diagnoses.</p></div></section>
+            ${confPanel}
           </div>
           <div class="sect" style="gap:20px">
             <section class="panel" aria-labelledby="t-mol"><div class="box"><h2 id="t-mol">Molecular</h2>${mol}</div></section>

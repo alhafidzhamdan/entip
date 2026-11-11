@@ -213,6 +213,34 @@ canvas.overlay { position: absolute; inset: 0; pointer-events: none; }
 .report .lk { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding-top: 2px; }
 .report .lv { font-weight: 600; overflow-wrap: anywhere; }
 
+/* model confidence by step */
+.conf .box { display: flex; flex-direction: column; gap: 10px; }
+.cstep { border: 1px solid var(--line); border-radius: 8px; }
+.cstep > summary { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; list-style-position: outside; }
+.cstep > summary .cn { width: 20px; height: 20px; border-radius: 50%; background: var(--soft); border: 1px solid var(--line); font-size: 12px; font-weight: 650; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.cstep > summary .ct { font-weight: 600; }
+.cstep > summary .muted { font-size: 12.5px; margin-left: auto; white-space: nowrap; }
+.cstep > .empty-note, .cdx { margin: 0; padding: 4px 10px 10px; }
+.cdx { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.crows { list-style: none; margin: 0; padding: 0; }
+.crow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line); }
+.cwhat { font-weight: 600; overflow-wrap: anywhere; }
+.crow .tag, .crow .cscore { justify-self: end; }
+.ccall { font-size: 13px; overflow-wrap: anywhere; }
+.cscore { display: inline-flex; align-items: center; gap: 8px; }
+.cbar { position: relative; width: 120px; height: 8px; border-radius: 4px; background: var(--soft); border: 1px solid var(--line); flex: none; }
+.cbar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--muted); }
+.cbar.ok .fill { background: var(--ok); }
+.cbar.warn .fill { background: var(--unsure); }
+.cbar .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); }
+.cnum { font-variant-numeric: tabular-nums; font-weight: 650; font-size: 13px; min-width: 38px; text-align: right; }
+.cnote { font-size: 12.5px; color: var(--muted); }
+.cwhy { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+.cwhy.quiet { display: none; }
+.tag.c-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.tag.c-warn { color: var(--unsure); border-color: color-mix(in srgb, var(--unsure) 45%, var(--line)); }
+.tag.c-none { color: var(--muted); }
+
 /* clinician slide panel */
 .finding { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
 .finding .big { font-size: 34px; font-weight: 700; line-height: 1; color: var(--ink); }

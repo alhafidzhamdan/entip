@@ -83,6 +83,7 @@ marker, e.g. `{"IDH": "mutant", "1p19q": "codeleted"}`), `molecular_detail`, cou
 | `GET /patients?cohort=&diagnosis=&marker.IDH=mutant` | patient rows |
 | `GET /patients/{study_id}` | row + `specimens[] > blocks[] > sections[] > scans[]`, `assays[]` on sections and specimens, `genomic_findings[]`, `transforms[]` |
 | `GET /patients/{study_id}/actions` | that patient's action log, with changes |
+| `GET /patients/{study_id}/confidence` | for each step of the AI glioma workflow: each finding's call, confidence, accept threshold and whether it passed (see below) |
 | `GET /scans/{scan_id}` | one scan (with `stain`, `width_um`, `height_um`, `study_id`, and `patient`: diagnosis, grade, markers) |
 | `GET /scans/{scan_id}/cells?bbox=x0,y0,x1,y1&model_id=&after=&limit=` | cells, optionally with a model's `score` |
 | `GET /scans/{scan_id}/regions?kind=&label=`, `/annotations?feature=`, `/predictions?model_id=&order=uncertain` | slide objects; `order=uncertain` sorts by \|score − 0.5\| |
@@ -92,6 +93,44 @@ marker, e.g. `{"IDH": "mutant", "1p19q": "codeleted"}`), `molecular_detail`, cou
 | `GET /objects/{type}/{id}`, `/objects/{type}/{id}/history` | any object and its history |
 | `GET /actions?since=&verb=`, `GET /actions/{id}` | the log |
 | `GET /schema`, `GET /health` | this contract live; versions |
+
+## Model confidence by step: `GET /patients/{study_id}/confidence`
+
+Read-only (`entip.step_confidence/1`). It makes no new scores: it reads the latest `glioma_step` events
+(finding records `entip.glioma_step/1`, steps 1 to 4) and the latest `integrated_dx` event (step 5) whose
+`detail.study_id` is this patient, and lays them out as five steps. For each finding the latest run wins.
+
+```json
+{"contract": "entip.step_confidence/1", "study_id": "SYN-0003",
+ "steps": [
+  {"step": "glioma_panel", "n": 3, "title": "Glioma panel", "status": "needs_review",
+   "n_findings": 11, "n_passed": 9, "lowest_confidence": {"finding": "MGMT", "confidence": 0.64},
+   "findings": [
+    {"finding": "IDH", "predicts": "IDH mutation", "scan_ids": ["SCN-0003-A1-01"], "call": "mutant",
+     "confidence": 0.9907, "threshold": 0.8252, "margin": 0.1655, "above_threshold": true,
+     "status": "confident", "passed": true,
+     "score": {"kind": "calibrated_probability", "note": "Calibrated probability that the call is right."},
+     "calibration": {"method": "temperature", "max_error": 0.05, "n_heldout": 180},
+     "order_test": null, "reasons": [], "model": {"model_id": "glioma-panel:IDH", "version": "0.1.0"},
+     "explain": "Confidence 0.99, above the accept threshold 0.83.", "at": "...", "action_id": "..."}]},
+  {"step": "integrated_diagnosis", "n": 5, "status": "pending", "score": {"kind": "rules_engine", "note": "..."},
+   "diagnosis": {"text": "...", "status": "pending", "cns_who_grade": null, "favoured": "..."},
+   "inputs": [{"layer": "molecular", "finding": "IDH", "call": "mutant", "source": "ai", "confidence": 0.9907}],
+   "weakest_ai_input": {"finding": "IDH", "confidence": 0.9907}, "ai_decisive": ["IDH"], "n_tests_ordered": 1}],
+ "overall": {"steps_run": 5, "n_findings": 20, "n_passed": 16, "needs_review": ["MGMT", "H3G34"]}}
+```
+
+| Field | Meaning |
+|---|---|
+| step `status` | `passed` (every finding accepted), `needs_review`, `not_run`. Step 5 carries the diagnosis status instead. |
+| `confidence`, `threshold` | As the step reported them. `null` when there is no score (see `score.kind`). |
+| `passed` | The step's own `status` is `confident`. A step can hold a call back although the score is above the threshold (for example a model nobody has signed off); then `above_threshold` is true, `passed` is false and `reasons` say why. |
+| `score.kind` | What the number is: `calibrated_probability` (the record carries a `calibration` block), `reported_probability` (the step reports a calibrated probability but the record does not say how), `uncalibrated`, `rule` (a fixed rule, no probability), `none` (no call made), `not_a_model` (lab result or a person). |
+| `calibration` | Optional block copied from the finding record: `{method, calibrated, max_error, error_upper, n_heldout, coverage, validated}`. Steps may add it to their records; nothing breaks without it. |
+| `explain` | One plain sentence for the pathologist. |
+
+Step 5 is a rules engine and has no probability of its own; the endpoint lists the findings it used and the
+weakest AI call among them. Scores are never multiplied into one case-level number.
 
 ## Mapping from the pillars' stand-ins
 

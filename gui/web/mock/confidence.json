@@ -1,0 +1,3709 @@
+{
+ "ENT-0001": {
+  "contract": "entip.step_confidence/1",
+  "study_id": "ENT-0001",
+  "steps": [
+   {
+    "step": "triage",
+    "n": 1,
+    "title": "Triage",
+    "status": "passed",
+    "n_findings": 2,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "tissue_class",
+     "confidence": 0.9607
+    },
+    "findings": [
+     {
+      "finding": "adequacy",
+      "predicts": "Enough tissue to assess",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "adequate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "rule",
+       "note": "Fixed rule, not a model: the number is a placeholder, not a probability."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [
+       "tissue area above the 1.0 mm² rule; lesional content not judged"
+      ],
+      "model": {
+       "model_id": "triage-adequacy-rule",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Set by a fixed rule, not a model: tissue area above the 1.0 mm² rule; lesional content not judged."
+     },
+     {
+      "finding": "tissue_class",
+      "predicts": "Tissue class (normal, reactive, glioma, other primary, metastasis, lymphoma)",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "glioma",
+      "source": "ai",
+      "confidence": 0.9607,
+      "threshold": 0.87,
+      "margin": 0.0907,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-triage",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.96, above the accept threshold 0.87."
+     }
+    ]
+   },
+   {
+    "step": "high_grade_features",
+    "n": 2,
+    "title": "High-grade features",
+    "status": "needs_review",
+    "n_findings": 3,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "microvascular_proliferation",
+     "confidence": 0.8194
+    },
+    "findings": [
+     {
+      "finding": "necrosis",
+      "predicts": "Necrosis",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.9775,
+      "threshold": 0.9,
+      "margin": 0.0775,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-necrosis",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.98, above the accept threshold 0.90."
+     },
+     {
+      "finding": "microvascular_proliferation",
+      "predicts": "Microvascular proliferation",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.8194,
+      "threshold": 0.9,
+      "margin": -0.0806,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-mvp",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.82, below the accept threshold 0.90. Advised: pathologist review."
+     },
+     {
+      "finding": "mitotic_activity",
+      "predicts": "Elevated mitotic activity",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.905,
+      "threshold": 0.9,
+      "margin": 0.005,
+      "above_threshold": true,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [
+       "mitosis model not yet validated on CNS tumours"
+      ],
+      "model": {
+       "model_id": "mock-mitoses",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.91 is above the accept threshold 0.90 but the step held it back: mitosis model not yet validated on CNS tumours. Advised: pathologist review."
+     }
+    ]
+   },
+   {
+    "step": "glioma_panel",
+    "n": 3,
+    "title": "Glioma panel",
+    "status": "needs_review",
+    "n_findings": 11,
+    "n_passed": 6,
+    "lowest_confidence": {
+     "finding": "H3K27",
+     "confidence": 0.6114
+    },
+    "findings": [
+     {
+      "finding": "IDH",
+      "predicts": "IDH mutation",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.9574,
+      "threshold": 0.83,
+      "margin": 0.1274,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:IDH",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.96, above the accept threshold 0.83."
+     },
+     {
+      "finding": "ATRX",
+      "predicts": "ATRX loss",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.9611,
+      "threshold": 0.72,
+      "margin": 0.2411,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:ATRX",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.96, above the accept threshold 0.72."
+     },
+     {
+      "finding": "TP53",
+      "predicts": "TP53 mutation",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.8131,
+      "threshold": 0.83,
+      "margin": -0.0169,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "p53_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TP53",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.81, below the accept threshold 0.83. Advised: p53 IHC."
+     },
+     {
+      "finding": "1p19q",
+      "predicts": "1p/19q codeletion",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "not_codeleted",
+      "source": "ai",
+      "confidence": 0.9746,
+      "threshold": 0.94,
+      "margin": 0.0346,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:1p19q",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.97, above the accept threshold 0.94."
+     },
+     {
+      "finding": "CDKN2A",
+      "predicts": "CDKN2A/B homozygous deletion",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "homozygous_deletion",
+      "source": "ai",
+      "confidence": 0.866,
+      "threshold": 0.9,
+      "margin": -0.034,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "CDKN2A_B_testing",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:CDKN2A",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.87, below the accept threshold 0.90. Advised: CDKN2A B testing."
+     },
+     {
+      "finding": "EGFR",
+      "predicts": "EGFR amplification",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "amplified",
+      "source": "ai",
+      "confidence": 0.8794,
+      "threshold": 0.81,
+      "margin": 0.0694,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:EGFR",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.88, above the accept threshold 0.81."
+     },
+     {
+      "finding": "chr7_chr10",
+      "predicts": "Chromosome 7 gain and 10 loss",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "gain7_loss10",
+      "source": "ai",
+      "confidence": 0.8367,
+      "threshold": 0.85,
+      "margin": -0.0133,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "chr7_chr10_copy_number",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:chr7_chr10",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.84, below the accept threshold 0.85. Advised: chr7 chr10 copy number."
+     },
+     {
+      "finding": "TERT",
+      "predicts": "TERT promoter mutation",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.8501,
+      "threshold": 0.83,
+      "margin": 0.0201,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TERT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.85, above the accept threshold 0.83."
+     },
+     {
+      "finding": "H3K27",
+      "predicts": "H3 K27 alteration",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.6114,
+      "threshold": 0.6,
+      "margin": 0.0114,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:H3K27",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.61, above the accept threshold 0.60."
+     },
+     {
+      "finding": "H3G34",
+      "predicts": "H3 G34 mutation",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "indeterminate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "none",
+       "note": "No score: the step did not make a call."
+      },
+      "calibration": null,
+      "order_test": "H3G34_testing",
+      "reasons": [
+       "no model for this marker: too few labelled patients"
+      ],
+      "model": {
+       "model_id": "mock-panel:H3G34",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "No call made: no model for this marker: too few labelled patients. Advised: H3G34 testing."
+     },
+     {
+      "finding": "MGMT",
+      "predicts": "MGMT promoter methylation",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "methylated",
+      "source": "ai",
+      "confidence": 0.6419,
+      "threshold": 1.0,
+      "margin": -0.3581,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "MGMT_promoter_methylation",
+      "reasons": [
+       "no confidence level met the 5% error target in cross-validation"
+      ],
+      "model": {
+       "model_id": "mock-panel:MGMT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "No accept threshold could be set for this model at the agreed error rate, so none of its calls are accepted (confidence 0.64). Advised: MGMT promoter methylation."
+     }
+    ]
+   },
+   {
+    "step": "methylation_class",
+    "n": 4,
+    "title": "Methylation class",
+    "status": "passed",
+    "n_findings": 1,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "methylation_class",
+     "confidence": 0.8166
+    },
+    "findings": [
+     {
+      "finding": "methylation_class",
+      "predicts": "DNA methylation class (family) from H&E",
+      "scan_ids": [
+       "SCN-0001"
+      ],
+      "call": "glioblastoma_idh_wildtype",
+      "source": "ai",
+      "confidence": 0.8166,
+      "threshold": 0.68,
+      "margin": 0.1366,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "calibrated_probability",
+       "note": "Calibrated probability that the call is right."
+      },
+      "calibration": {
+       "method": "temperature",
+       "max_error": 0.05,
+       "validated": false
+      },
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-methylation",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0001",
+      "explain": "Confidence 0.82, above the accept threshold 0.68."
+     }
+    ]
+   },
+   {
+    "step": "integrated_diagnosis",
+    "n": 5,
+    "title": "Integrated diagnosis",
+    "status": "provisional",
+    "score": {
+     "kind": "rules_engine",
+     "note": "Rules engine: it applies the WHO CNS5 criteria to the findings above and has no probability of its own. It is only as sure as the findings it used."
+    },
+    "diagnosis": {
+     "text": "Glioblastoma, IDH-wildtype, CNS WHO grade 4 (mock draft)",
+     "status": "provisional",
+     "cns_who_grade": 4,
+     "favoured": "Glioblastoma, IDH-wildtype"
+    },
+    "inputs": [
+     {
+      "layer": "histology",
+      "finding": "tissue_class",
+      "call": "glioma",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9607
+     },
+     {
+      "layer": "grade_features",
+      "finding": "necrosis",
+      "call": "present",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9775
+     },
+     {
+      "layer": "grade_features",
+      "finding": "microvascular_proliferation",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "grade_features",
+      "finding": "mitotic_activity",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "IDH",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9574
+     },
+     {
+      "layer": "molecular",
+      "finding": "ATRX",
+      "call": "retained",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9611
+     },
+     {
+      "layer": "molecular",
+      "finding": "TP53",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "1p19q",
+      "call": "not_codeleted",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9746
+     },
+     {
+      "layer": "molecular",
+      "finding": "CDKN2A",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "EGFR",
+      "call": "amplified",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8794
+     },
+     {
+      "layer": "molecular",
+      "finding": "chr7_chr10",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "TERT",
+      "call": "mutant",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8501
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3K27",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.6114
+     },
+     {
+      "layer": "molecular",
+      "finding": "MGMT",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3G34",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "methylation",
+      "finding": "methylation_class",
+      "call": "glioblastoma_idh_wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8166
+     }
+    ],
+    "weakest_ai_input": {
+     "layer": "molecular",
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.6114
+    },
+    "ai_decisive": [
+     "IDH",
+     "1p19q"
+    ],
+    "n_tests_ordered": 6,
+    "at": "2026-11-11T09:00:00+00:00",
+    "action_id": "mock-dx-ENT-0001"
+   }
+  ],
+  "overall": {
+   "steps_run": 5,
+   "n_findings": 17,
+   "n_passed": 10,
+   "needs_review": [
+    "microvascular_proliferation",
+    "mitotic_activity",
+    "TP53",
+    "CDKN2A",
+    "chr7_chr10",
+    "H3G34",
+    "MGMT"
+   ],
+   "note": "Per-finding scores are not combined into one number: the findings are not independent and the steps are calibrated separately."
+  }
+ },
+ "ENT-0002": {
+  "contract": "entip.step_confidence/1",
+  "study_id": "ENT-0002",
+  "steps": [
+   {
+    "step": "triage",
+    "n": 1,
+    "title": "Triage",
+    "status": "passed",
+    "n_findings": 2,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "tissue_class",
+     "confidence": 0.9445
+    },
+    "findings": [
+     {
+      "finding": "adequacy",
+      "predicts": "Enough tissue to assess",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "adequate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "rule",
+       "note": "Fixed rule, not a model: the number is a placeholder, not a probability."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [
+       "tissue area above the 1.0 mm² rule; lesional content not judged"
+      ],
+      "model": {
+       "model_id": "triage-adequacy-rule",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Set by a fixed rule, not a model: tissue area above the 1.0 mm² rule; lesional content not judged."
+     },
+     {
+      "finding": "tissue_class",
+      "predicts": "Tissue class (normal, reactive, glioma, other primary, metastasis, lymphoma)",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "glioma",
+      "source": "ai",
+      "confidence": 0.9445,
+      "threshold": 0.87,
+      "margin": 0.0745,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-triage",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.94, above the accept threshold 0.87."
+     }
+    ]
+   },
+   {
+    "step": "high_grade_features",
+    "n": 2,
+    "title": "High-grade features",
+    "status": "needs_review",
+    "n_findings": 3,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "microvascular_proliferation",
+     "confidence": 0.828
+    },
+    "findings": [
+     {
+      "finding": "necrosis",
+      "predicts": "Necrosis",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9404,
+      "threshold": 0.9,
+      "margin": 0.0404,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-necrosis",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.94, above the accept threshold 0.90."
+     },
+     {
+      "finding": "microvascular_proliferation",
+      "predicts": "Microvascular proliferation",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.828,
+      "threshold": 0.9,
+      "margin": -0.072,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-mvp",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.83, below the accept threshold 0.90. Advised: pathologist review."
+     },
+     {
+      "finding": "mitotic_activity",
+      "predicts": "Elevated mitotic activity",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.9381,
+      "threshold": 0.9,
+      "margin": 0.0381,
+      "above_threshold": true,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [
+       "mitosis model not yet validated on CNS tumours"
+      ],
+      "model": {
+       "model_id": "mock-mitoses",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.94 is above the accept threshold 0.90 but the step held it back: mitosis model not yet validated on CNS tumours. Advised: pathologist review."
+     }
+    ]
+   },
+   {
+    "step": "glioma_panel",
+    "n": 3,
+    "title": "Glioma panel",
+    "status": "needs_review",
+    "n_findings": 11,
+    "n_passed": 8,
+    "lowest_confidence": {
+     "finding": "MGMT",
+     "confidence": 0.6146
+    },
+    "findings": [
+     {
+      "finding": "IDH",
+      "predicts": "IDH mutation",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.8422,
+      "threshold": 0.83,
+      "margin": 0.0122,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:IDH",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.84, above the accept threshold 0.83."
+     },
+     {
+      "finding": "ATRX",
+      "predicts": "ATRX loss",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "lost",
+      "source": "ai",
+      "confidence": 0.8727,
+      "threshold": 0.72,
+      "margin": 0.1527,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:ATRX",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.87, above the accept threshold 0.72."
+     },
+     {
+      "finding": "TP53",
+      "predicts": "TP53 mutation",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.8142,
+      "threshold": 0.83,
+      "margin": -0.0158,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "p53_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TP53",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.81, below the accept threshold 0.83. Advised: p53 IHC."
+     },
+     {
+      "finding": "1p19q",
+      "predicts": "1p/19q codeletion",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "not_codeleted",
+      "source": "ai",
+      "confidence": 0.9753,
+      "threshold": 0.94,
+      "margin": 0.0353,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:1p19q",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.98, above the accept threshold 0.94."
+     },
+     {
+      "finding": "CDKN2A",
+      "predicts": "CDKN2A/B homozygous deletion",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.9205,
+      "threshold": 0.9,
+      "margin": 0.0205,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:CDKN2A",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.92, above the accept threshold 0.90."
+     },
+     {
+      "finding": "EGFR",
+      "predicts": "EGFR amplification",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "not_amplified",
+      "source": "ai",
+      "confidence": 0.8103,
+      "threshold": 0.81,
+      "margin": 0.0003,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:EGFR",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.81, above the accept threshold 0.81."
+     },
+     {
+      "finding": "chr7_chr10",
+      "predicts": "Chromosome 7 gain and 10 loss",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.8996,
+      "threshold": 0.85,
+      "margin": 0.0496,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:chr7_chr10",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.90, above the accept threshold 0.85."
+     },
+     {
+      "finding": "TERT",
+      "predicts": "TERT promoter mutation",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.8334,
+      "threshold": 0.83,
+      "margin": 0.0034,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TERT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.83, above the accept threshold 0.83."
+     },
+     {
+      "finding": "H3K27",
+      "predicts": "H3 K27 alteration",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.6616,
+      "threshold": 0.6,
+      "margin": 0.0616,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:H3K27",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.66, above the accept threshold 0.60."
+     },
+     {
+      "finding": "H3G34",
+      "predicts": "H3 G34 mutation",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "indeterminate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "none",
+       "note": "No score: the step did not make a call."
+      },
+      "calibration": null,
+      "order_test": "H3G34_testing",
+      "reasons": [
+       "no model for this marker: too few labelled patients"
+      ],
+      "model": {
+       "model_id": "mock-panel:H3G34",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "No call made: no model for this marker: too few labelled patients. Advised: H3G34 testing."
+     },
+     {
+      "finding": "MGMT",
+      "predicts": "MGMT promoter methylation",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "methylated",
+      "source": "ai",
+      "confidence": 0.6146,
+      "threshold": 1.0,
+      "margin": -0.3854,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "MGMT_promoter_methylation",
+      "reasons": [
+       "no confidence level met the 5% error target in cross-validation"
+      ],
+      "model": {
+       "model_id": "mock-panel:MGMT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "No accept threshold could be set for this model at the agreed error rate, so none of its calls are accepted (confidence 0.61). Advised: MGMT promoter methylation."
+     }
+    ]
+   },
+   {
+    "step": "methylation_class",
+    "n": 4,
+    "title": "Methylation class",
+    "status": "needs_review",
+    "n_findings": 1,
+    "n_passed": 0,
+    "lowest_confidence": {
+     "finding": "methylation_class",
+     "confidence": 0.6099
+    },
+    "findings": [
+     {
+      "finding": "methylation_class",
+      "predicts": "DNA methylation class (family) from H&E",
+      "scan_ids": [
+       "SCN-0002"
+      ],
+      "call": "astrocytoma_idh_mutant",
+      "source": "ai",
+      "confidence": 0.6099,
+      "threshold": 0.68,
+      "margin": -0.0701,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "calibrated_probability",
+       "note": "Calibrated probability that the call is right."
+      },
+      "calibration": {
+       "method": "temperature",
+       "max_error": 0.05,
+       "validated": false
+      },
+      "order_test": "methylation_array",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-methylation",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0002",
+      "explain": "Confidence 0.61, below the accept threshold 0.68. Advised: methylation array."
+     }
+    ]
+   },
+   {
+    "step": "integrated_diagnosis",
+    "n": 5,
+    "title": "Integrated diagnosis",
+    "status": "provisional",
+    "score": {
+     "kind": "rules_engine",
+     "note": "Rules engine: it applies the WHO CNS5 criteria to the findings above and has no probability of its own. It is only as sure as the findings it used."
+    },
+    "diagnosis": {
+     "text": "Astrocytoma, IDH-mutant, CNS WHO grade 3 (mock draft)",
+     "status": "provisional",
+     "cns_who_grade": 3,
+     "favoured": "Astrocytoma, IDH-mutant"
+    },
+    "inputs": [
+     {
+      "layer": "histology",
+      "finding": "tissue_class",
+      "call": "glioma",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9445
+     },
+     {
+      "layer": "grade_features",
+      "finding": "necrosis",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9404
+     },
+     {
+      "layer": "grade_features",
+      "finding": "microvascular_proliferation",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "grade_features",
+      "finding": "mitotic_activity",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "IDH",
+      "call": "mutant",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8422
+     },
+     {
+      "layer": "molecular",
+      "finding": "ATRX",
+      "call": "lost",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8727
+     },
+     {
+      "layer": "molecular",
+      "finding": "TP53",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "1p19q",
+      "call": "not_codeleted",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9753
+     },
+     {
+      "layer": "molecular",
+      "finding": "CDKN2A",
+      "call": "retained",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9205
+     },
+     {
+      "layer": "molecular",
+      "finding": "EGFR",
+      "call": "not_amplified",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8103
+     },
+     {
+      "layer": "molecular",
+      "finding": "chr7_chr10",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8996
+     },
+     {
+      "layer": "molecular",
+      "finding": "TERT",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8334
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3K27",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.6616
+     },
+     {
+      "layer": "molecular",
+      "finding": "MGMT",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3G34",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "methylation",
+      "finding": "methylation_class",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     }
+    ],
+    "weakest_ai_input": {
+     "layer": "molecular",
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.6616
+    },
+    "ai_decisive": [
+     "IDH",
+     "1p19q"
+    ],
+    "n_tests_ordered": 5,
+    "at": "2026-11-11T09:00:00+00:00",
+    "action_id": "mock-dx-ENT-0002"
+   }
+  ],
+  "overall": {
+   "steps_run": 5,
+   "n_findings": 17,
+   "n_passed": 11,
+   "needs_review": [
+    "microvascular_proliferation",
+    "mitotic_activity",
+    "TP53",
+    "H3G34",
+    "MGMT",
+    "methylation_class"
+   ],
+   "note": "Per-finding scores are not combined into one number: the findings are not independent and the steps are calibrated separately."
+  }
+ },
+ "ENT-0003": {
+  "contract": "entip.step_confidence/1",
+  "study_id": "ENT-0003",
+  "steps": [
+   {
+    "step": "triage",
+    "n": 1,
+    "title": "Triage",
+    "status": "passed",
+    "n_findings": 2,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "tissue_class",
+     "confidence": 0.9423
+    },
+    "findings": [
+     {
+      "finding": "adequacy",
+      "predicts": "Enough tissue to assess",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "adequate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "rule",
+       "note": "Fixed rule, not a model: the number is a placeholder, not a probability."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [
+       "tissue area above the 1.0 mm² rule; lesional content not judged"
+      ],
+      "model": {
+       "model_id": "triage-adequacy-rule",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Set by a fixed rule, not a model: tissue area above the 1.0 mm² rule; lesional content not judged."
+     },
+     {
+      "finding": "tissue_class",
+      "predicts": "Tissue class (normal, reactive, glioma, other primary, metastasis, lymphoma)",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "glioma",
+      "source": "ai",
+      "confidence": 0.9423,
+      "threshold": 0.87,
+      "margin": 0.0723,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-triage",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.94, above the accept threshold 0.87."
+     }
+    ]
+   },
+   {
+    "step": "high_grade_features",
+    "n": 2,
+    "title": "High-grade features",
+    "status": "needs_review",
+    "n_findings": 3,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "microvascular_proliferation",
+     "confidence": 0.8237
+    },
+    "findings": [
+     {
+      "finding": "necrosis",
+      "predicts": "Necrosis",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9667,
+      "threshold": 0.9,
+      "margin": 0.0667,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-necrosis",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.97, above the accept threshold 0.90."
+     },
+     {
+      "finding": "microvascular_proliferation",
+      "predicts": "Microvascular proliferation",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.8237,
+      "threshold": 0.9,
+      "margin": -0.0763,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-mvp",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.82, below the accept threshold 0.90. Advised: pathologist review."
+     },
+     {
+      "finding": "mitotic_activity",
+      "predicts": "Elevated mitotic activity",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9265,
+      "threshold": 0.9,
+      "margin": 0.0265,
+      "above_threshold": true,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [
+       "mitosis model not yet validated on CNS tumours"
+      ],
+      "model": {
+       "model_id": "mock-mitoses",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.93 is above the accept threshold 0.90 but the step held it back: mitosis model not yet validated on CNS tumours. Advised: pathologist review."
+     }
+    ]
+   },
+   {
+    "step": "glioma_panel",
+    "n": 3,
+    "title": "Glioma panel",
+    "status": "needs_review",
+    "n_findings": 11,
+    "n_passed": 3,
+    "lowest_confidence": {
+     "finding": "MGMT",
+     "confidence": 0.6479
+    },
+    "findings": [
+     {
+      "finding": "IDH",
+      "predicts": "IDH mutation",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.792,
+      "threshold": 0.83,
+      "margin": -0.038,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "IDH1_R132H_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:IDH",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.79, below the accept threshold 0.83. Advised: IDH1 R132H IHC."
+     },
+     {
+      "finding": "ATRX",
+      "predicts": "ATRX loss",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.701,
+      "threshold": 0.72,
+      "margin": -0.019,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "ATRX_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:ATRX",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.70, below the accept threshold 0.72. Advised: ATRX IHC."
+     },
+     {
+      "finding": "TP53",
+      "predicts": "TP53 mutation",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.8177,
+      "threshold": 0.83,
+      "margin": -0.0123,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "p53_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TP53",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.82, below the accept threshold 0.83. Advised: p53 IHC."
+     },
+     {
+      "finding": "1p19q",
+      "predicts": "1p/19q codeletion",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "codeleted",
+      "source": "ai",
+      "confidence": 0.9048,
+      "threshold": 0.94,
+      "margin": -0.0352,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "1p19q_testing",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:1p19q",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.90, below the accept threshold 0.94. Advised: 1p19q testing."
+     },
+     {
+      "finding": "CDKN2A",
+      "predicts": "CDKN2A/B homozygous deletion",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.8672,
+      "threshold": 0.9,
+      "margin": -0.0328,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "CDKN2A_B_testing",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:CDKN2A",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.87, below the accept threshold 0.90. Advised: CDKN2A B testing."
+     },
+     {
+      "finding": "EGFR",
+      "predicts": "EGFR amplification",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "not_amplified",
+      "source": "ai",
+      "confidence": 0.7951,
+      "threshold": 0.81,
+      "margin": -0.0149,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "EGFR_amplification_testing",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:EGFR",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.80, below the accept threshold 0.81. Advised: EGFR amplification testing."
+     },
+     {
+      "finding": "chr7_chr10",
+      "predicts": "Chromosome 7 gain and 10 loss",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.8676,
+      "threshold": 0.85,
+      "margin": 0.0176,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:chr7_chr10",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.87, above the accept threshold 0.85."
+     },
+     {
+      "finding": "TERT",
+      "predicts": "TERT promoter mutation",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.8526,
+      "threshold": 0.83,
+      "margin": 0.0226,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TERT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.85, above the accept threshold 0.83."
+     },
+     {
+      "finding": "H3K27",
+      "predicts": "H3 K27 alteration",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.7794,
+      "threshold": 0.6,
+      "margin": 0.1794,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:H3K27",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.78, above the accept threshold 0.60."
+     },
+     {
+      "finding": "H3G34",
+      "predicts": "H3 G34 mutation",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "indeterminate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "none",
+       "note": "No score: the step did not make a call."
+      },
+      "calibration": null,
+      "order_test": "H3G34_testing",
+      "reasons": [
+       "no model for this marker: too few labelled patients"
+      ],
+      "model": {
+       "model_id": "mock-panel:H3G34",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "No call made: no model for this marker: too few labelled patients. Advised: H3G34 testing."
+     },
+     {
+      "finding": "MGMT",
+      "predicts": "MGMT promoter methylation",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "methylated",
+      "source": "ai",
+      "confidence": 0.6479,
+      "threshold": 1.0,
+      "margin": -0.3521,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "MGMT_promoter_methylation",
+      "reasons": [
+       "no confidence level met the 5% error target in cross-validation"
+      ],
+      "model": {
+       "model_id": "mock-panel:MGMT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "No accept threshold could be set for this model at the agreed error rate, so none of its calls are accepted (confidence 0.65). Advised: MGMT promoter methylation."
+     }
+    ]
+   },
+   {
+    "step": "methylation_class",
+    "n": 4,
+    "title": "Methylation class",
+    "status": "passed",
+    "n_findings": 1,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "methylation_class",
+     "confidence": 0.8899
+    },
+    "findings": [
+     {
+      "finding": "methylation_class",
+      "predicts": "DNA methylation class (family) from H&E",
+      "scan_ids": [
+       "SCN-0003"
+      ],
+      "call": "oligodendroglioma_idh_mutant_codeleted",
+      "source": "ai",
+      "confidence": 0.8899,
+      "threshold": 0.68,
+      "margin": 0.2099,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "calibrated_probability",
+       "note": "Calibrated probability that the call is right."
+      },
+      "calibration": {
+       "method": "temperature",
+       "max_error": 0.05,
+       "validated": false
+      },
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-methylation",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0003",
+      "explain": "Confidence 0.89, above the accept threshold 0.68."
+     }
+    ]
+   },
+   {
+    "step": "integrated_diagnosis",
+    "n": 5,
+    "title": "Integrated diagnosis",
+    "status": "provisional",
+    "score": {
+     "kind": "rules_engine",
+     "note": "Rules engine: it applies the WHO CNS5 criteria to the findings above and has no probability of its own. It is only as sure as the findings it used."
+    },
+    "diagnosis": {
+     "text": "Oligodendroglioma, IDH-mutant and 1p/19q-codeleted, CNS WHO grade 2 (mock draft)",
+     "status": "provisional",
+     "cns_who_grade": 2,
+     "favoured": "Oligodendroglioma, IDH-mutant and 1p/19q-codeleted"
+    },
+    "inputs": [
+     {
+      "layer": "histology",
+      "finding": "tissue_class",
+      "call": "glioma",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9423
+     },
+     {
+      "layer": "grade_features",
+      "finding": "necrosis",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9667
+     },
+     {
+      "layer": "grade_features",
+      "finding": "microvascular_proliferation",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "grade_features",
+      "finding": "mitotic_activity",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "IDH",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "ATRX",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "TP53",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "1p19q",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "CDKN2A",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "EGFR",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "chr7_chr10",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8676
+     },
+     {
+      "layer": "molecular",
+      "finding": "TERT",
+      "call": "mutant",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8526
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3K27",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.7794
+     },
+     {
+      "layer": "molecular",
+      "finding": "MGMT",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3G34",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "methylation",
+      "finding": "methylation_class",
+      "call": "oligodendroglioma_idh_mutant_codeleted",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8899
+     }
+    ],
+    "weakest_ai_input": {
+     "layer": "molecular",
+     "finding": "H3K27",
+     "call": "wildtype",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.7794
+    },
+    "ai_decisive": [],
+    "n_tests_ordered": 9,
+    "at": "2026-11-11T09:00:00+00:00",
+    "action_id": "mock-dx-ENT-0003"
+   }
+  ],
+  "overall": {
+   "steps_run": 5,
+   "n_findings": 17,
+   "n_passed": 7,
+   "needs_review": [
+    "microvascular_proliferation",
+    "mitotic_activity",
+    "IDH",
+    "ATRX",
+    "TP53",
+    "1p19q",
+    "CDKN2A",
+    "EGFR",
+    "H3G34",
+    "MGMT"
+   ],
+   "note": "Per-finding scores are not combined into one number: the findings are not independent and the steps are calibrated separately."
+  }
+ },
+ "ENT-0004": {
+  "contract": "entip.step_confidence/1",
+  "study_id": "ENT-0004",
+  "steps": [
+   {
+    "step": "triage",
+    "n": 1,
+    "title": "Triage",
+    "status": "passed",
+    "n_findings": 2,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "tissue_class",
+     "confidence": 0.9344
+    },
+    "findings": [
+     {
+      "finding": "adequacy",
+      "predicts": "Enough tissue to assess",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "adequate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "rule",
+       "note": "Fixed rule, not a model: the number is a placeholder, not a probability."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [
+       "tissue area above the 1.0 mm² rule; lesional content not judged"
+      ],
+      "model": {
+       "model_id": "triage-adequacy-rule",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Set by a fixed rule, not a model: tissue area above the 1.0 mm² rule; lesional content not judged."
+     },
+     {
+      "finding": "tissue_class",
+      "predicts": "Tissue class (normal, reactive, glioma, other primary, metastasis, lymphoma)",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "glioma",
+      "source": "ai",
+      "confidence": 0.9344,
+      "threshold": 0.87,
+      "margin": 0.0644,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-triage",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.93, above the accept threshold 0.87."
+     }
+    ]
+   },
+   {
+    "step": "high_grade_features",
+    "n": 2,
+    "title": "High-grade features",
+    "status": "needs_review",
+    "n_findings": 3,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "mitotic_activity",
+     "confidence": 0.9106
+    },
+    "findings": [
+     {
+      "finding": "necrosis",
+      "predicts": "Necrosis",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9443,
+      "threshold": 0.9,
+      "margin": 0.0443,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-necrosis",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.94, above the accept threshold 0.90."
+     },
+     {
+      "finding": "microvascular_proliferation",
+      "predicts": "Microvascular proliferation",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9538,
+      "threshold": 0.9,
+      "margin": 0.0538,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-mvp",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.95, above the accept threshold 0.90."
+     },
+     {
+      "finding": "mitotic_activity",
+      "predicts": "Elevated mitotic activity",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9106,
+      "threshold": 0.9,
+      "margin": 0.0106,
+      "above_threshold": true,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [
+       "mitosis model not yet validated on CNS tumours"
+      ],
+      "model": {
+       "model_id": "mock-mitoses",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.91 is above the accept threshold 0.90 but the step held it back: mitosis model not yet validated on CNS tumours. Advised: pathologist review."
+     }
+    ]
+   },
+   {
+    "step": "glioma_panel",
+    "n": 3,
+    "title": "Glioma panel",
+    "status": "needs_review",
+    "n_findings": 11,
+    "n_passed": 5,
+    "lowest_confidence": {
+     "finding": "MGMT",
+     "confidence": 0.631
+    },
+    "findings": [
+     {
+      "finding": "IDH",
+      "predicts": "IDH mutation",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.817,
+      "threshold": 0.83,
+      "margin": -0.013,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "IDH1_R132H_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:IDH",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.82, below the accept threshold 0.83. Advised: IDH1 R132H IHC."
+     },
+     {
+      "finding": "ATRX",
+      "predicts": "ATRX loss",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "lost",
+      "source": "ai",
+      "confidence": 0.6878,
+      "threshold": 0.72,
+      "margin": -0.0322,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "ATRX_IHC",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:ATRX",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.69, below the accept threshold 0.72. Advised: ATRX IHC."
+     },
+     {
+      "finding": "TP53",
+      "predicts": "TP53 mutation",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.9537,
+      "threshold": 0.83,
+      "margin": 0.1237,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TP53",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.95, above the accept threshold 0.83."
+     },
+     {
+      "finding": "1p19q",
+      "predicts": "1p/19q codeletion",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "not_codeleted",
+      "source": "ai",
+      "confidence": 0.9234,
+      "threshold": 0.94,
+      "margin": -0.0166,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "1p19q_testing",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:1p19q",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.92, below the accept threshold 0.94. Advised: 1p19q testing."
+     },
+     {
+      "finding": "CDKN2A",
+      "predicts": "CDKN2A/B homozygous deletion",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.995,
+      "threshold": 0.9,
+      "margin": 0.095,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:CDKN2A",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence >0.99, above the accept threshold 0.90."
+     },
+     {
+      "finding": "EGFR",
+      "predicts": "EGFR amplification",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "not_amplified",
+      "source": "ai",
+      "confidence": 0.8052,
+      "threshold": 0.81,
+      "margin": -0.0048,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "EGFR_amplification_testing",
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:EGFR",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.81, below the accept threshold 0.81. Advised: EGFR amplification testing."
+     },
+     {
+      "finding": "chr7_chr10",
+      "predicts": "Chromosome 7 gain and 10 loss",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "absent",
+      "source": "ai",
+      "confidence": 0.9704,
+      "threshold": 0.85,
+      "margin": 0.1204,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:chr7_chr10",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.97, above the accept threshold 0.85."
+     },
+     {
+      "finding": "TERT",
+      "predicts": "TERT promoter mutation",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.964,
+      "threshold": 0.83,
+      "margin": 0.134,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TERT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.96, above the accept threshold 0.83."
+     },
+     {
+      "finding": "H3K27",
+      "predicts": "H3 K27 alteration",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.8469,
+      "threshold": 0.6,
+      "margin": 0.2469,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:H3K27",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.85, above the accept threshold 0.60."
+     },
+     {
+      "finding": "H3G34",
+      "predicts": "H3 G34 mutation",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "indeterminate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "none",
+       "note": "No score: the step did not make a call."
+      },
+      "calibration": null,
+      "order_test": "H3G34_testing",
+      "reasons": [
+       "no model for this marker: too few labelled patients"
+      ],
+      "model": {
+       "model_id": "mock-panel:H3G34",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "No call made: no model for this marker: too few labelled patients. Advised: H3G34 testing."
+     },
+     {
+      "finding": "MGMT",
+      "predicts": "MGMT promoter methylation",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "unmethylated",
+      "source": "ai",
+      "confidence": 0.631,
+      "threshold": 1.0,
+      "margin": -0.369,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "MGMT_promoter_methylation",
+      "reasons": [
+       "no confidence level met the 5% error target in cross-validation"
+      ],
+      "model": {
+       "model_id": "mock-panel:MGMT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "No accept threshold could be set for this model at the agreed error rate, so none of its calls are accepted (confidence 0.63). Advised: MGMT promoter methylation."
+     }
+    ]
+   },
+   {
+    "step": "methylation_class",
+    "n": 4,
+    "title": "Methylation class",
+    "status": "passed",
+    "n_findings": 1,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "methylation_class",
+     "confidence": 0.7549
+    },
+    "findings": [
+     {
+      "finding": "methylation_class",
+      "predicts": "DNA methylation class (family) from H&E",
+      "scan_ids": [
+       "SCN-0004"
+      ],
+      "call": "astrocytoma_idh_mutant",
+      "source": "ai",
+      "confidence": 0.7549,
+      "threshold": 0.68,
+      "margin": 0.0749,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "calibrated_probability",
+       "note": "Calibrated probability that the call is right."
+      },
+      "calibration": {
+       "method": "temperature",
+       "max_error": 0.05,
+       "validated": false
+      },
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-methylation",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0004",
+      "explain": "Confidence 0.75, above the accept threshold 0.68."
+     }
+    ]
+   },
+   {
+    "step": "integrated_diagnosis",
+    "n": 5,
+    "title": "Integrated diagnosis",
+    "status": "provisional",
+    "score": {
+     "kind": "rules_engine",
+     "note": "Rules engine: it applies the WHO CNS5 criteria to the findings above and has no probability of its own. It is only as sure as the findings it used."
+    },
+    "diagnosis": {
+     "text": "Astrocytoma, IDH-mutant, CNS WHO grade 2 (mock draft)",
+     "status": "provisional",
+     "cns_who_grade": 2,
+     "favoured": "Astrocytoma, IDH-mutant"
+    },
+    "inputs": [
+     {
+      "layer": "histology",
+      "finding": "tissue_class",
+      "call": "glioma",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9344
+     },
+     {
+      "layer": "grade_features",
+      "finding": "necrosis",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9443
+     },
+     {
+      "layer": "grade_features",
+      "finding": "microvascular_proliferation",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9538
+     },
+     {
+      "layer": "grade_features",
+      "finding": "mitotic_activity",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "IDH",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "ATRX",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "TP53",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9537
+     },
+     {
+      "layer": "molecular",
+      "finding": "1p19q",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "CDKN2A",
+      "call": "retained",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.995
+     },
+     {
+      "layer": "molecular",
+      "finding": "EGFR",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "chr7_chr10",
+      "call": "absent",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9704
+     },
+     {
+      "layer": "molecular",
+      "finding": "TERT",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.964
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3K27",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8469
+     },
+     {
+      "layer": "molecular",
+      "finding": "MGMT",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3G34",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "methylation",
+      "finding": "methylation_class",
+      "call": "astrocytoma_idh_mutant",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.7549
+     }
+    ],
+    "weakest_ai_input": {
+     "layer": "methylation",
+     "finding": "methylation_class",
+     "call": "astrocytoma_idh_mutant",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.7549
+    },
+    "ai_decisive": [],
+    "n_tests_ordered": 7,
+    "at": "2026-11-11T09:00:00+00:00",
+    "action_id": "mock-dx-ENT-0004"
+   }
+  ],
+  "overall": {
+   "steps_run": 5,
+   "n_findings": 17,
+   "n_passed": 10,
+   "needs_review": [
+    "mitotic_activity",
+    "IDH",
+    "ATRX",
+    "1p19q",
+    "EGFR",
+    "H3G34",
+    "MGMT"
+   ],
+   "note": "Per-finding scores are not combined into one number: the findings are not independent and the steps are calibrated separately."
+  }
+ },
+ "ENT-0005": {
+  "contract": "entip.step_confidence/1",
+  "study_id": "ENT-0005",
+  "steps": [
+   {
+    "step": "triage",
+    "n": 1,
+    "title": "Triage",
+    "status": "passed",
+    "n_findings": 2,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "tissue_class",
+     "confidence": 0.9508
+    },
+    "findings": [
+     {
+      "finding": "adequacy",
+      "predicts": "Enough tissue to assess",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "adequate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "rule",
+       "note": "Fixed rule, not a model: the number is a placeholder, not a probability."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [
+       "tissue area above the 1.0 mm² rule; lesional content not judged"
+      ],
+      "model": {
+       "model_id": "triage-adequacy-rule",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Set by a fixed rule, not a model: tissue area above the 1.0 mm² rule; lesional content not judged."
+     },
+     {
+      "finding": "tissue_class",
+      "predicts": "Tissue class (normal, reactive, glioma, other primary, metastasis, lymphoma)",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "glioma",
+      "source": "ai",
+      "confidence": 0.9508,
+      "threshold": 0.87,
+      "margin": 0.0808,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-triage",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.95, above the accept threshold 0.87."
+     }
+    ]
+   },
+   {
+    "step": "high_grade_features",
+    "n": 2,
+    "title": "High-grade features",
+    "status": "needs_review",
+    "n_findings": 3,
+    "n_passed": 2,
+    "lowest_confidence": {
+     "finding": "microvascular_proliferation",
+     "confidence": 0.9162
+    },
+    "findings": [
+     {
+      "finding": "necrosis",
+      "predicts": "Necrosis",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.9381,
+      "threshold": 0.9,
+      "margin": 0.0381,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-necrosis",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.94, above the accept threshold 0.90."
+     },
+     {
+      "finding": "microvascular_proliferation",
+      "predicts": "Microvascular proliferation",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.9162,
+      "threshold": 0.9,
+      "margin": 0.0162,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-mvp",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.92, above the accept threshold 0.90."
+     },
+     {
+      "finding": "mitotic_activity",
+      "predicts": "Elevated mitotic activity",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "present",
+      "source": "ai",
+      "confidence": 0.9293,
+      "threshold": 0.9,
+      "margin": 0.0293,
+      "above_threshold": true,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "pathologist_review",
+      "reasons": [
+       "mitosis model not yet validated on CNS tumours"
+      ],
+      "model": {
+       "model_id": "mock-mitoses",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.93 is above the accept threshold 0.90 but the step held it back: mitosis model not yet validated on CNS tumours. Advised: pathologist review."
+     }
+    ]
+   },
+   {
+    "step": "glioma_panel",
+    "n": 3,
+    "title": "Glioma panel",
+    "status": "needs_review",
+    "n_findings": 11,
+    "n_passed": 9,
+    "lowest_confidence": {
+     "finding": "MGMT",
+     "confidence": 0.586
+    },
+    "findings": [
+     {
+      "finding": "IDH",
+      "predicts": "IDH mutation",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.9164,
+      "threshold": 0.83,
+      "margin": 0.0864,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:IDH",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.92, above the accept threshold 0.83."
+     },
+     {
+      "finding": "ATRX",
+      "predicts": "ATRX loss",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.7922,
+      "threshold": 0.72,
+      "margin": 0.0722,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:ATRX",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.79, above the accept threshold 0.72."
+     },
+     {
+      "finding": "TP53",
+      "predicts": "TP53 mutation",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.9358,
+      "threshold": 0.83,
+      "margin": 0.1058,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TP53",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.94, above the accept threshold 0.83."
+     },
+     {
+      "finding": "1p19q",
+      "predicts": "1p/19q codeletion",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "not_codeleted",
+      "source": "ai",
+      "confidence": 0.9772,
+      "threshold": 0.94,
+      "margin": 0.0372,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:1p19q",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.98, above the accept threshold 0.94."
+     },
+     {
+      "finding": "CDKN2A",
+      "predicts": "CDKN2A/B homozygous deletion",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "retained",
+      "source": "ai",
+      "confidence": 0.9229,
+      "threshold": 0.9,
+      "margin": 0.0229,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:CDKN2A",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.92, above the accept threshold 0.90."
+     },
+     {
+      "finding": "EGFR",
+      "predicts": "EGFR amplification",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "not_amplified",
+      "source": "ai",
+      "confidence": 0.814,
+      "threshold": 0.81,
+      "margin": 0.004,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:EGFR",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.81, above the accept threshold 0.81."
+     },
+     {
+      "finding": "chr7_chr10",
+      "predicts": "Chromosome 7 gain and 10 loss",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "gain7_loss10",
+      "source": "ai",
+      "confidence": 0.9893,
+      "threshold": 0.85,
+      "margin": 0.1393,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:chr7_chr10",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.99, above the accept threshold 0.85."
+     },
+     {
+      "finding": "TERT",
+      "predicts": "TERT promoter mutation",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "mutant",
+      "source": "ai",
+      "confidence": 0.9974,
+      "threshold": 0.83,
+      "margin": 0.1674,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:TERT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence >0.99, above the accept threshold 0.83."
+     },
+     {
+      "finding": "H3K27",
+      "predicts": "H3 K27 alteration",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "wildtype",
+      "source": "ai",
+      "confidence": 0.9457,
+      "threshold": 0.6,
+      "margin": 0.3457,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-panel:H3K27",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.95, above the accept threshold 0.60."
+     },
+     {
+      "finding": "H3G34",
+      "predicts": "H3 G34 mutation",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "indeterminate",
+      "source": "ai",
+      "confidence": null,
+      "threshold": null,
+      "margin": null,
+      "above_threshold": null,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "none",
+       "note": "No score: the step did not make a call."
+      },
+      "calibration": null,
+      "order_test": "H3G34_testing",
+      "reasons": [
+       "no model for this marker: too few labelled patients"
+      ],
+      "model": {
+       "model_id": "mock-panel:H3G34",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "No call made: no model for this marker: too few labelled patients. Advised: H3G34 testing."
+     },
+     {
+      "finding": "MGMT",
+      "predicts": "MGMT promoter methylation",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "unmethylated",
+      "source": "ai",
+      "confidence": 0.586,
+      "threshold": 1.0,
+      "margin": -0.414,
+      "above_threshold": false,
+      "status": "uncertain",
+      "passed": false,
+      "score": {
+       "kind": "reported_probability",
+       "note": "The step reports this as a calibrated probability; the record does not say how it was calibrated."
+      },
+      "calibration": null,
+      "order_test": "MGMT_promoter_methylation",
+      "reasons": [
+       "no confidence level met the 5% error target in cross-validation"
+      ],
+      "model": {
+       "model_id": "mock-panel:MGMT",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "No accept threshold could be set for this model at the agreed error rate, so none of its calls are accepted (confidence 0.59). Advised: MGMT promoter methylation."
+     }
+    ]
+   },
+   {
+    "step": "methylation_class",
+    "n": 4,
+    "title": "Methylation class",
+    "status": "passed",
+    "n_findings": 1,
+    "n_passed": 1,
+    "lowest_confidence": {
+     "finding": "methylation_class",
+     "confidence": 0.8659
+    },
+    "findings": [
+     {
+      "finding": "methylation_class",
+      "predicts": "DNA methylation class (family) from H&E",
+      "scan_ids": [
+       "SCN-0005"
+      ],
+      "call": "glioblastoma_idh_wildtype",
+      "source": "ai",
+      "confidence": 0.8659,
+      "threshold": 0.68,
+      "margin": 0.1859,
+      "above_threshold": true,
+      "status": "confident",
+      "passed": true,
+      "score": {
+       "kind": "calibrated_probability",
+       "note": "Calibrated probability that the call is right."
+      },
+      "calibration": {
+       "method": "temperature",
+       "max_error": 0.05,
+       "validated": false
+      },
+      "order_test": null,
+      "reasons": [],
+      "model": {
+       "model_id": "mock-methylation",
+       "version": "mock"
+      },
+      "at": "2026-11-11T09:00:00+00:00",
+      "action_id": "mock-steps-ENT-0005",
+      "explain": "Confidence 0.87, above the accept threshold 0.68."
+     }
+    ]
+   },
+   {
+    "step": "integrated_diagnosis",
+    "n": 5,
+    "title": "Integrated diagnosis",
+    "status": "provisional",
+    "score": {
+     "kind": "rules_engine",
+     "note": "Rules engine: it applies the WHO CNS5 criteria to the findings above and has no probability of its own. It is only as sure as the findings it used."
+    },
+    "diagnosis": {
+     "text": "Glioblastoma, IDH-wildtype, CNS WHO grade 4 (mock draft)",
+     "status": "provisional",
+     "cns_who_grade": 4,
+     "favoured": "Glioblastoma, IDH-wildtype"
+    },
+    "inputs": [
+     {
+      "layer": "histology",
+      "finding": "tissue_class",
+      "call": "glioma",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9508
+     },
+     {
+      "layer": "grade_features",
+      "finding": "necrosis",
+      "call": "present",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9381
+     },
+     {
+      "layer": "grade_features",
+      "finding": "microvascular_proliferation",
+      "call": "present",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9162
+     },
+     {
+      "layer": "grade_features",
+      "finding": "mitotic_activity",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "IDH",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9164
+     },
+     {
+      "layer": "molecular",
+      "finding": "ATRX",
+      "call": "retained",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.7922
+     },
+     {
+      "layer": "molecular",
+      "finding": "TP53",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9358
+     },
+     {
+      "layer": "molecular",
+      "finding": "1p19q",
+      "call": "not_codeleted",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9772
+     },
+     {
+      "layer": "molecular",
+      "finding": "CDKN2A",
+      "call": "retained",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9229
+     },
+     {
+      "layer": "molecular",
+      "finding": "EGFR",
+      "call": "not_amplified",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.814
+     },
+     {
+      "layer": "molecular",
+      "finding": "chr7_chr10",
+      "call": "gain7_loss10",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9893
+     },
+     {
+      "layer": "molecular",
+      "finding": "TERT",
+      "call": "mutant",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9974
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3K27",
+      "call": "wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.9457
+     },
+     {
+      "layer": "molecular",
+      "finding": "MGMT",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "molecular",
+      "finding": "H3G34",
+      "call": null,
+      "source": "missing",
+      "status": "pending",
+      "confidence": null
+     },
+     {
+      "layer": "methylation",
+      "finding": "methylation_class",
+      "call": "glioblastoma_idh_wildtype",
+      "source": "ai",
+      "status": "confident",
+      "confidence": 0.8659
+     }
+    ],
+    "weakest_ai_input": {
+     "layer": "molecular",
+     "finding": "ATRX",
+     "call": "retained",
+     "source": "ai",
+     "status": "confident",
+     "confidence": 0.7922
+    },
+    "ai_decisive": [
+     "IDH",
+     "1p19q"
+    ],
+    "n_tests_ordered": 3,
+    "at": "2026-11-11T09:00:00+00:00",
+    "action_id": "mock-dx-ENT-0005"
+   }
+  ],
+  "overall": {
+   "steps_run": 5,
+   "n_findings": 17,
+   "n_passed": 14,
+   "needs_review": [
+    "mitotic_activity",
+    "H3G34",
+    "MGMT"
+   ],
+   "note": "Per-finding scores are not combined into one number: the findings are not independent and the steps are calibrated separately."
+  }
+ }
+}
