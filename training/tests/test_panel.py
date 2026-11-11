@@ -6,6 +6,7 @@ import pytest
 
 from entip_train.panel import labels as L
 from entip_train.panel.db import model_actions, step_action, validate
+from entip_train.panel.gate import NEVER, class_threshold
 from entip_train.panel.markers import DEFAULT_MARKERS, load_config
 from entip_train.panel.model import PanelModel
 from entip_train.panel.predict import predict_patient, summarise
@@ -26,14 +27,14 @@ TESTS = {"IDH1_R132H_IHC", "ATRX_IHC", "p53_IHC", "1p19q_testing", "CDKN2A_B_tes
 
 @pytest.fixture(scope="module")
 def trained():
-    pats, labs, _ = synthetic_cohort(180, seed=0)
+    pats, labs, _ = synthetic_cohort(320, seed=0)
     m = PanelModel(load_config(None, abmil=SMALL)).fit(pats, labs, source="synthetic", log=lambda *_: None)
     return m
 
 
 @pytest.fixture(scope="module")
 def held_out():
-    return synthetic_cohort(40, seed=1, prefix="TST")
+    return synthetic_cohort(60, seed=1, prefix="TST")
 
 
 def test_markers_match_step5_contract():
@@ -52,6 +53,41 @@ def test_config_subset_and_unknown(tmp_path):
     assert cfg.marker("IDH").max_error == 0.02
     with pytest.raises(ValueError):
         load_config(None, markers=["IDH", "BRAF"])
+    with pytest.raises(ValueError):
+        load_config(None, min_tile=3)                       # misspelt key is refused, not ignored
+    with pytest.raises(ValueError):
+        load_config(None, overrides={"IDH": {"max_err": 0.1}})
+
+
+def test_gate_refuses_always_negative_on_rare_marker():
+    # 3% altered; a model that says "wildtype" for everyone with high confidence is 97% right
+    y = np.array([1] * 30 + [0] * 970)
+    conf, pred = np.full(1000, 0.99), np.zeros(1000, int)
+    g = class_threshold(conf, pred, y, 0)
+    assert g["threshold"] == NEVER and g["n_accepted"] == 0
+
+
+def test_gate_needs_enough_patients_of_the_other_class():
+    rng = np.random.default_rng(0)
+    for n_alt, ok in ((30, False), (80, True)):           # zero misses: bound <= 5% needs 52 or more
+        y = np.array([1] * n_alt + [0] * 300)
+        pred = y.copy()                                     # a perfect classifier
+        conf = rng.uniform(0.9, 1.0, len(y))
+        g = class_threshold(conf, pred, y, 0)
+        assert (g["threshold"] < 1.0) == ok
+        if ok:
+            assert g["n_accepted"] == 300 and g["miss_upper"] <= 0.05 and g["error_upper"] <= 0.05
+
+
+def test_gate_stops_at_first_failure():
+    # 100 right calls, then a run of wrong ones, then many right ones at lower confidence
+    y = np.array([0] * 100 + [1] * 40 + [0] * 2000 + [1] * 200)
+    pred = np.zeros(len(y), int)
+    conf = np.concatenate([np.linspace(0.999, 0.95, 100), np.linspace(0.94, 0.90, 40),
+                           np.linspace(0.89, 0.60, 2000), np.full(200, 0.55)])
+    g = class_threshold(conf, pred, y, 0)
+    # a "best of all cuts" search would accept 2,140 here (40 errors); stopping at the first failure does not
+    assert 100 <= g["n_accepted"] < 110 and g["threshold"] > 0.93
 
 
 def test_confident_calls_are_mostly_right(trained, held_out):
@@ -62,8 +98,8 @@ def test_confident_calls_are_mostly_right(trained, held_out):
             if r["status"] == "confident":
                 called += 1
                 right += r["call"] == tlabs[p.study_id].get(r["finding"])
-    assert called > 100
-    assert right / called >= 0.93
+    assert called > 200
+    assert right / called >= 0.95
 
 
 def test_no_signal_and_untrainable_markers_order_the_test(trained, held_out):
@@ -75,6 +111,9 @@ def test_no_signal_and_untrainable_markers_order_the_test(trained, held_out):
         assert recs["H3G34"]["order_test"] == "H3G34_testing"
         assert recs["MGMT"]["status"] != "confident"            # MGMT has no image signal here
         assert recs["MGMT"]["order_test"] == "MGMT_promoter_methylation"
+        # H3 K27 is separable here but rare (about 10%): too few altered patients to accept either call
+        assert recs["H3K27"]["status"] == "uncertain" and recs["H3K27"]["order_test"] == "H3K27M_IHC"
+        assert "never met" in " ".join(recs["H3K27"]["reasons"])
 
 
 def test_1p19q_follows_idh(trained, held_out):
@@ -85,6 +124,8 @@ def test_1p19q_follows_idh(trained, held_out):
             assert recs["1p19q"]["status"] == "not_assessed"
         if recs["IDH"]["status"] != "confident":
             assert recs["1p19q"]["status"] != "confident"
+        if recs["1p19q"]["status"] == "confident":
+            assert recs["1p19q"]["value"]["prerequisite"] == {"finding": "IDH", "call": "mutant", "source": "ai"}
     p = test[0]
     r = {x["finding"]: x for x in predict_patient(trained, p, known={"IDH": "wildtype"})}
     assert r["1p19q"]["status"] == "not_assessed" and r["1p19q"]["order_test"] is None

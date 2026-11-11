@@ -7,7 +7,7 @@ Each record is a call with a calibrated confidence. It is ``confident`` only whe
 * the patient has at least ``min_tiles`` tissue tiles;
 * the bag is not out of distribution (mean-embedding distance within the training ``ood_quantile``);
 * the marker's prerequisite holds (1p/19q needs IDH-mutant, from a real test or a confident IDH call);
-* the calibrated confidence reaches the marker's accept threshold.
+* the calibrated confidence reaches the accept threshold for that call (each call has its own, see ``gate.py``).
 
 Otherwise the record is ``uncertain`` and names the real test to order, or ``not_assessed`` when the marker is
 switched off or its prerequisite is ruled out. ``reasons`` says which gate failed.
@@ -85,10 +85,10 @@ def predict_patient(model: PanelModel, pb: PatientBag, known: Optional[Dict[str,
         gates = list(common_gates)
         if m.requires:
             req_f, req_call = m.requires
-            have = known.get(req_f)
+            have, have_src = known.get(req_f), "test"
             up = records.get(req_f)
             if have is None and up is not None and up["status"] == "confident":
-                have = up["call"]
+                have, have_src = up["call"], "ai"
             if have is not None and have != req_call:
                 rec.update(call=INDETERMINATE, confidence=0.0, status="not_assessed", order_test=None)
                 rec["reasons"].insert(0, f"only assessed when {req_f} is {req_call}; {req_f} is {have}")
@@ -106,17 +106,24 @@ def predict_patient(model: PanelModel, pb: PatientBag, known: Optional[Dict[str,
         p = model.predict_proba(m.finding, pb.features)
         c = int(np.argmax(p))
         conf = float(p[c])
-        thr = float(min(fit.threshold, 1.0))
+        raw_thr = fit.thresholds[c]
+        thr = float(min(raw_thr, 1.0))
+        acc = fit.metrics.get("accept", {}).get(m.calls[c], {})
         rec.update(call=m.calls[c], confidence=conf, threshold=thr,
                    probabilities={m.calls[0]: float(p[0]), m.calls[1]: float(p[1])},
                    evidence=_evidence(model, m.finding, pb, cfg.top_evidence),
-                   value={"accept_coverage_oof": fit.metrics.get("accept", {}).get("coverage"),
-                          "auroc_oof": fit.metrics.get("auroc_oof"), "n_tiles": int(len(pb)),
-                          **({"ood_distance": ood} if ood is not None else {})})
-        if fit.threshold > 1.0:
-            gates.append(f"no confidence level met the {m.max_error:.0%} error target in cross-validation")
-        elif conf < fit.threshold:
-            gates.append(f"confidence {conf:.3f} below the accept threshold {thr:.3f}")
+                   value={"auroc_oof": fit.metrics.get("auroc_oof"), "coverage_oof": fit.metrics.get("coverage_oof"),
+                          "call_error_upper_oof": acc.get("error_upper"), "call_miss_upper_oof": acc.get("miss_upper"),
+                          "n_tiles": int(len(pb)), **({"ood_distance": ood} if ood is not None else {})})
+        if raw_thr > 1.0:
+            gates.append(f"a '{m.calls[c]}' call never met the error and miss limits in cross-validation "
+                         f"({acc.get('n_other_class', 0)} patients of the other class seen)")
+        elif conf < raw_thr:
+            gates.append(f"confidence {conf:.3f} below the accept threshold {thr:.3f} for '{m.calls[c]}'")
+        if m.requires and have is not None:
+            rec["value"]["prerequisite"] = {"finding": m.requires[0], "call": have, "source": have_src}
+            if have_src == "ai":
+                rec["reasons"].append(f"{m.requires[0]} {have} is itself an AI call, not a test result")
         if gates:
             rec.update(status="uncertain", order_test=m.order_test)
             rec["reasons"] = gates + rec["reasons"]

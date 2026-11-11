@@ -29,7 +29,8 @@ class Marker:
     requires: Optional[Tuple[str, str]] = None
     # The label available for training is not the clinical test itself (e.g. TCGA ATRX mutation for ATRX IHC).
     label_proxy: str = ""
-    max_error: float = 0.05       # error rate allowed among accepted ("confident") calls, upper 95% bound
+    max_error: float = 0.05       # wrong-call rate allowed among accepted calls of each class, upper 95% bound
+    max_miss: float = 0.05        # share of patients of the other class accepted as this call, upper 95% bound
     min_per_class: int = 15       # fewer labelled patients than this in either class: don't train, order test
 
     @property
@@ -81,16 +82,23 @@ class PanelConfig:
         return {"markers": [m.finding for m in self.markers], "disabled": list(self.disabled),
                 "min_tiles": self.min_tiles, "ood_quantile": self.ood_quantile, "top_evidence": self.top_evidence,
                 "cv_folds": self.cv_folds, "abmil": dict(self.abmil),
-                "overrides": {m.finding: {"max_error": m.max_error, "min_per_class": m.min_per_class}
+                "overrides": {m.finding: {"max_error": m.max_error, "max_miss": m.max_miss, "min_per_class": m.min_per_class}
                               for m in self.markers}}
 
 
 def load_config(path: Optional[str | Path] = None, **kw) -> PanelConfig:
     """Read ``configs/glioma_panel.json``-style JSON. Keys: ``markers`` (list of contract names; default all),
-    ``disabled``, ``overrides`` ({finding: {max_error, min_per_class}}), ``min_tiles``, ``ood_quantile``,
+    ``disabled``, ``overrides`` ({finding: {max_error, max_miss, min_per_class}}), ``min_tiles``, ``ood_quantile``,
     ``top_evidence``, ``cv_folds``, ``abmil``. Unknown marker names are refused rather than ignored."""
     raw: dict = json.loads(Path(path).read_text()) if path else {}
     raw.update(kw)
+    known_keys = {"_comment", "markers", "disabled", "overrides", "min_tiles", "ood_quantile", "top_evidence",
+                  "cv_folds", "abmil"}
+    if set(raw) - known_keys:
+        raise ValueError(f"unknown config keys {sorted(set(raw) - known_keys)}")
+    bad = {k for ov in raw.get("overrides", {}).values() for k in ov} - {"max_error", "max_miss", "min_per_class"}
+    if bad:
+        raise ValueError(f"unknown override keys {sorted(bad)}")
     names = raw.get("markers") or list(DEFAULT_MARKERS)
     unknown = [n for n in names + list(raw.get("disabled", [])) + list(raw.get("overrides", {}))
                if n not in DEFAULT_MARKERS]
@@ -100,7 +108,7 @@ def load_config(path: Optional[str | Path] = None, **kw) -> PanelConfig:
     for n in names:
         m = DEFAULT_MARKERS[n]
         ov = raw.get("overrides", {}).get(n, {})
-        markers.append(replace(m, **{k: v for k, v in ov.items() if k in ("max_error", "min_per_class")}))
+        markers.append(replace(m, **{k: v for k, v in ov.items() if k in ("max_error", "max_miss", "min_per_class")}))
     cfg = PanelConfig(markers=markers, disabled=list(raw.get("disabled", [])))
     for k in ("min_tiles", "ood_quantile", "top_evidence", "cv_folds"):
         if k in raw:

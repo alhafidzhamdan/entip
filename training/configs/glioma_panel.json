@@ -1,11 +1,11 @@
 {
-  "_comment": "Glioma panel markers for entip-panel. Edinburgh's exact panel is not confirmed yet: remove markers from 'markers' or list them in 'disabled' (reported as not_assessed). max_error = allowed error among accepted calls (upper 95% bound) in site-grouped cross-validation.",
+  "_comment": "Glioma panel markers for entip-panel. Edinburgh's exact panel is not confirmed yet: remove markers from 'markers' or list them in 'disabled' (reported as not_assessed). max_error = allowed wrong-call rate among accepted calls of each class; max_miss = allowed share of the other class accepted as that call (both upper 95% bounds, site-grouped cross-validation).",
   "markers": ["IDH", "ATRX", "TP53", "1p19q", "CDKN2A", "EGFR", "chr7_chr10", "TERT", "H3K27", "H3G34", "MGMT"],
   "disabled": [],
   "overrides": {
-    "IDH": {"max_error": 0.05},
-    "1p19q": {"max_error": 0.05},
-    "MGMT": {"max_error": 0.05}
+    "IDH": {"max_error": 0.05, "max_miss": 0.05},
+    "1p19q": {"max_error": 0.05, "max_miss": 0.05},
+    "MGMT": {"max_error": 0.05, "max_miss": 0.05}
   },
   "min_tiles": 16,
   "ood_quantile": 0.99,
