@@ -1,0 +1,33 @@
+flowchart TB
+  subgraph TRAIN["Train"]
+    direction TB
+    M["Manifest of labelled slides<br/>stage A: IDC public, 3 classes<br/>stage B: Edinburgh, 6 classes"] --> BB["build-bags (GPU, Eddie)<br/>download slide → tissue mask →<br/>224 px tiles at 0.5 µm/px → H-optimus-0 →<br/>bag .npz → delete slide"]
+    BB --> TR["triage train (CPU)<br/>gated attention-MIL, 6 classes<br/>5-fold CV, patients kept together"]
+    TR --> CAL["Temperature scaling<br/>accept threshold: exact binomial bound,<br/>≤ 5% error with 95% confidence"]
+    TR --> CHK["Report: source check,<br/>leave-one-source-out, unseen classes"]
+  end
+  subgraph USE["Use, per patient"]
+    direction TB
+    NS["New slide(s)"] --> NB["Bag per slide<br/>(same encoder and tile size)"]
+    NB --> AD{"Enough tissue?<br/>area ≥ 1 mm² (placeholder)"}
+    AD -->|no| IN["adequacy = inadequate<br/>order additional sampling"]
+    AD -->|yes| PR["Class probabilities per slide<br/>most abnormal slide decides"]
+    PR --> G{"Above threshold,<br/>not novel, slides agree?"}
+    G -->|yes| CF["tissue_class = call<br/>status confident"]
+    G -->|no| UN["status uncertain<br/>pathologist review"]
+    CF -->|glioma| NX["Go on to steps 2, 3, 4"]
+    CF -->|"not glioma"| UN
+  end
+  CAL -.->|model + threshold| G
+  CF --> OUT["Records: adequacy + tissue_class<br/>glioma_step event in the database"]
+  UN --> OUT
+  IN --> OUT
+
+  classDef ok fill:#e5f4e4,stroke:#3c7a3a;
+  classDef unsure fill:#f9eeda,stroke:#9a6a12;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef data fill:#efedff,stroke:#6a5acd;
+  class CF,NX ok;
+  class UN,IN unsure;
+  class BB,TR,CAL,PR model;
+  class M,NS data;
