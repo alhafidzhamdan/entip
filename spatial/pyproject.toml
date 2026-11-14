@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "ENTIP pillar 3: spatial multi-omics registered to H&E, and per-cell labels for training. Research use only."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"  # see ../LICENSE.md
 dependencies = [
   "numpy>=1.24",      # BSD-3-Clause
   "scipy>=1.10",      # BSD-3-Clause
