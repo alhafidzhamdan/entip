@@ -1,0 +1,26 @@
+flowchart TB
+  BAG["Tile bags from step 1"] --> NH["Necrosis tile head"]
+  BAG --> MH["MVP tile head"]
+  NH --> F1["Tile probabilities (Platt, slide-grouped folds)<br/>→ 8-connected foci → best focus score"]
+  MH --> F2["Same, for microvascular proliferation"]
+  F1 --> SC["Slide calibration (highgrade-calibrate)<br/>score → P(present) on held-out specimens"]
+  F2 --> SC
+  MIT["MitoEd predict CSV<br/>(mitosis candidates per scan)"] --> CNT["Count only mitosis / uncertain calls<br/>→ P(≥ k mitoses in whole specimen), k = 2"]
+  SC --> CALL{"p ≥ t → present<br/>1 − p ≥ t → absent<br/>else indeterminate"}
+  CNT --> CALL
+  CALL --> GU{"Guards: calibrated? validated?<br/>enough tissue? tiles like training?"}
+  GU -->|pass| OK["status confident"]
+  GU -->|fail| RV["status uncertain<br/>pathologist review of top regions"]
+  OK --> OUT["3 records: necrosis, microvascular_proliferation,<br/>mitotic_activity → glioma_step event"]
+  RV --> OUT
+  LBL["Region labels (polygons, µm)<br/>none open and NHS-usable yet"] -.->|highgrade-train| NH
+  LBL -.-> MH
+
+  classDef ok fill:#e5f4e4,stroke:#3c7a3a;
+  classDef unsure fill:#f9eeda,stroke:#9a6a12;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef data fill:#efedff,stroke:#6a5acd;
+  class OK ok;
+  class RV unsure;
+  class NH,MH,F1,F2,SC,CNT model;
+  class BAG,MIT,LBL data;

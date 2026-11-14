@@ -1,0 +1,22 @@
+flowchart TB
+  LAB["Labels: cBioPortal lgggbm_tcga_pub<br/>+ long CSV (TP53, CDKN2A, EGFR, H3)<br/>later Edinburgh results"] --> TR["entip-panel train<br/>one attention-MIL per marker"]
+  BAG["Patient bags from step 1<br/>(all slides pooled)"] --> TR
+  TR --> CAL["Site-grouped CV → temperature scaling<br/>threshold per call: error ≤ 5% and miss ≤ 5%<br/>(upper 95% bounds)"]
+  NEW["New patient bags"] --> PRED["entip-panel predict<br/>11 markers, switched on in<br/>configs/glioma_panel.json"]
+  CAL -.-> PRED
+  PRED --> G{"Same encoder? enough tiles?<br/>not out of distribution?<br/>prerequisite met? (1p/19q needs IDH-mutant)<br/>above threshold?"}
+  G -->|all yes| OK["status confident<br/>call used"]
+  G -->|any no| ORD["status uncertain<br/>order the real test"]
+  G -->|"marker off or<br/>IDH-wildtype for 1p/19q"| NA["not_assessed"]
+  OK --> OUT["One record per marker<br/>+ top 5 attention tiles as evidence<br/>→ glioma_step event"]
+  ORD --> OUT
+  NA --> OUT
+
+  classDef ok fill:#e5f4e4,stroke:#3c7a3a;
+  classDef unsure fill:#f9eeda,stroke:#9a6a12;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef data fill:#efedff,stroke:#6a5acd;
+  class OK ok;
+  class ORD,NA unsure;
+  class TR,CAL,PRED model;
+  class LAB,BAG,NEW data;
