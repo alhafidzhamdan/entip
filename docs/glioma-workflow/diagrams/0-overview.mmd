@@ -1,0 +1,20 @@
+flowchart LR
+  S["H&E slides of one patient<br/>(FFPE resection or biopsy)"] --> B["Tile features<br/>H-optimus-0, 112 µm tiles<br/>one bag per slide"]
+  B --> T1["Step 1<br/>Triage<br/>tumour? glial?"]
+  T1 -->|"confident glioma"| T2["Step 2<br/>High-grade features<br/>necrosis, MVP, mitoses"]
+  T1 -->|"confident glioma"| T3["Step 3<br/>Panel markers<br/>IDH, 1p/19q, ATRX ..."]
+  T1 -->|"confident glioma"| T4["Step 4<br/>Methylation class"]
+  T1 -->|"anything else"| P["Pathologist"]
+  T2 --> R["Finding records from steps 1–4<br/>entip.glioma_step/1"]
+  T3 --> R
+  T4 --> R
+  R --> E["Step 5<br/>WHO CNS5 rules engine"]
+  L["Real test results<br/>and pathologist calls"] --> E
+  E --> D["Draft integrated report<br/>+ tests to order"]
+  D --> P2["Pathologist signs off"]
+  classDef ai fill:#e7f1fb,stroke:#3b6ea8;
+  classDef rule fill:#e5f4e4,stroke:#3c7a3a;
+  classDef human fill:#f9eeda,stroke:#9a6a12;
+  class T1,T2,T3,T4 ai;
+  class E rule;
+  class P,P2,L human;
