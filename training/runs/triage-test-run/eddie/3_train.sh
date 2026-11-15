@@ -4,7 +4,7 @@
 #$ -N triage_test_train
 #$ -pe sharedmem 4
 #$ -l h_rt=02:00:00
-#$ -l h_vmem=8G
+#$ -l h_rss=8G
 #$ -j y
 set -euo pipefail
 . "$TRIAL/eddie/config.sh"

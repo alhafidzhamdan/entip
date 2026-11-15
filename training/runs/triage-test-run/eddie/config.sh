@@ -11,7 +11,9 @@ ENV_DIR="${ENV_DIR:-$BASE/envs/entip}"                       # conda env made by
 ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a CPU-only dry run
 # How the embed job asks Eddie for a GPU. Check what the gpu queue offers with:
 #   qconf -sq gpu | grep -E "pe_list|complex_values";  qconf -spl | grep -i gpu;  qconf -sc | grep -i gpu
-GPU_REQUEST="${GPU_REQUEST:--q gpu -pe sharedmem 1 -l gpu=1 -l h_vmem=128G}"   # gpu = A100 (gpu-l40s, gpu-mig are separate); A100 nodes take PE sharedmem
+# Eddie GPU wiki: gpu queue + gpu resource; a100=true picks an A100 (else A100 or L40S, whichever is free);
+# memory is h_rss per slot (max 32G), times the sharedmem slots. No h_vmem.
+GPU_REQUEST="${GPU_REQUEST:--q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G}"   # 1 A100, 4 cores, 64 GB RAM
 TRIAL="$REPO/training/runs/triage-test-run"
 
 export HF_HOME="${HF_HOME:-$BASE/hf}"                        # H-optimus-0 weights, fetched once by the staging job

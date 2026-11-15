@@ -3,7 +3,7 @@
 #$ -N triage_test_stage
 #$ -q staging
 #$ -l h_rt=02:00:00
-#$ -l h_vmem=32G
+#$ -l h_rss=32G
 #$ -j y
 set -euo pipefail
 . "$TRIAL/eddie/config.sh"

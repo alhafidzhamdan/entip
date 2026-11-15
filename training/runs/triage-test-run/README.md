@@ -44,10 +44,11 @@ no GPU weights. Defaults:
   (its quota is small). A Hugging Face login made from your normal shell is still picked up.
 - `ENCODER`: `h-optimus-0`
 
-Check on first use: the GPU request is `GPU_REQUEST` in `eddie/config.sh` (default `-q gpu -pe sharedmem 1 -l gpu=1 -l h_vmem=128G`).
+Check on first use: the GPU request is `GPU_REQUEST` in `eddie/config.sh` (default `-q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G`:
+one A100, 4 cores, 64 GB RAM; Eddie limits memory with `h_rss` per slot, at most 32 GB per slot).
 If the embed job never starts, `qstat -j <job>` says why; list what the gpu queue offers with
 `qconf -sq gpu | grep -E "pe_list|complex_values"` and pass the right request, e.g.
-`GPU_REQUEST="-q gpu -l gpu=1 -l h_vmem=64G" bash .../submit.sh`. If
+`GPU_REQUEST="-q gpu -l gpu=1 -l l40s=true -pe sharedmem 4 -l h_rss=16G" bash .../submit.sh` for an L40S. If
 Hugging Face asks you to accept terms for H-optimus-0, log in once with a token before `submit.sh`.
 
 ## Locally
