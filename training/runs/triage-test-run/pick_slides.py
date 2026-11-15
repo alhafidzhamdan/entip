@@ -1,6 +1,11 @@
-"""Pick the trial slides from a triage manifest: the smallest slides of each class, one slide per patient.
+"""Pick the trial slides from a triage manifest: the smallest slides of each class at or above ``--min-mb``,
+one slide per patient.
 
-    python pick_slides.py manifest.csv trial.csv --per-label glioma=5 normal_brain=5
+    python pick_slides.py manifest.csv trial.csv --per-label glioma=5 normal_brain=5 --min-mb 100
+
+The floor matters: the very smallest IDC slides are small because they hold almost no stained tissue (an
+18 MB TCGA-GBM slide was a faint, nearly unstained smear and gave no tissue tiles). 100 MB is above the 5th
+percentile of both classes (glioma 87 MB, normal brain 149 MB in IDC v25).
 """
 from __future__ import annotations
 
@@ -14,11 +19,13 @@ def main() -> None:
     ap.add_argument("manifest")
     ap.add_argument("out")
     ap.add_argument("--per-label", nargs="+", default=["glioma=5", "normal_brain=5"], metavar="LABEL=N")
+    ap.add_argument("--min-mb", type=float, default=100.0, help="skip slides smaller than this (MB)")
     a = ap.parse_args()
     want = {k: int(v) for k, v in (x.split("=") for x in a.per_label)}
     with open(a.manifest, newline="") as f:
         rows = list(csv.DictReader(f))
         fields = list(rows[0].keys()) if rows else []
+    rows = [r for r in rows if float(r.get("series_size_MB") or 0) >= a.min_mb]
     rows.sort(key=lambda r: float(r.get("series_size_MB") or 1e9))
     got, patients, pick = Counter(), set(), []
     for r in rows:                                   # smallest first, one slide per patient

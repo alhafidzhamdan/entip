@@ -5,9 +5,10 @@ manifest → pick 10 slides → step 1 (pre-training: frozen tile bags) → step
 pipeline runs on real slides. It does not make a usable model: with 10 patients the accept gate accepts nothing,
 because it needs at least 20 accepted patients.
 
-**The 10 slides.** `pick_slides.py` takes the smallest slides of each class, one per patient: 5 glioma (FFPE) and
-5 normal brain (GTEx, PAXgene-fixed). Triage training needs at least 5 patients per class, so 10 slides allow two
-classes. When the manifest was built on 2026-11-15 this came to about 450 MB (5 TCGA-GBM slides, 5 GTEx).
+**The 10 slides.** `pick_slides.py` takes the smallest slides of each class at or above 100 MB, one per patient:
+5 glioma (FFPE) and 5 normal brain (GTEx, PAXgene-fixed), about 1 GB in all. Triage training needs at least 5
+patients per class, so 10 slides allow two classes. The 100 MB floor is there because the very smallest IDC slides
+are nearly blank: on the first Eddie run (2026-11-15) two 18 MB TCGA-GBM slides gave 0 and 2 tissue tiles.
 Every glioma here comes from one source and every normal brain from another, so the classes can be told apart by
 source alone; read `source_check` in the report with that in mind.
 

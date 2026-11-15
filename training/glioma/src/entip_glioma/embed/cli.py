@@ -21,6 +21,10 @@ def embed_slide(path: str, scan_id: str, enc, a, out_dir: Path) -> dict:
     bag = extract_bag(r, scan_id, r.width_um, r.height_um, enc, tile_um=a.tile_um, min_tissue=a.min_tissue,
                       max_tiles=a.max_tiles)
     p = bag.save(out_dir / f"{scan_id}.npz")
+    if len(bag) == 0:
+        import sys
+        print(f"warning: {scan_id}: no tissue tiles kept (blank, tiny or unreadable slide); "
+              "triage training will skip it", file=sys.stderr)
     return {"scan_id": scan_id, "tiles": len(bag), "reader": type(r).__name__, "mpp": round(r.mpp, 4),
             "tile_um": a.tile_um, "encoder": bag.encoder, "out": str(p)}
 

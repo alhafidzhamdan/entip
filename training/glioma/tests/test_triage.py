@@ -331,3 +331,24 @@ def test_cli_demo(capsys):
     assert main(["triage", "demo", "--epochs", "3"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["actions"][-1] == "glioma_step:event"
+
+
+def test_train_skips_bags_with_no_tiles(tmp_path, capsys):
+    """A slide whose bag kept no tissue tiles is skipped and reported, not a crash."""
+    from entip_glioma.cli import main
+    from entip_glioma.triage.manifest import FIELDS, write_manifest
+    bags, labels, groups, patients = synthetic_cohort(seed=0)
+    rows = []
+    for i, (b, lab, g, p) in enumerate(zip(bags, labels, groups, patients)):
+        b.save(tmp_path / "bags" / f"s{i}.npz")
+        rows.append(dict.fromkeys(FIELDS, "") | {"SeriesInstanceUID": f"s{i}", "label": lab, "group": g, "PatientID": p})
+    empty = Bag("s-empty", np.zeros((0, bags[0].features.shape[1]), np.float32), np.zeros((0, 2)), bags[0].tile_um,
+                bags[0].encoder, np.zeros(0))
+    empty.save(tmp_path / "bags" / "s-empty.npz")
+    rows.append(dict.fromkeys(FIELDS, "") | {"SeriesInstanceUID": "s-empty", "label": "glioma", "group": "g",
+                                             "PatientID": "p-empty"})
+    write_manifest(rows, tmp_path / "m.csv")
+    assert main(["triage", "train", "--manifest", str(tmp_path / "m.csv"), "--bags", str(tmp_path / "bags"),
+                 "--out", str(tmp_path / "model"), "--epochs", "2", "--folds", "3", "--no-loso"]) == 0
+    out = capsys.readouterr()
+    assert json.loads(out.out)["slides_empty_bags"] == ["s-empty"] and "no tiles" in out.err

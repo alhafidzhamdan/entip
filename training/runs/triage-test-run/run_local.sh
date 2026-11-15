@@ -29,7 +29,7 @@ python - "$OUT/report-$ENCODER.json" <<'EOF'
 import json, sys
 r = json.load(open(sys.argv[1]))
 cv = r["cv"]["calibrated"]
-print(json.dumps({"classes_trained": r["classes_trained"], "slides_missing_bags": r["slides_missing_bags"],
+print(json.dumps({"classes_trained": r["classes_trained"], "slides_missing_bags": r["slides_missing_bags"], "slides_empty_bags": r.get("slides_empty_bags"),
                   "cv_balanced_accuracy": cv["balanced_accuracy"], "cv_ece": cv["ece"], "gate": r["cv"]["gate"],
                   "source_check": r["source_check"]}, indent=2, default=float))
 EOF

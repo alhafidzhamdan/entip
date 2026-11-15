@@ -25,23 +25,30 @@ def _train(a) -> int:
     from .manifest import read_manifest
     from .model import TriageConfig, TriageModel
     rows = read_manifest(a.manifest)
-    bags, labels, groups, patients, missing = [], [], [], [], 0
+    bags, labels, groups, patients, missing, empty = [], [], [], [], 0, []
     for r in rows:
         f = Path(a.bags) / f"{r[a.id_col]}.npz"
         if not f.exists():
             missing += 1
             continue
         # a seeded sample of tiles per slide, as float16: ~3 MB per slide at 1,024 tiles of 1,536 numbers
-        bags.append(Bag.load(f, max_tiles=a.train_tiles, seed=a.seed, dtype=np.float16))
+        bag = Bag.load(f, max_tiles=a.train_tiles, seed=a.seed, dtype=np.float16)
+        if len(bag) == 0:                       # no tissue tile kept (blank or unreadable slide): nothing to learn from
+            empty.append(r[a.id_col])
+            print(f"skipping {r[a.id_col]}: bag has no tiles", file=sys.stderr)
+            continue
+        bags.append(bag)
         labels.append(r["label"])
         groups.append(r["group"])
         patients.append(r["PatientID"])
     if not bags:
-        raise SystemExit(f"no bags found in {a.bags} for the {len(rows)} manifest rows")
+        raise SystemExit(f"no usable bags in {a.bags} for the {len(rows)} manifest rows "
+                         f"({missing} missing, {len(empty)} with no tiles)")
     cfg = TriageConfig(epochs=a.epochs, folds=a.folds, max_error=a.max_error, seed=a.seed)
     m = TriageModel(cfg)
     rep = m.fit(bags, labels, groups, patients, loso=not a.no_loso)
     rep["slides_missing_bags"] = missing
+    rep["slides_empty_bags"] = empty
     m.report = rep
     m.save(a.out)
     if a.db:
