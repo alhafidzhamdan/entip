@@ -23,7 +23,7 @@ the first job.
 | `3_train.sh` | CPU, 4 cores | step 2: `entip-train triage train`, then a short summary of the report |
 
 ```bash
-git clone <this repository> ~/entip && cd ~/entip
+git clone <this repository> /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip
 bash training/runs/triage-test-run/eddie/setup.sh       # once, on a login node: conda env in the group space
 bash training/runs/triage-test-run/eddie/submit.sh      # submits the three jobs
 qstat                                                   # watch them
@@ -35,7 +35,7 @@ no GPU weights. Defaults:
 
 - `BASE`: `/exports/igmm/eddie/Glioblastoma-WGS/entip`, the group space. Everything below lives here, because
   scratch is cleared after a month and the home quota is too small for PyTorch.
-- `REPO`: `~/entip`
+- `REPO`: `/exports/igmm/eddie/Glioblastoma-WGS/scripts/entip`
 - `WORK`: `$BASE/runs/triage-test-run` (slides, bags, model, report, `logs/`)
 - `ENV_DIR`: `$BASE/envs/entip`, the conda env
 - `HF_HOME`: `$BASE/hf`, the H-optimus-0 weights, downloaded once and reused by later runs

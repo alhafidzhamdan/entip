@@ -1,7 +1,7 @@
 # Shared settings for the Eddie jobs. Override any of them in the environment before running setup.sh / submit.sh.
 # Everything lives in the group space, which is kept (scratch is cleared after a month; home is too small).
 BASE="${BASE:-/exports/igmm/eddie/Glioblastoma-WGS/entip}"
-REPO="${REPO:-$HOME/entip}"                                  # clone of this repository
+REPO="${REPO:-/exports/igmm/eddie/Glioblastoma-WGS/scripts/entip}"   # clone of this repository
 WORK="${WORK:-$BASE/runs/triage-test-run}"                   # slides, bags, model, report, logs
 ENV_DIR="${ENV_DIR:-$BASE/envs/entip}"                       # conda env made by setup.sh
 ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a CPU-only dry run
