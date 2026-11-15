@@ -19,7 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 foundation = ["entip-train[foundation]"]           # H-optimus-0 (Apache-2.0)
 slides = ["entip-train[slides]"]                   # OpenSlide (LGPL-2.1), wsidicom, Pillow
-idc = ["idc-index>=0.13"]                          # MIT (triage manifest from the Imaging Data Commons)
+idc = ["idc-index>=0.13", "pandas>=3.1", "pyarrow>=21"]   # MIT, BSD-3-Clause, Apache-2.0 (older pyarrow fails on pandas 3 text columns in idc-index queries)
 dx = ["entip-dx"]                                  # training/dx: validate records against the step 6 contract
 dev = ["pytest>=7"]                                # MIT
 
