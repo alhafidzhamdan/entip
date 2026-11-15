@@ -244,3 +244,7 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 .sorter:hover { color: var(--ink); }
 table.cohort { min-width: 980px; }
 .cohort td { font-size: 13px; }
+
+/* AI draft integrated report */
+pre.draft { white-space: pre-wrap; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 420px; overflow: auto; margin: 8px 0 0; }
+ul.plain { margin: 0; padding-left: 18px; }
