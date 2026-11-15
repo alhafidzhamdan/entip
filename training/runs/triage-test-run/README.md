@@ -44,8 +44,10 @@ no GPU weights. Defaults:
   (its quota is small). A Hugging Face login made from your normal shell is still picked up.
 - `ENCODER`: `h-optimus-0`
 
-Check on first use: the GPU request (`-q gpu`, `-pe gpu-a100 1`) and the `anaconda` module name follow Eddie's
-documentation as we understand it; adjust them if your project uses a different GPU queue or module version. If
+Check on first use: the GPU request is `GPU_REQUEST` in `eddie/config.sh` (default `-q gpu -pe gpu 1 -l h_vmem=64G`).
+If the embed job never starts, `qstat -j <job>` says why; list what the gpu queue offers with
+`qconf -sq gpu | grep -E "pe_list|complex_values"` and pass the right request, e.g.
+`GPU_REQUEST="-q gpu -l gpu=1 -l h_vmem=64G" bash .../submit.sh`. If
 Hugging Face asks you to accept terms for H-optimus-0, log in once with a token before `submit.sh`.
 
 ## Locally

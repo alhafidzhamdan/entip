@@ -9,6 +9,9 @@ REPO="${REPO:-/exports/igmm/eddie/Glioblastoma-WGS/scripts/entip}"   # clone of 
 WORK="${WORK:-$BASE/runs/triage-test-run}"                   # slides, bags, model, report, logs
 ENV_DIR="${ENV_DIR:-$BASE/envs/entip}"                       # conda env made by setup.sh
 ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a CPU-only dry run
+# How the embed job asks Eddie for a GPU. Check what the gpu queue offers with:
+#   qconf -sq gpu | grep -E "pe_list|complex_values";  qconf -spl | grep -i gpu;  qconf -sc | grep -i gpu
+GPU_REQUEST="${GPU_REQUEST:--q gpu -pe gpu 1 -l h_vmem=64G}"
 TRIAL="$REPO/training/runs/triage-test-run"
 
 export HF_HOME="${HF_HOME:-$BASE/hf}"                        # H-optimus-0 weights, fetched once by the staging job
