@@ -5,7 +5,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"
 . "$HERE/config.sh"
 mkdir -p "$WORK/logs"
-pass="REPO=$REPO,WORK=$WORK,ENV_DIR=$ENV_DIR,ENCODER=$ENCODER,TRIAL=$TRIAL"
+pass="BASE=$BASE,REPO=$REPO,WORK=$WORK,ENV_DIR=$ENV_DIR,ENCODER=$ENCODER,TRIAL=$TRIAL,HF_HOME=$HF_HOME"
 q() { qsub -terse -v "$pass" -o "$WORK/logs" "$@"; }
 
 s=$(q "$HERE/1_stage.sh")

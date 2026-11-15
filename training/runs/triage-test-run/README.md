@@ -24,19 +24,22 @@ the first job.
 
 ```bash
 git clone <this repository> ~/entip && cd ~/entip
-bash training/runs/triage-test-run/eddie/setup.sh       # once, on a login node: conda env in scratch
+bash training/runs/triage-test-run/eddie/setup.sh       # once, on a login node: conda env in the group space
 bash training/runs/triage-test-run/eddie/submit.sh      # submits the three jobs
 qstat                                                   # watch them
 ```
 
 Settings are in `eddie/config.sh`, and each can be overridden from the environment, for example
-`WORK=/exports/eddie/scratch/$USER/trial2 ENCODER=handcrafted bash .../submit.sh` for a quick run that needs
+`WORK=/exports/igmm/eddie/Glioblastoma-WGS/entip/runs/trial2 ENCODER=handcrafted bash .../submit.sh` for a quick run that needs
 no GPU weights. Defaults:
 
+- `BASE`: `/exports/igmm/eddie/Glioblastoma-WGS/entip`, the group space. Everything below lives here, because
+  scratch is cleared after a month and the home quota is too small for PyTorch.
 - `REPO`: `~/entip`
-- `WORK`: `/exports/eddie/scratch/$USER/entip-triage-test-run` (slides, bags, model, report, `logs/`). Scratch is
-  cleared after a month, so copy out anything you want to keep.
-- `ENV_DIR`: `/exports/eddie/scratch/$USER/envs/entip`, because the home quota is too small for PyTorch.
+- `WORK`: `$BASE/runs/triage-test-run` (slides, bags, model, report, `logs/`)
+- `ENV_DIR`: `$BASE/envs/entip`, the conda env
+- `HF_HOME`: `$BASE/hf`, the H-optimus-0 weights, downloaded once and reused by later runs
+- conda and pip caches: `$BASE/cache/`
 - `ENCODER`: `h-optimus-0`
 
 Check on first use: the GPU request (`-q gpu`, `-pe gpu-a100 1`) and the `anaconda` module name follow Eddie's

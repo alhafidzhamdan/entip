@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run once on an Eddie login node (it has internet): makes the conda env and installs the packages.
+# Run once on an Eddie login node (it has internet): makes the conda env in the group space and installs the packages.
 #   bash training/runs/triage-test-run/eddie/setup.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -8,7 +8,7 @@ REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"
 
 . /etc/profile.d/modules.sh
 module load anaconda
-mkdir -p "$(dirname "$ENV_DIR")" "$PIP_CACHE_DIR"
+mkdir -p "$(dirname "$ENV_DIR")" "$PIP_CACHE_DIR" "$CONDA_PKGS_DIRS" "$HF_HOME"
 [ -d "$ENV_DIR" ] || conda create -y -p "$ENV_DIR" python=3.11
 source activate "$ENV_DIR"
 pip install -e "$REPO/platform/live-training" -e "$REPO/training/glioma[idc,slides,foundation]"
