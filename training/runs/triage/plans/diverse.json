@@ -1,0 +1,15 @@
+{
+  "description": "Diverse triage set: 50 IDH-wildtype GBM (TCGA-GBM), 50 IDH-mutant LGG (TCGA-LGG), 50 other primary CNS (CCDI-MCI), about 50 metastasis (the few real brain cases plus TCGA primaries of common metastasis origins as a proxy), 50 normal brain (GTEx). FFPE, and PAXgene for GTEx. Random (seeded) slides of 100 MB to 2 GB, one per patient.",
+  "manifest_args": ["--prep", "ffpe", "paxgene_paraffin", "--proxy-metastasis"],
+  "pick": {"order": "random", "seed": 0, "min_mb": 100, "max_mb": 2000},
+  "groups": [
+    {"name": "gbm_idh_wildtype", "label": "glioma", "collections": ["tcga_gbm"], "idh": "wildtype", "n": 50},
+    {"name": "lgg_idh_mutant", "label": "glioma", "collections": ["tcga_lgg"], "idh": "mutant", "n": 50},
+    {"name": "other_primary_cns", "label": "other_primary_cns", "collections": ["ccdi_mci"], "n": 50},
+    {"name": "metastasis_brain", "label": "metastasis", "collections": ["ccdi_mci", "hcmi_cmdc"], "n": 10, "up_to": true},
+    {"name": "metastasis_proxy", "label": "metastasis",
+     "collections": ["tcga_luad", "tcga_lusc", "tcga_brca", "tcga_skcm", "tcga_kirc", "tcga_coad", "tcga_read"], "n": 47},
+    {"name": "normal_brain", "label": "normal_brain", "collections": ["gtex"], "n": 50}
+  ],
+  "train_args": []
+}

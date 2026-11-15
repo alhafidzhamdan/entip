@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Job 1 of 3, staging queue (has internet): IDC manifest -> pick 10 slides -> download them -> fetch H-optimus-0.
-#$ -N triage_test_stage
+# Job 1 of 3, staging queue (has internet): IDC manifest -> TCGA IDH status -> pick the slides in the run plan ->
+# download them -> fetch H-optimus-0.
+#$ -N triage_stage
 #$ -q staging
-#$ -l h_rt=02:00:00
+#$ -l h_rt=12:00:00
 # Memory: 16 GB is the staging queue maximum per slot; the IDC query needs about 4 GB on one thread.
 #$ -l h_rss=16G
 #$ -j y
@@ -13,8 +14,12 @@ export ENTIP_DUCKDB_THREADS=1        # one slot here; more duckdb threads need m
 mkdir -p "$WORK"
 cd "$WORK"
 
-[ -s manifest.csv ] || entip-train triage manifest --prep ffpe paxgene_paraffin --out manifest.csv > manifest.json
-python "$TRIAL/pick_slides.py" manifest.csv trial.csv --per-label glioma=5 normal_brain=5 | tee trial.txt
+plan_list() { python -c "import json,sys; print(' '.join(json.load(open(sys.argv[1])).get(sys.argv[2], [])))" "$PLAN" "$1"; }
+cp "$PLAN" plan.json                                  # keep the plan this run used next to its results
+# shellcheck disable=SC2046
+[ -s manifest.csv ] || entip-train triage manifest $(plan_list manifest_args) --out manifest.csv > manifest.json
+[ -s idh.tsv ] || python "$TRIAL/fetch_idh.py" idh.tsv
+python "$TRIAL/pick_slides.py" manifest.csv trial.csv --plan "$PLAN" --idh idh.tsv | tee trial.txt
 python "$TRIAL/eddie/stage_slides.py" trial.csv slides/
 
 if [ "$ENCODER" = "h-optimus-0" ]; then         # compute nodes have no internet: cache the weights now

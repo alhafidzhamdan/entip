@@ -191,6 +191,14 @@ def test_label_rows_filters():
     assert prep_of("PAXgene Tissue System", "Paraffin wax") == "paxgene_paraffin"
 
 
+def test_proxy_metastasis_only_when_asked():
+    row = {"collection_id": "tcga_luad", "PatientID": "p9", "license_short_name": "CC BY 3.0", "site": "Lung",
+           "dx": None, "fixative": "Formalin", "embedding": "Paraffin wax", "Manufacturer": "Leica Biosystems"}
+    assert label_rows([row])[0] == []
+    kept, _ = label_rows([row], proxy_metastasis=True)
+    assert kept[0]["label"] == "metastasis" and kept[0]["group"].endswith("|proxy")
+
+
 def test_derived_probabilities():
     p = np.zeros(len(CLASSES))
     p[CLASSES.index("glioma")], p[CLASSES.index("metastasis")], p[CLASSES.index("normal_brain")] = .6, .2, .2

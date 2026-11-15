@@ -6,7 +6,10 @@
 # tool that writes under ~ lands there. The explicit locations after it keep the layout tidy.
 BASE="${BASE:-/exports/igmm/eddie/Glioblastoma-WGS/entip}"
 REPO="${REPO:-/exports/igmm/eddie/Glioblastoma-WGS/scripts/entip}"   # clone of this repository
-WORK="${WORK:-$BASE/runs/triage-test-run}"                   # slides, bags, model, report, logs
+RUN="${RUN:-test-run}"                                       # which plan: plans/<RUN>.json (test-run, diverse)
+TRIAL="$REPO/training/runs/triage"
+PLAN="${PLAN:-$TRIAL/plans/$RUN.json}"
+WORK="${WORK:-$BASE/runs/triage-$RUN}"                       # slides, bags, model, report, logs for this run
 ENV_DIR="${ENV_DIR:-$BASE/envs/entip}"                       # conda env made by setup.sh
 ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a CPU-only dry run
 # How the embed job asks Eddie for a GPU. Check what the gpu queue offers with:
@@ -14,7 +17,6 @@ ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a
 # Eddie GPU wiki: gpu queue + gpu resource; a100=true picks an A100 (else A100 or L40S, whichever is free);
 # memory is h_rss per slot (max 32G), times the sharedmem slots. No h_vmem.
 GPU_REQUEST="${GPU_REQUEST:--q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G}"   # 1 A100, 4 cores, 64 GB RAM
-TRIAL="$REPO/training/runs/triage-test-run"
 
 export HF_HOME="${HF_HOME:-$BASE/hf}"                        # H-optimus-0 weights, fetched once by the staging job
 

@@ -42,6 +42,12 @@ from .labels import map_idc
 
 OPEN_LICENCES = ("CC BY 4.0", "CC BY 3.0")
 
+# Stand-ins for brain metastases (IDC holds only about ten real ones): TCGA primary tumours of the commonest
+# origins of brain metastasis. Labelled "metastasis" only with ``proxy_metastasis``, and their group ends in
+# "|proxy" so reports can tell them apart. They are not brain tissue; Edinburgh metastases replace them.
+PROXY_METASTASIS_COLLECTIONS = ("tcga_luad", "tcga_lusc", "tcga_brca", "tcga_skcm", "tcga_kirc", "tcga_coad",
+                                "tcga_read")
+
 IDC_SQL = """
 SELECT i.collection_id, i.PatientID, i.SeriesInstanceUID, i.license_short_name, i.Manufacturer,
        i.series_size_MB, i.transfer_syntax_name AS transfer_syntax, s.primaryAnatomicStructure_CodeMeaning AS site,
@@ -72,8 +78,10 @@ def prep_of(fixative, embedding) -> str:
     return "unknown"
 
 
-def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None) -> tuple[List[dict], Counter]:
-    """Keep open-licence rows that map to a triage class; ``preps`` limits preparation (e.g. ("ffpe",))."""
+def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None,
+               proxy_metastasis: bool = False) -> tuple[List[dict], Counter]:
+    """Keep open-licence rows that map to a triage class; ``preps`` limits preparation (e.g. ("ffpe",)).
+    ``proxy_metastasis`` also keeps the TCGA primaries in ``PROXY_METASTASIS_COLLECTIONS`` as "metastasis"."""
     kept, dropped = [], Counter()
     for r in rows:
         if r.get("license_short_name") not in OPEN_LICENCES:
@@ -84,12 +92,15 @@ def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None) -> tuple[Lis
             dropped["prep"] += 1
             continue
         lab = map_idc(r.get("collection_id"), r.get("site"), r.get("dx"))
+        proxy = lab is None and proxy_metastasis and r.get("collection_id") in PROXY_METASTASIS_COLLECTIONS
+        if proxy:
+            lab = "metastasis"
         if lab is None:
             dropped["unmapped"] += 1
             continue
         out = {k: r.get(k) for k in FIELDS}
         out["label"], out["prep"] = lab, prep
-        out["group"] = f"{r.get('collection_id')}|{r.get('Manufacturer') or 'unknown'}|{prep}"
+        out["group"] = f"{r.get('collection_id')}|{r.get('Manufacturer') or 'unknown'}|{prep}" + ("|proxy" if proxy else "")
         kept.append(out)
     return kept, dropped
 

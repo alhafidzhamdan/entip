@@ -1,0 +1,10 @@
+{
+  "description": "Triage test run: 10 slides, 5 glioma and 5 normal brain, the smallest of at least 100 MB. Checks the pipeline, not the model.",
+  "manifest_args": ["--prep", "ffpe", "paxgene_paraffin"],
+  "pick": {"order": "smallest", "min_mb": 100},
+  "groups": [
+    {"label": "glioma", "n": 5},
+    {"label": "normal_brain", "n": 5}
+  ],
+  "train_args": ["--no-loso"]
+}

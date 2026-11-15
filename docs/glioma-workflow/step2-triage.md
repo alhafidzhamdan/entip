@@ -35,7 +35,7 @@ entip-train triage train --manifest stage_a_train.csv --bags bags/ --out models/
 entip-train triage predict bags/<scan>.npz --model models/triage --study-id SYN-0001 --db http://localhost:8000
 ```
 
-A 10-slide test run of steps 1 and 2, locally or as Eddie jobs: [`training/runs/triage-test-run/`](../../training/runs/triage-test-run/README.md).
+Training runs of steps 1 and 2 on public slides (a 10-slide test run and a 250-slide diverse set), locally or as Eddie jobs: [`training/runs/triage/`](../../training/runs/triage/README.md).
 
 Eddie jobs and the stage A dataset: project files `etip/datasets/triage/stage_a/` (`eddie_build_bags.sh` GPU,
 `eddie_train.sh` CPU, README).

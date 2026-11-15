@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Job 2 of 3, GPU: step 1 (pre-training) - embed every staged slide with the frozen H-optimus-0, offline.
-#$ -N triage_test_embed
-#$ -l h_rt=04:00:00
+#$ -N triage_embed
+#$ -l h_rt=24:00:00
 # The GPU request (queue, parallel environment or gpu resource, memory) comes from GPU_REQUEST in config.sh,
 # passed by submit.sh, so it can be changed without editing this file.
 #$ -j y
