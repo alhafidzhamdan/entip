@@ -9,6 +9,7 @@ Al's rule: every component must be openly licensed so it can be deployed in the 
 | NumPy, scikit-learn, joblib | arrays, models, saving | BSD-3-Clause | open |
 | SciPy | exact binomial bound for the accept threshold | BSD-3-Clause | open |
 | idc-index, idc-index-data | triage manifest from the Imaging Data Commons (`[idc]`) | MIT (PyPI classifiers, checked 2026-11-10) | open |
+| timm `vit_small_patch16_224` weights | ImageNet start point for the distilled student (`distill`, optional: `--init scratch`) | Apache-2.0 (Google AugReg via timm) | open |
 | wsi/abmil.py | attention-MIL, our own NumPy code after Ilse et al. 2018 (arXiv 1802.04712) | MIT (this package) | open; no CLAM code |
 
 Not used here: UNI, UNI2-h, Virchow2, H-optimus-1 (CC-BY-NC-ND), the Heidelberg classifier software and CLAM.

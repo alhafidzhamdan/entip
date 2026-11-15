@@ -56,5 +56,7 @@ no weights) is for tests and the synthetic demos only.
 - Checked end to end on seven public slides from five sources with the `handcrafted` test encoder.
 - H-optimus-0 itself has not been run yet: the cloud sessions cannot reach Hugging Face. The Eddie GPU trial is
   pending.
+- A smaller student distilled from H-optimus-0 (`entip-glioma distill`, [training/runs/distill/](../../training/runs/distill/README.md))
+  can embed new slides without a large GPU, once it is shown to match the teacher on each step.
 - Domain-adaptive pre-training on Edinburgh slides is out of scope for now. It would need a GPU cluster, real
   slides and a full re-embed, and it would mean revalidating every later step.

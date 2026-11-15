@@ -6,6 +6,9 @@
   from Hugging Face. The default for real slides.
 * ``handcrafted`` - colour and texture statistics, about 40-d, no weights, CPU only. For tests, the synthetic
   demo and machines without a GPU. Not a substitute for a foundation model on real tissue.
+* ``student:<file>`` - a small model distilled from H-optimus-0 (``entip-glioma distill``), saved as one
+  ``student.pt``. It outputs H-optimus-0-sized embeddings and is fast enough for machines without a big GPU.
+  Its version string is its own, so student and teacher bags are never mixed.
 
 Each encoder declares its version string; the embedding cache is keyed by it, so changing weights never
 mixes old and new vectors.
@@ -19,6 +22,7 @@ import numpy as np
 ENCODER_LICENCES = {
     "h-optimus-0": ("Apache-2.0", "https://huggingface.co/bioptimus/H-optimus-0"),
     "handcrafted": ("MIT (this repository)", ""),
+    "student": ("PolyForm Noncommercial (this repository); distilled from H-optimus-0 (Apache-2.0)", ""),
 }
 
 HOPTIMUS_MEAN = (0.707223, 0.578729, 0.703617)   # as used for H-optimus models in MitoEd (models/encoders.py)
@@ -90,7 +94,58 @@ class HOptimus0Encoder:
         return np.concatenate(out) if out else np.zeros((0, self.dim), np.float32)
 
 
+def build_student(arch: str, out_dim: int, pretrained: bool = False):
+    """A student network: a timm backbone (or ``tiny``, a small CNN for tests and CPU smoke runs) plus a linear
+    layer to the teacher's embedding size. Shared by distillation (training) and ``StudentEncoder`` (use)."""
+    import torch.nn as nn
+    if arch == "tiny":
+        body = nn.Sequential(nn.Conv2d(3, 16, 5, 2, 2), nn.GELU(), nn.Conv2d(16, 32, 3, 2, 1), nn.GELU(),
+                             nn.Conv2d(32, 64, 3, 2, 1), nn.GELU(), nn.AdaptiveAvgPool2d(1), nn.Flatten())
+        width = 64
+    else:
+        import timm
+        body = timm.create_model(arch, pretrained=pretrained, num_classes=0)
+        width = body.num_features
+    return nn.Sequential(body, nn.Linear(width, out_dim))
+
+
+class StudentEncoder:
+    """A distilled student saved by ``entip-glioma distill train`` (one ``student.pt``: architecture, weights,
+    input size, image normalisation and the teacher-space mean/std its outputs are rescaled with). Loaded with
+    ``weights_only=True``, so the file cannot run code."""
+    name = "student"
+
+    def __init__(self, path: str, device: str | None = None, batch_size: int = 128):
+        import torch
+        self.torch = torch
+        ck = torch.load(path, map_location="cpu", weights_only=True)
+        self.version, self.input_px, self.dim = str(ck["version"]), int(ck["input_px"]), int(ck["out_dim"])
+        self.device = device or ("cuda" if torch.cuda.is_available() else
+                                 "mps" if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available()
+                                 else "cpu")
+        self.model = build_student(ck["arch"], self.dim).eval()
+        self.model.load_state_dict(ck["state_dict"])
+        self.model.to(self.device)
+        self.mean = torch.tensor(ck["img_mean"]).view(1, 3, 1, 1)
+        self.std = torch.tensor(ck["img_std"]).view(1, 3, 1, 1)
+        self.t_mean, self.t_std = ck["target_mean"].float(), ck["target_std"].float()
+        self.batch_size = batch_size
+
+    def embed(self, crops: np.ndarray) -> np.ndarray:
+        t = self.torch
+        out = []
+        with t.inference_mode():
+            for i in range(0, len(crops), self.batch_size):
+                x = t.from_numpy(np.array(crops[i:i + self.batch_size])).permute(0, 3, 1, 2).float() / 255.0
+                x = ((x - self.mean) / self.std).to(self.device)
+                z = self.model(x).float().cpu()
+                out.append((z * self.t_std + self.t_mean).numpy())   # back to the teacher's scale
+        return np.concatenate(out) if out else np.zeros((0, self.dim), np.float32)
+
+
 def get_encoder(name: str, **kw) -> Encoder:
+    if name.lower().startswith("student:"):
+        return StudentEncoder(name.split(":", 1)[1], **kw)
     n = name.lower().replace("_", "-")
     if n in ("h-optimus-0", "hoptimus0", "h-optimus0"):
         return HOptimus0Encoder(**kw)

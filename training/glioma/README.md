@@ -174,6 +174,7 @@ released). Thresholds must be set on held-out pathologist-labelled slides before
 | `highgrade/` | step 3: necrosis, microvascular proliferation, mitotic activity |
 | `panel/` | step 4: glioma panel markers from H&E, `entip-panel` (see [PANEL.md](PANEL.md)) |
 | `methylation/` | step 5: methylation class from H&E (see [methylation.md](methylation.md)) |
+| `distill/` | a small student encoder distilled from H-optimus-0 (`entip-glioma distill`; see [training/runs/distill/](../runs/distill/README.md)) |
 | `cli.py` | `entip-glioma`, and the commands it adds to `entip-train` |
 
 Panel markers that are switched on are set in [`configs/glioma_panel.json`](configs/glioma_panel.json).
