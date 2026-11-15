@@ -1,4 +1,4 @@
-"""Train the step-4 model: site-grouped cross-validation, temperature scaling and selective thresholds.
+"""Train the step-5 model: site-grouped cross-validation, temperature scaling and selective thresholds.
 
 1. Every case gets a fold so that all cases from one TCGA tissue source site share a fold (``tcga.group_folds``).
 2. For each fold: train ABMIL on the other folds, early-stop and fit the temperature on one of them, and

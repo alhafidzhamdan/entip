@@ -3,7 +3,7 @@
 A bag is one slide's tissue tiles and their frozen embeddings: ``features`` (N, D), ``coords_um`` (N, 2,
 top-left of each tile in the frame ``scan:<scan_id>``), ``tile_um``, ``encoder`` (version string) and
 ``tissue_frac``. Build bags with ``wsi.bags.extract_bag`` (224 px tiles at 0.5 µm/px, H-optimus-0, Apache-2.0)
-and load them with ``Bag.load``; step 2 never re-embeds a slide.
+and load them with ``Bag.load``; step 3 never re-embeds a slide.
 """
 from __future__ import annotations
 

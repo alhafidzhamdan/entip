@@ -1,4 +1,4 @@
-"""Step 2 (high-grade features) on synthetic slides only."""
+"""Step 3 (high-grade features) on synthetic slides only."""
 import itertools
 import json
 from pathlib import Path
@@ -233,7 +233,7 @@ def test_specimen_records_and_actions(detectors):
     assert len(ids) == len(set(ids))
 
 
-def test_records_pass_step5_validator(detectors):
+def test_records_pass_step6_validator(detectors):
     contract = pytest.importorskip("entip_dx.contract")
     _, b = _bag(scan_id="SCN-SYN-0002-A1-01", seed=301)
     a = assess_specimen("SYN-0002", [b], list(detectors.values()))

@@ -1,4 +1,4 @@
-"""Step 1 triage and the shared wsi/ pieces, on synthetic data only."""
+"""Step 2 triage and the shared wsi/ pieces, on synthetic data only."""
 import json
 
 import numpy as np
@@ -219,7 +219,7 @@ def test_fit_report(trained):
     assert m.model_id.startswith("cns-triage-")
 
 
-def test_records_follow_step5_contract(trained, tmp_path):
+def test_records_follow_step6_contract(trained, tmp_path):
     m, _, bags, labels = trained
     i = labels.index("glioma")
     recs = m.records([bags[i], bags[i + 1]], "SYN-0001")
@@ -324,20 +324,6 @@ def test_post_patient_registers_a_model_once(trained, monkeypatch):
     monkeypatch.setattr(db, "model_registered", lambda url, mid: True)
     db.post_patient("http://db", m, [bags[0]], "SYN-0009")
     assert sent[0][:2] == ["feature", "model"] and "model" not in sent[1]
-
-
-def test_build_bags_dry_run_counts_what_is_left(tmp_path, capsys):
-    from entip_train.cli import main
-    from entip_train.triage.manifest import FIELDS, write_manifest
-    rows = [dict.fromkeys(FIELDS, "") | {"SeriesInstanceUID": f"1.2.{i}", "label": "glioma", "group": "g",
-                                         "PatientID": f"p{i}", "series_size_MB": "500"} for i in range(4)]
-    write_manifest(rows, tmp_path / "m.csv")
-    (tmp_path / "bags").mkdir()
-    (tmp_path / "bags" / "1.2.0.npz").write_bytes(b"")
-    assert main(["triage", "build-bags", "--manifest", str(tmp_path / "m.csv"), "--out", str(tmp_path / "bags"),
-                 "--dry-run"]) == 0
-    out = json.loads(capsys.readouterr().out)
-    assert out == {"slides": 4, "already_done": 1, "to_do": 3, "download_GB": 1.5}
 
 
 def test_cli_demo(capsys):

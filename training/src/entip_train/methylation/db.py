@@ -1,4 +1,4 @@
-"""Write a step-4 result to the central database (pillar 5) through ``POST /actions``.
+"""Write a step-5 result to the central database (pillar 5) through ``POST /actions``.
 
 Three actions per patient, each with its own ``action_id`` so retries are safe:
 
@@ -8,7 +8,7 @@ Three actions per patient, each with its own ``action_id`` so retries are safe:
 2. ``create`` a ``genomic_finding`` with marker ``methylation_class_ai`` (kind ``class``) and the evidence tiles
    as ``region`` rows labelled ``methylation_attention``. The ``_ai`` marker keeps the AI value apart from
    a real array result in ``patient_row``; the rules engine ignores ``_ai`` markers.
-3. The ``glioma_step`` event with the finding record, which is what the step-5 engine reads.
+3. The ``glioma_step`` event with the finding record, which is what the step-6 engine reads.
 """
 from __future__ import annotations
 

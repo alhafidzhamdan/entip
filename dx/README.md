@@ -1,11 +1,11 @@
-# Integrated diagnosis (AI glioma workflow, step 5)
+# Integrated diagnosis (AI glioma workflow, step 6)
 
-A fixed WHO CNS5 rules engine. It reads the finding records from steps 1 to 4 (triage, high-grade features,
+A fixed WHO CNS5 rules engine. It reads the finding records from steps 2 to 5 (triage, high-grade features,
 glioma panel, methylation class) plus real test results, works out the integrated diagnosis, orders the real
 test for anything uncertain that would change it, and writes a draft layered report for the pathologist to sign
 off. It learns nothing: every call traces to a written criterion with its source. Research use only.
 
-- Shared contract for steps 1 to 4: [`contract/`](contract/README.md).
+- Shared contract for steps 2 to 5: [`contract/`](contract/README.md).
 - Rules and citations: [`src/entip_dx/rules.py`](src/entip_dx/rules.py). Engine: `engine.py`. Report text: `report.py`.
 
 ## Run it

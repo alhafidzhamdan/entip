@@ -9,7 +9,7 @@ Scoring one patient (``build_actions``), all idempotent upserts so a rerun repla
 1. ``region`` rows: one whole-tissue ``roi`` per scan labelled with that scan's call, and the top tiles by
    attention (kind ``tile``, label ``attention``, meta weight/rank) for the GUI heatmap;
 2. ``prediction`` rows on those regions (score = calibrated confidence for the scan, attention for tiles);
-3. an event ``glioma_step`` with ``detail = {study_id, records}``, which the step 5 engine reads from
+3. an event ``glioma_step`` with ``detail = {study_id, records}``, which the step 6 engine reads from
    ``GET /patients/{study_id}/actions``.
 
 Scoring never rewrites the model row: an upsert there would set a promoted model back to ``draft``.
@@ -39,7 +39,7 @@ def register_actions(model: TriageModel, uri: str | None = None) -> List[dict]:
     return [
         {"verb": "upsert", "object_type": "feature", "provenance": _prov(model),
          "records": [{"name": FEATURE, "level": "region", "positives_only": False,
-                      "description": "Step 1 triage: normal brain / reactive / glioma / other primary CNS / "
+                      "description": "Step 2 triage: normal brain / reactive / glioma / other primary CNS / "
                                      "metastasis / lymphoma"}]},
         {"verb": "upsert", "object_type": "model", "provenance": _prov(model),
          "records": [{"model_id": model.model_id, "feature": FEATURE, "kind": "abmil", "encoder": model.encoder,

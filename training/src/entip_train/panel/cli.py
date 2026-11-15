@@ -1,4 +1,4 @@
-"""``entip-panel``: train and run the glioma panel model (step 3 of the AI glioma workflow). Research use only.
+"""``entip-panel``: train and run the glioma panel model (step 4 of the AI glioma workflow). Research use only.
 
   entip-panel demo                                    # synthetic cohort: train, gate, predict (CPU, about a minute)
   entip-panel labels --cbioportal samples.tsv [--long extra.csv] --out labels.json

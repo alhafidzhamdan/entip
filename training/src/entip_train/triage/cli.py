@@ -1,4 +1,5 @@
-"""``entip-train triage ...``: manifest, build-bags, extract, train, predict, demo."""
+"""``entip-train triage ...``: manifest, train, predict, demo. ``extract`` and ``build-bags`` moved to step 1
+(``entip-train embed``) and stay here as aliases."""
 from __future__ import annotations
 
 import json
@@ -15,80 +16,6 @@ def _manifest(a) -> int:
                       "slides_per_class": Counter(r["label"] for r in rows),
                       "patients_per_class": {c: len({r["PatientID"] for r in rows if r["label"] == c})
                                              for c in sorted({r["label"] for r in rows})}}, indent=2))
-    return 0
-
-
-def _embed(path: str, scan_id: str, enc, a, out_dir: Path) -> dict:
-    from ..slides import open_slide
-    from ..wsi.bags import extract_bag
-    r = open_slide(path, mpp=a.mpp)
-    bag = extract_bag(r, scan_id, r.width_um, r.height_um, enc, tile_um=a.tile_um, min_tissue=a.min_tissue,
-                      max_tiles=a.max_tiles)
-    p = bag.save(out_dir / f"{scan_id}.npz")
-    return {"scan_id": scan_id, "tiles": len(bag), "reader": type(r).__name__, "mpp": round(r.mpp, 4),
-            "encoder": bag.encoder, "out": str(p)}
-
-
-def _extract(a) -> int:
-    from ..encoders import get_encoder
-    enc = get_encoder(a.encoder)
-    if a.scan_id and len(a.slides) > 1:
-        raise SystemExit("--scan-id names one slide; pass one slide, or leave it out to use file names")
-    for path in a.slides:
-        p = Path(path)
-        sid = a.scan_id or (p.name if p.is_dir() else p.stem)
-        print(json.dumps(_embed(path, sid, enc, a, Path(a.out))), flush=True)
-    return 0
-
-
-def _build_bags(a) -> int:
-    """Manifest -> bags, one slide at a time: download, embed, delete. Safe to stop and rerun."""
-    import shutil
-    import tempfile
-    from ..encoders import get_encoder
-    from .manifest import read_manifest
-    rows = read_manifest(a.manifest)
-    if a.per_class:
-        seen, pick = Counter(), []
-        for r in sorted(rows, key=lambda r: float(r.get("series_size_MB") or 0)):
-            if seen[(r["label"], r["group"])] < a.per_class:
-                seen[(r["label"], r["group"])] += 1
-                pick.append(r)
-        rows = pick
-    out = Path(a.out)
-    out.mkdir(parents=True, exist_ok=True)
-    todo = [r for r in rows if not (out / f"{r['SeriesInstanceUID']}.npz").exists()]
-    if a.limit:
-        todo = todo[:a.limit]
-    gb = sum(float(r.get("series_size_MB") or 0) for r in todo) / 1000
-    print(json.dumps({"slides": len(rows), "already_done": len(rows) - len(todo) if not a.limit else None,
-                      "to_do": len(todo), "download_GB": round(gb, 1)}), flush=True)
-    if a.dry_run or not todo:
-        return 0
-    from idc_index import IDCClient
-    client, enc = IDCClient(), get_encoder(a.encoder)
-    failed = 0
-    for r in todo:
-        uid = r["SeriesInstanceUID"]
-        tmp = Path(tempfile.mkdtemp(prefix="idc-", dir=a.tmp))
-        try:
-            client.download_from_selection(downloadDir=str(tmp), seriesInstanceUID=[uid], quiet=True,
-                                           show_progress_bar=False)
-            dcm = next(iter(tmp.rglob("*.dcm")), None)
-            if dcm is None:
-                raise RuntimeError("download returned no DICOM files")
-            info = _embed(str(dcm.parent), uid, enc, a, out)
-            info["label"] = r["label"]
-            print(json.dumps(info), flush=True)
-        except Exception as e:                      # one bad slide must not stop a run of thousands
-            failed += 1
-            with (out / "failed.jsonl").open("a") as f:
-                f.write(json.dumps({"SeriesInstanceUID": uid, "error": repr(e)[:500]}) + "\n")
-            print(json.dumps({"scan_id": uid, "error": repr(e)[:200]}), flush=True)
-        finally:
-            if not a.keep_slides:
-                shutil.rmtree(tmp, ignore_errors=True)
-    print(json.dumps({"done": len(todo) - failed, "failed": failed}))
     return 0
 
 
@@ -162,35 +89,14 @@ def _demo(a) -> int:
 
 
 def add_parser(sub) -> None:
-    t = sub.add_parser("triage", help="step 1: tumour / glial triage on H&E")
+    t = sub.add_parser("triage", help="step 2: tumour / glial triage on H&E")
     ts = t.add_subparsers(dest="triage_cmd", required=True)
     p = ts.add_parser("manifest", help="labelled slide list from IDC (needs internet and idc-index)")
     p.add_argument("--out", default="triage_manifest.csv")
     p.add_argument("--prep", nargs="*", default=None, help="keep only these: ffpe frozen paxgene_paraffin unknown")
     p.set_defaults(fn=_manifest)
-    def embed_args(p):
-        p.add_argument("--out", required=True, help="folder for <id>.npz bags")
-        p.add_argument("--encoder", default="h-optimus-0")
-        p.add_argument("--mpp", type=float, default=None, help="override the slide's pixel size (µm/px)")
-        p.add_argument("--tile-um", type=float, default=112.0)
-        p.add_argument("--min-tissue", type=float, default=0.5)
-        p.add_argument("--max-tiles", type=int, default=None, help="random cap on tiles per slide")
-
-    p = ts.add_parser("extract", help="local slides -> tile embedding bags (.npz)")
-    p.add_argument("slides", nargs="+", help="slide files or DICOM series folders")
-    p.add_argument("--scan-id", default=None)
-    embed_args(p)
-    p.set_defaults(fn=_extract)
-    p = ts.add_parser("build-bags", help="manifest -> bags: download each IDC slide, embed it, delete it")
-    p.add_argument("--manifest", required=True)
-    embed_args(p)
-    p.add_argument("--per-class", type=int, default=None,
-                   help="trial run: only the N smallest slides of each class and source")
-    p.add_argument("--limit", type=int, default=None, help="stop after this many slides")
-    p.add_argument("--tmp", default=None, help="folder for the slide being processed")
-    p.add_argument("--keep-slides", action="store_true")
-    p.add_argument("--dry-run", action="store_true", help="only say how many slides and GB are left")
-    p.set_defaults(fn=_build_bags)
+    from ..embed.cli import add_commands
+    add_commands(ts, " (alias of `entip-train embed`, step 1)")
     p = ts.add_parser("train", help="train, cross-validate, calibrate and save a triage model")
     p.add_argument("--manifest", required=True)
     p.add_argument("--bags", required=True, help="folder of <id>.npz bags")

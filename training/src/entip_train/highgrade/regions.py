@@ -11,7 +11,7 @@ Each is a small classifier on frozen tile embeddings (H-optimus-0 for real slide
 5. ``calibrate_slides`` maps the raw score to P(present) with a sigmoid fitted on held-out slides labelled
    present / absent, and (given enough slides) sets the accept threshold so the error among accepted calls
    stays under ``max_error`` (``wsi.calibrate.selective_threshold``, cross-validated). The tile calibration
-   in step 1 does not do this: the best of thousands of tiles is not a slide probability;
+   in step 2 does not do this: the best of thousands of tiles is not a slide probability;
 6. ``contract.decide`` turns P(present) into present / absent / indeterminate. Indeterminate, or any guard
    tripping, marks the record ``uncertain`` and orders a pathologist review with the top foci as evidence.
 

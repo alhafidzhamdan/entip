@@ -1,4 +1,4 @@
-"""``entip-train methyl ...``: the step-4 commands.
+"""``entip-train methyl ...``: the step-5 commands.
 
   demo       train and predict on synthetic bags (CPU, about a minute)
   pair       pair TCGA diagnostic slides with 450K methylation files by case
@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 def add_parser(sub) -> None:
-    p = sub.add_parser("methyl", help="step 4: methylation class from H&E")
+    p = sub.add_parser("methyl", help="step 5: methylation class from H&E")
     s = p.add_subparsers(dest="mcmd", required=True)
 
     d = s.add_parser("demo")

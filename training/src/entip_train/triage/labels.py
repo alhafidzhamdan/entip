@@ -1,10 +1,10 @@
 """Triage classes and the mapping from public slide metadata to them.
 
-Classes follow the step 5 contract (entip.glioma_step/1, finding ``tissue_class``)::
+Classes follow the step 6 contract (entip.glioma_step/1, finding ``tissue_class``)::
 
     normal_brain       non-tumour, normal CNS parenchyma
     reactive           non-tumour, gliosis / inflammation / other non-neoplastic change
-    glioma             glial and glioneuronal tumours (the input to steps 2-4)
+    glioma             glial and glioneuronal tumours (the input to steps 3-5)
     other_primary_cns  primary CNS tumours that are not glial (meningioma, embryonal, germ cell, ...)
     metastasis         carcinoma, melanoma etc. in the CNS
     lymphoma           lymphoma in the CNS

@@ -1,12 +1,12 @@
-# Step 5: WHO CNS5 integrated diagnosis
+# Step 6: WHO CNS5 integrated diagnosis
 
 [← workflow](README.md) · code `dx/` (`entip-dx`), contract `dx/contract/` · PR #11 (branch `claude/project-thread-o3tsg0`)
 
-![Step 5 workflow](diagrams/5-rules.png)
+![Step 6 workflow](diagrams/6-rules.png)
 
 ## What it does
 
-A fixed rules engine: no learning. It reads the records from steps 1 to 4 plus real test results and
+A fixed rules engine: no learning. It reads the records from steps 2 to 5 plus real test results and
 pathologist calls, works out the integrated diagnosis, orders the tests still needed, and writes a draft
 layered report (`entip.integrated_dx/1`) for the pathologist to sign off in the GUI. Every call traces to a
 written criterion with its source.

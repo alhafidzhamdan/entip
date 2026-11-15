@@ -1,4 +1,4 @@
-"""The shared output contract for the AI glioma workflow (steps 1 to 4) and the engine's output (step 5).
+"""The shared output contract for the AI glioma workflow (steps 2 to 5) and the engine's output (step 6).
 
 Every step emits one *finding record* per finding: a triage call, one high-grade feature, one panel marker,
 or a methylation class. Real test results and pathologist calls use the same record with ``source`` set to

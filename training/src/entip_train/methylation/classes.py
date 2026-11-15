@@ -1,7 +1,7 @@
 """Methylation classes and the families they roll up to.
 
 The default list is the diffuse glioma part of the class names used in the Capper et al. 2018 reference
-set (GEO GSE90496), plus control tissue. Families are the step-5 contract's vocabulary (``dx/contract/README.md``); check the
+set (GEO GSE90496), plus control tissue. Families are the step-6 contract's vocabulary (``dx/contract/README.md``); check the
 family of each class with a neuropathologist (e.g. GBM MYCN is filed under paediatric-type HGG here). Class names change between classifier versions, so load your own
 list with ``Taxonomy.from_csv`` (columns ``class,family``) to match the labels you train on.
 

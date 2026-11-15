@@ -4,7 +4,7 @@ Two kinds of action:
 
 * ``upsert`` of ``model`` rows, one per trained marker (``glioma-panel:<finding>``), with its metrics and accept
   threshold, so the GUI and the audit trail can see what made each call;
-* an event action, verb ``glioma_step``, with ``detail = {study_id, records}``: the finding records the step 5
+* an event action, verb ``glioma_step``, with ``detail = {study_id, records}``: the finding records the step 6
   rules engine reads from ``GET /patients/{study_id}/actions``.
 
 AI calls are never written to ``genomic_finding``: ``patient_row.molecular`` shows the latest finding per marker,
@@ -56,7 +56,7 @@ def post_actions(base_url: str, actions: Iterable[dict], timeout: float = 30.0) 
 
 
 def validate(records: List[dict]) -> Optional[int]:
-    """Check records with the step 5 validator when ``entip_dx`` is installed; returns how many were checked,
+    """Check records with the step 6 validator when ``entip_dx`` is installed; returns how many were checked,
     or None if the validator isn't available."""
     try:
         from entip_dx.contract import validate_finding

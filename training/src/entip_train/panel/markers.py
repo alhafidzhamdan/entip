@@ -1,6 +1,6 @@
 """The glioma panel: which markers the model predicts, their calls, and the real test each falls back to.
 
-Names, calls and test names follow the step 5 contract (``entip.glioma_step/1``, ``dx/contract/README.md``).
+Names, calls and test names follow the step 6 contract (``entip.glioma_step/1``, ``dx/contract/README.md``).
 Which markers are switched on is configuration (``configs/glioma_panel.json``), because the Edinburgh panel's
 exact gene list is not yet confirmed. A marker that is off is still reported, as ``not_assessed``, so the rules
 engine never mistakes "not predicted" for "normal".

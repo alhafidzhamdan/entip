@@ -1,6 +1,6 @@
 # AI glioma workflow: shared output contract
 
-Steps 1 to 4 each emit **finding records** (`entip.glioma_step/1`). Step 5, the WHO CNS5 rules engine, reads
+Steps 2 to 5 each emit **finding records** (`entip.glioma_step/1`). Step 6, the WHO CNS5 rules engine, reads
 them and writes one **integrated diagnosis draft** (`entip.integrated_dx/1`) for the pathologist to sign off.
 
 The source of truth is [`../src/entip_dx/contract.py`](../src/entip_dx/contract.py). The JSON Schemas in this

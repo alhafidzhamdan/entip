@@ -1,8 +1,8 @@
-# Step 4: methylation class from H&E
+# Step 5: methylation class from H&E
 
 [← workflow](README.md) · code `training/src/entip_train/methylation/`, doc `training/methylation.md` · PR #10 (branch `claude/project-thread-fo3ivf`)
 
-![Step 4 workflow](diagrams/4-methylation.png)
+![Step 5 workflow](diagrams/5-methylation.png)
 
 ## What it does
 

@@ -1,6 +1,6 @@
-"""The output of each step-2 detector, in the step-5 contract ``entip.glioma_step/1``.
+"""The output of each step-3 detector, in the step-6 contract ``entip.glioma_step/1``.
 
-The contract lives in ``dx/contract/README.md`` (step-5 rules engine). One record per finding per patient:
+The contract lives in ``dx/contract/README.md`` (step-6 rules engine). One record per finding per patient:
 
 ``call``        present | absent | indeterminate (mitotic_activity "present" = elevated for a diffuse glioma)
 ``confidence``  calibrated probability that ``call`` is right

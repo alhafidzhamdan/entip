@@ -1,6 +1,7 @@
-"""Command line: ``entip-train demo`` (milestone check on a synthetic slide), ``entip-train serve``,
-``entip-train triage ...`` / ``entip-train methyl ...`` (steps 1 and 4 of the AI glioma workflow) and the
-step-2 high-grade feature commands ``highgrade-demo``, ``highgrade-train``, ``highgrade-calibrate`` and ``highgrade``."""
+"""Command line: ``entip-train demo`` (milestone check on a synthetic slide), ``entip-train serve``, and the
+AI glioma workflow: ``entip-train embed ...`` (step 1, frozen foundation-model tile bags), ``entip-train triage ...``
+(step 2), the step-3 high-grade commands ``highgrade-demo``, ``highgrade-train``, ``highgrade-calibrate`` and
+``highgrade``, and ``entip-train methyl ...`` (step 5)."""
 from __future__ import annotations
 
 import argparse
@@ -170,12 +171,14 @@ def main(argv=None) -> int:
     s.add_argument("--data", default=None)
     s.add_argument("--cors", nargs="*", default=[], help="allowed GUI origins, e.g. http://localhost:8080")
     s.set_defaults(fn=serve)
+    from .embed.cli import add_parser as add_embed
+    add_embed(sub)
     from .triage.cli import add_parser as add_triage
     add_triage(sub)
     from .methylation.cli import add_parser as add_methyl
     add_methyl(sub)
 
-    h = sub.add_parser("highgrade-demo", help="step 2 on a synthetic specimen: necrosis, MVP, mitotic activity")
+    h = sub.add_parser("highgrade-demo", help="step 3 on a synthetic specimen: necrosis, MVP, mitotic activity")
     h.add_argument("--encoder", default="handcrafted")
     h.add_argument("--study-id", default="SYN-0001")
     h.add_argument("--scan-id", default="SCN-0001-A1-01", help="must exist in the db when posting (seeded ids)")

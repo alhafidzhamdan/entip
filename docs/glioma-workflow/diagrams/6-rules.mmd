@@ -1,5 +1,5 @@
 flowchart TB
-  IN["Records from steps 1–4<br/>+ real tests + pathologist calls"] --> PRE["Pick one value per finding:<br/>test > pathologist > confident AI<br/>uncertain AI = pending, test ordered"]
+  IN["Records from steps 2–5<br/>+ real tests + pathologist calls"] --> PRE["Pick one value per finding:<br/>test > pathologist > confident AI<br/>uncertain AI = pending, test ordered"]
   PRE --> A{"Adequate tissue and<br/>glioma?"}
   A -->|no| PATH["Stop: pathologist review"]
   A -->|yes| H3{"H3 status"}

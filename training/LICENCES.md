@@ -31,6 +31,6 @@ Triage training data (downloaded on Al's Mac or Eddie, never committed): IDC sli
 (GTEx, CCDI-MCI, CPTAC-GBM, HCMI, CGCI) and CC BY 3.0 (TCGA), as listed per slide in `license_short_name`.
 Both need attribution in any publication or model card. ICDC-Glioma (canine) is excluded.
 
-Step 4 (methylation class) uses only the packages above (scikit-learn random forest and k-means for labels).
+Step 5 (methylation class) uses only the packages above (scikit-learn random forest and k-means for labels).
 Training data planned: TCGA diagnostic slides and 450K beta values (GDC open access); the GSE90496 reference set
 (data-use terms not yet checked). The Heidelberg classifier software is not used.

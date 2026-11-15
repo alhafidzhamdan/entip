@@ -1,4 +1,4 @@
-"""Turn step-2 results into ``POST /actions`` payloads for the central database (db/, pillar 5).
+"""Turn step-3 results into ``POST /actions`` payloads for the central database (db/, pillar 5).
 
 Order of actions for one specimen:
   1. ``upsert feature``  necrosis, microvascular_proliferation (tile level), mitotic_figure (cell level)
@@ -6,7 +6,7 @@ Order of actions for one specimen:
   3. ``upsert region``   tiles above the tile threshold (kind ``tile``) and each focus (kind ``roi``), labelled
                          with the finding; ``upsert cell`` for mitosis candidates
   4. ``upsert prediction`` scores on those regions and cells
-  5. ``glioma_step``     event with ``detail = {study_id, records}`` in the step-5 contract; the rules engine
+  5. ``glioma_step``     event with ``detail = {study_id, records}`` in the step-6 contract; the rules engine
                          reads these from ``GET /patients/{study_id}/actions``
 
 Region and focus ids carry the model id and the tile's grid position, so re-running one model replaces its

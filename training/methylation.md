@@ -1,11 +1,11 @@
-# Step 4: methylation class from H&E
+# Step 5: methylation class from H&E
 
 Part of the AI diffuse glioma workflow (1 triage, 2 high-grade features, 3 panel, **4 methylation class**,
 5 WHO CNS5 rules engine). Research use only: the output is a suggestion, and the model orders the
 methylation array whenever it is not confident.
 
 Code: `src/entip_train/methylation/`. It uses the shared slide pipeline from step 1 (`entip_train.wsi`:
-tissue tiles, frozen H-optimus-0 bags, attention-MIL, calibration) and emits the step-5 finding record
+tissue tiles, frozen H-optimus-0 bags, attention-MIL, calibration) and emits the step-6 finding record
 (`entip.glioma_step/1`, see `dx/contract/README.md`).
 
 ## What it does

@@ -1,10 +1,10 @@
-# Glioma panel from H&E (`entip-panel`, step 3 of the AI glioma workflow)
+# Glioma panel from H&E (`entip-panel`, step 4 of the AI glioma workflow)
 
 Predicts each glioma panel marker from the H&E slides of a patient, with a calibrated confidence. A call is
 used only when it passes every gate; otherwise the output names the real test to order. Research use only;
 so far run on synthetic data only.
 
-Markers (contract names from the step 5 engine, `dx/contract/README.md`): `IDH`, `ATRX`, `TP53`, `1p19q`,
+Markers (contract names from the step 6 engine, `dx/contract/README.md`): `IDH`, `ATRX`, `TP53`, `1p19q`,
 `CDKN2A`, `EGFR`, `chr7_chr10`, `TERT`, `H3K27`, `H3G34`, `MGMT`. Which ones run is set in
 [`configs/glioma_panel.json`](configs/glioma_panel.json), because Edinburgh's panel list is not confirmed yet.
 A switched-off marker is still reported, as `not_assessed`.

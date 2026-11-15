@@ -1,4 +1,4 @@
-"""Step 4 (methylation class from H&E) on synthetic data only."""
+"""Step 5 (methylation class from H&E) on synthetic data only."""
 import csv
 import json
 
@@ -95,7 +95,7 @@ def test_training_metrics_and_thresholds(trained):
     assert 0 < m.family_threshold <= 1.01
 
 
-def test_record_follows_step5_contract(trained):
+def test_record_follows_step6_contract(trained):
     m, data = trained
     rec = m.predict([data[0][1]], "SYN-0001")
     assert rec["call"] in set(DEFAULT_CLASSES.values())

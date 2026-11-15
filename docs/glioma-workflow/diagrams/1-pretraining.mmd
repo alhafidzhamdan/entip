@@ -1,0 +1,17 @@
+flowchart TB
+  IN["H&E slide<br/>(file, DICOM series, or IDC download)"] --> OPEN["Open: OpenSlide,<br/>wsidicom fallback"]
+  OPEN --> TILE["Cut 112 µm tiles<br/>read at 224 px (0.5 µm/px)"]
+  TILE --> MASK{"Tile ≥ 50% tissue?"}
+  MASK -->|no| DROP["Drop (background)"]
+  MASK -->|yes| FOCUS["Focus measure per tile"]
+  FOCUS --> FM["H-optimus-0, frozen<br/>(GPU, once per slide)<br/>1,536 numbers per tile"]
+  FM --> BAG["Bag .npz per slide<br/>embeddings, positions, tissue, focus,<br/>encoder version"]
+  BAG --> IDX["index.jsonl<br/>one line per slide"]
+  BAG --> NEXT["Steps 2 to 5<br/>(CPU, read bags only)"]
+
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef data fill:#efedff,stroke:#6a5acd;
+  classDef unsure fill:#f9eeda,stroke:#9a6a12;
+  class FM model;
+  class IN,BAG,IDX data;
+  class DROP unsure;

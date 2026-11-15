@@ -1,4 +1,4 @@
-"""The step-4 agent: H&E bag(s) -> methylation family and class, with a calibrated confidence and a fallback.
+"""The step-5 agent: H&E bag(s) -> methylation family and class, with a calibrated confidence and a fallback.
 
 Decision, per patient (all of a patient's H&E bags are pooled into one bag):
 

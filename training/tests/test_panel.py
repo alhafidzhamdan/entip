@@ -1,4 +1,4 @@
-"""Glioma panel model (step 3) on synthetic patients only."""
+"""Glioma panel model (step 4) on synthetic patients only."""
 import json
 
 import numpy as np
@@ -13,7 +13,7 @@ from entip_train.panel.predict import predict_patient, summarise
 from entip_train.panel.synthetic import synthetic_cohort
 
 SMALL = {"hidden": 32, "attn": 16, "epochs": 12, "max_tiles": 128}
-CONTRACT_CALLS = {  # from dx/contract/README.md (step 5)
+CONTRACT_CALLS = {  # from dx/contract/README.md (step 6)
     "IDH": {"mutant", "wildtype"}, "ATRX": {"retained", "lost"}, "TP53": {"mutant", "wildtype"},
     "1p19q": {"codeleted", "not_codeleted"}, "CDKN2A": {"homozygous_deletion", "retained"},
     "EGFR": {"amplified", "not_amplified"}, "chr7_chr10": {"gain7_loss10", "absent"},
@@ -37,7 +37,7 @@ def held_out():
     return synthetic_cohort(60, seed=1, prefix="TST")
 
 
-def test_markers_match_step5_contract():
+def test_markers_match_step6_contract():
     for f, m in DEFAULT_MARKERS.items():
         assert set(m.calls) == CONTRACT_CALLS[f]
         assert m.order_test in TESTS

@@ -1,4 +1,4 @@
-"""Run the three step-2 detectors on one specimen and build its database actions."""
+"""Run the three step-3 detectors on one specimen and build its database actions."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

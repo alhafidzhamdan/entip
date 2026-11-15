@@ -1,8 +1,8 @@
-# Step 3: glioma panel markers from H&E
+# Step 4: glioma panel markers from H&E
 
 [← workflow](README.md) · code `training/src/entip_train/panel/`, doc `training/PANEL.md` · PR #13 (branch `claude/project-thread-eg24j4`)
 
-![Step 3 workflow](diagrams/3-panel.png)
+![Step 4 workflow](diagrams/4-panel.png)
 
 ## What it does
 

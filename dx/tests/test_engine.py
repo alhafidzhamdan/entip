@@ -266,7 +266,7 @@ def test_report_wording_for_indeterminate_and_methylation():
 
 
 def test_real_step_outputs_run_through_the_engine():
-    """Records produced by the step 1-4 code on their PR branches (synthetic data), as one patient."""
+    """Records produced by the step 2-5 code on their PR branches (synthetic data), as one patient."""
     path = Path(__file__).parent / "fixtures" / "step_outputs.jsonl"
     recs = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     assert {r["step"] for r in recs} == set(contract.STEPS)

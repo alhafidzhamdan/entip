@@ -1,4 +1,4 @@
-"""Step 5: combine finding records into a WHO CNS5 integrated diagnosis draft.
+"""Step 6: combine finding records into a WHO CNS5 integrated diagnosis draft.
 
 ``diagnose(records, priors=None)`` takes finding records (``entip.glioma_step/1``) from the AI steps and from
 real tests, and returns one ``entip.integrated_dx/1`` dict. It never learns anything: the decisions are the

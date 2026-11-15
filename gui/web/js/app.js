@@ -330,7 +330,7 @@
       </div>`));
   }
 
-  // The WHO CNS5 draft from the dx engine (step 5): diagnosis, tests to order, discrepancies, full text.
+  // The WHO CNS5 draft from the dx engine (step 6): diagnosis, tests to order, discrepancies, full text.
   const TEST_LABEL = {
     pathologist_review: "Pathologist review", additional_sampling: "Further tissue / levels",
     IDH1_R132H_IHC: "IDH1 R132H IHC", IDH_sequencing: "IDH1/2 sequencing", ATRX_IHC: "ATRX IHC", p53_IHC: "p53 IHC",

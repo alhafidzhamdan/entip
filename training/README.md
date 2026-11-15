@@ -42,28 +42,24 @@ Positions are micrometres in the frame `scan:<scan_id>`; `actor` is stored as pr
 | GET | `/jobs/{job_id}`, `/heads/{id}`, `/models`, `/actions` | | status, counts, model history, action log |
 | POST | `/scans/synthetic` | `{scan_id, seed}` | registers a synthetic demo slide |
 
-## Step 1 of the AI glioma workflow: tumour and glial triage
+## Step 1 of the AI glioma workflow: pre-training (frozen foundation model)
 
-`entip-train triage` answers two questions per patient: is it tumour, and is the tumour glial? One
-attention-MIL model gives six classes (`normal_brain`, `reactive`, `glioma`, `other_primary_cns`,
-`metastasis`, `lymphoma`); tumour and glial probabilities are sums of those. Each patient either gets a
-confident call or is sent to a pathologist. Anything other than a confident glioma call also goes to a
-pathologist, because steps 2 to 4 only handle gliomas. Research use only.
+`entip-train embed` is where the foundation model is used. Each slide is cut into 112 µm tissue tiles (224 px at
+0.5 µm/px) and every tile is embedded once with a frozen H-optimus-0, giving one bag per slide (`wsi/bags.py`).
+Steps 2 to 5 train and predict from these bags only. Nothing is fine-tuned; each bag records its encoder version
+and the later steps refuse bags from a different encoder. Each run appends one line per slide to
+`index.jsonl` in the output folder. See [step 1](../docs/glioma-workflow/step1-pretraining.md).
 
 ```bash
 pip install -e ".[idc,slides,foundation]"
-entip-train triage demo                                   # synthetic cohort end to end, CPU, seconds
-entip-train triage manifest --prep ffpe paxgene_paraffin --out manifest.csv     # IDC slide list, needs internet
-entip-train triage build-bags --manifest manifest.csv --out bags/ --per-class 5 # trial: 5 slides per source
-entip-train triage build-bags --manifest manifest.csv --out bags/               # everything; stop and rerun freely
-entip-train triage train --manifest manifest.csv --bags bags/ --out models/triage [--db http://localhost:8000]
-entip-train triage predict bags/<scan>.npz [more scans of the same patient] --model models/triage \
-    --study-id SYN-0001 --db http://localhost:8000
+entip-train embed extract slide.svs [more slides] --out bags/                     # slides already on disk
+entip-train embed build-bags --manifest manifest.csv --out bags/ --per-class 5    # trial: 5 slides per source
+entip-train embed build-bags --manifest manifest.csv --out bags/                  # everything; stop and rerun freely
 ```
 
-`build-bags` downloads one slide, embeds it with H-optimus-0 (GPU or Apple MPS), saves `<SeriesInstanceUID>.npz`
+`embed build-bags` downloads one slide, embeds it with H-optimus-0 (GPU or Apple MPS), saves `<SeriesInstanceUID>.npz`
 and deletes the slide, so the 3.3 TB of the FFPE + GTEx manifest never sits on disk. It skips slides already
-done and logs failures to `bags/failed.jsonl`. `extract` does the same for slides already on disk
+done and logs failures to `bags/failed.jsonl`. `embed extract` does the same for slides already on disk
 (Edinburgh research copies).
 
 **Checked on real slides (2026-11-11).** `build-bags` ran end to end on seven public slides from five
@@ -73,7 +69,26 @@ diagnostic slides in the manifest), so `open_slide` falls back to wsidicom; scan
 antialiased resizing to 224 px; and one TCGA-GBM slide is partly out of focus, so every tile now carries a
 focus measure. H-optimus-0 itself has not been run: the cloud sessions cannot reach Hugging Face.
 
-**What it outputs.** Two records per patient in the step 5 contract (`entip.glioma_step/1`, `dx/contract/`):
+`entip-train triage extract` and `triage build-bags` still work as aliases.
+
+## Step 2 of the AI glioma workflow: tumour and glial triage
+
+`entip-train triage` answers two questions per patient: is it tumour, and is the tumour glial? One
+attention-MIL model gives six classes (`normal_brain`, `reactive`, `glioma`, `other_primary_cns`,
+`metastasis`, `lymphoma`); tumour and glial probabilities are sums of those. Each patient either gets a
+confident call or is sent to a pathologist. Anything other than a confident glioma call also goes to a
+pathologist, because steps 3 to 5 only handle gliomas. Research use only.
+
+```bash
+entip-train triage demo                                   # synthetic cohort end to end, CPU, seconds
+entip-train triage manifest --prep ffpe paxgene_paraffin --out manifest.csv     # IDC slide list, needs internet
+# bags/ from step 1 (entip-train embed build-bags)
+entip-train triage train --manifest manifest.csv --bags bags/ --out models/triage [--db http://localhost:8000]
+entip-train triage predict bags/<scan>.npz [more scans of the same patient] --model models/triage \
+    --study-id SYN-0001 --db http://localhost:8000
+```
+
+**What it outputs.** Two records per patient in the step 6 contract (`entip.glioma_step/1`, `dx/contract/`):
 `adequacy` (tissue area rule; 1 mm² is a placeholder to set; focus is reported, not judged) and `tissue_class`
 (call, calibrated confidence, threshold, status, probabilities, a `calibration` block saying how the
 confidence was calibrated and whether the threshold met its error target, p_tumour / p_glial, per-scan results, top
@@ -116,14 +131,14 @@ scanner, are the fix.
 **Memory.** Training keeps a seeded sample of tiles per slide (`--train-tiles`, default 1,024) as float16:
 about 3 MB per slide with H-optimus-0, so 3,475 slides need about 11 GB. Prediction uses every tile.
 
-**Shared pieces for steps 2 to 4** (`wsi/`): `bags.py` (tissue tiles, frozen-encoder bags saved as `.npz`
+**Shared pieces for steps 3 to 5** (`wsi/`): `bags.py` (tissue tiles, frozen-encoder bags saved as `.npz`
 without pickles), `abmil.py` (our own gated attention-MIL in NumPy, after Ilse et al. 2018,
 https://arxiv.org/abs/1802.04712), `calibrate.py` (temperature scaling, ECE, the accept threshold),
 `novelty.py`.
 
-## High-grade features (glioma workflow step 2)
+## High-grade features (glioma workflow step 3)
 
-`entip_train.highgrade`: one detector per feature, each returning an `entip.glioma_step/1` record (the step-5
+`entip_train.highgrade`: one detector per feature, each returning an `entip.glioma_step/1` record (the step-6
 contract in `dx/contract/README.md`) with a call, a calibrated confidence, a status and, when uncertain, a
 pathologist review with the regions or cells to look at first.
 
@@ -148,7 +163,7 @@ pathologist review with the regions or cells to look at first.
   specimen, or 1 in a very small biopsy ([Brat et al. 2020](https://doi.org/10.1007/s00401-020-02127-9)). Here
   `--min-mitoses` (default 2) and `--small-biopsy-mm2` (default off) are settings, not validated values. The same
   paper makes necrosis or microvascular proliferation (or CDKN2A/B homozygous deletion) grade 4 criteria for
-  IDH-mutant astrocytoma; the step-5 engine applies those rules, not this step.
+  IDH-mutant astrocytoma; the step-6 engine applies those rules, not this step.
 - **Which mitosis candidates count.** MitoEd lists every candidate, most of them mimics with a small p. Only
   those MitoEd calls `mitosis` or `uncertain` are counted (or p ≥ 0.2 for tables with no call), so thousands of
   low-p candidates cannot add up to a count. The same mitosis on two levels of one block is counted twice:
@@ -188,10 +203,11 @@ released). Thresholds must be set on held-out pathologist-labelled slides before
 | `retrain.py` | gate, metrics (balanced accuracy, ECE, per scan), champion/challenger round |
 | `service.py`, `api.py`, `cli.py` | orchestration, HTTP API, `entip-train` command |
 | `panel/` | glioma panel markers from H&E, `entip-panel` command (see [PANEL.md](PANEL.md)) |
-| `wsi/` | shared slide bags, attention-MIL, calibration (glioma workflow steps 1 to 4) |
-| `triage/` | step 1: labels, IDC manifest, model, db writer, synthetic cohort, CLI |
-| `methylation/` | glioma step 4: methylation class from H&E (see [methylation.md](methylation.md)) |
-| `highgrade/` | step 2 of the glioma workflow: necrosis, microvascular proliferation, mitotic activity |
+| `embed/` | step 1 of the glioma workflow: slides → frozen H-optimus-0 tile bags, `entip-train embed` |
+| `wsi/` | shared slide bags (written by step 1), attention-MIL, calibration (glioma workflow steps 1 to 5) |
+| `triage/` | step 2: labels, IDC manifest, model, db writer, synthetic cohort, CLI |
+| `methylation/` | glioma step 5: methylation class from H&E (see [methylation.md](methylation.md)) |
+| `highgrade/` | step 3 of the glioma workflow: necrosis, microvascular proliferation, mitotic activity |
 
 ## Open items
 

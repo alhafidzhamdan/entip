@@ -1,4 +1,4 @@
-"""The step 1 triage model: train with cross-fitting, calibrate, gate, and emit contract records.
+"""The step 2 triage model: train with cross-fitting, calibrate, gate, and emit contract records.
 
 Training (``TriageModel.fit``):
 
@@ -65,7 +65,7 @@ class TriageConfig:
     min_patients: int = 5
     max_error: float = 0.05            # accepted calls may be wrong at most this often (upper 95% bound)
     min_accepted: int = 20
-    # Calls that always go to a pathologist even when confident: anything not heading into steps 2-4.
+    # Calls that always go to a pathologist even when confident: anything not heading into steps 3-5.
     review_calls: tuple = ("normal_brain", "reactive", "other_primary_cns", "metastasis", "lymphoma")
     # Adequacy is tissue area only (lesional content is not judged). 1 mm² is a placeholder for Al to set.
     min_area_mm2: float = 1.0

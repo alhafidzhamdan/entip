@@ -1,4 +1,4 @@
-"""Step 2 of the AI glioma workflow: high-grade feature detectors.
+"""Step 3 of the AI glioma workflow: high-grade feature detectors.
 
 One detector per feature, each with its own model, confidence and fallback:
 
