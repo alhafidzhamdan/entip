@@ -14,11 +14,9 @@ export CONDA_PKGS_DIRS="${CONDA_PKGS_DIRS:-$BASE/cache/conda-pkgs}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/cache/xdg}"       # other tools' caches; nothing goes to the small home quota
 export TMPDIR="${ENTIP_TMPDIR:-$BASE/tmp}"                         # pip's build and unpack space
 
-activate_env() {
-  set +u          # module and conda activate/deactivate scripts read unset variables
-  . /etc/profile.d/modules.sh
-  module load anaconda
-  # shellcheck disable=SC1091
-  source activate "$ENV_DIR"
-  set -u
+export PYTHONNOUSERSITE=1                                          # never use packages from ~/.local
+
+activate_env() {   # put the env's python, pip and entip-* commands first; no conda activate needed
+  export PATH="$ENV_DIR/bin:$PATH"
+  command -v entip-train >/dev/null || { echo "entip-train not found in $ENV_DIR; run setup.sh" >&2; exit 1; }
 }
