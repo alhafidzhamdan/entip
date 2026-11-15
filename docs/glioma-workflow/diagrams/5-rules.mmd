@@ -1,0 +1,31 @@
+flowchart TB
+  IN["Records from steps 1–4<br/>+ real tests + pathologist calls"] --> PRE["Pick one value per finding:<br/>test > pathologist > confident AI<br/>uncertain AI = pending, test ordered"]
+  PRE --> A{"Adequate tissue and<br/>glioma?"}
+  A -->|no| PATH["Stop: pathologist review"]
+  A -->|yes| H3{"H3 status"}
+  H3 -->|K27-altered| DMG["Diffuse midline glioma, H3 K27-altered"]
+  H3 -->|G34-mutant| DHG["Diffuse hemispheric glioma, H3 G34-mutant"]
+  H3 -->|wildtype or pending| IDH{"IDH"}
+  IDH -->|mutant| COD{"1p/19q"}
+  COD -->|codeleted| OLI["Oligodendroglioma, grade 2/3<br/>(graded by pathologist)"]
+  COD -->|intact| AST["Astrocytoma, IDH-mutant<br/>grade 4 if necrosis, MVP or CDKN2A/B homdel<br/>else 3 if significant mitoses, else 2"]
+  IDH -->|wildtype| GBM{"Necrosis, MVP, TERT,<br/>EGFR amp or +7/-10?"}
+  GBM -->|any| GB["Glioblastoma, IDH-wildtype, grade 4"]
+  GBM -->|none, H3 wildtype| NEC["NEC, suggest methylation array"]
+  DMG --> OUT
+  DHG --> OUT
+  OLI --> OUT
+  AST --> OUT
+  GB --> OUT
+  NEC --> OUT
+  OUT["Draft layered report (entip.integrated_dx/1)<br/>criteria met / not met / pending, tests to order,<br/>discrepancies, AI-only decisive findings"] --> SIGN["Pathologist signs off in the GUI"]
+  MC["Methylation class disagrees<br/>with markers"] -.->|provisional + order array| OUT
+
+  classDef ok fill:#e5f4e4,stroke:#3c7a3a;
+  classDef unsure fill:#f9eeda,stroke:#9a6a12;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef data fill:#efedff,stroke:#6a5acd;
+  class DMG,DHG,OLI,AST,GB ok;
+  class PATH,NEC,MC unsure;
+  class PRE model;
+  class IN data;

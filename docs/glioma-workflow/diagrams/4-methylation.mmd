@@ -1,0 +1,26 @@
+flowchart TB
+  REF["Reference: GEO GSE90496<br/>(Capper 2018, 82 classes)"] --> RF["Own random forest<br/>+ score calibration"]
+  TB["TCGA 450K / EPIC betas"] --> RF
+  RF --> LAB["Labels per case<br/>(or Edinburgh classifier reports)"]
+  PAIR["methyl pair<br/>DX slides ↔ methylation samples"] --> TR
+  LAB --> TR["methyl train<br/>attention-MIL, site-grouped CV<br/>deployed = ensemble of fold members"]
+  BAG["Bags from step 1"] --> TR
+  NEW["New patient bags<br/>(triage said glioma)"] --> NOV{"Unlike training slides?"}
+  NOV -->|yes| NM["call = no_match<br/>order methylation array"]
+  NOV -->|no| PR["Class probabilities<br/>summed per family"]
+  TR -.-> PR
+  PR --> TH{"Family p ≥ threshold?"}
+  TH -->|yes| CF["call = family, confident<br/>subclass only if it passes its own threshold"]
+  TH -->|no| UN["uncertain<br/>order methylation array"]
+  CF --> OUT["Record + methylation_class_ai finding<br/>+ attention regions → glioma_step event"]
+  UN --> OUT
+  NM --> OUT
+
+  classDef ok fill:#e5f4e4,stroke:#3c7a3a;
+  classDef unsure fill:#f9eeda,stroke:#9a6a12;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef data fill:#efedff,stroke:#6a5acd;
+  class CF ok;
+  class UN,NM unsure;
+  class RF,TR,PR model;
+  class REF,TB,PAIR,BAG,NEW,LAB data;

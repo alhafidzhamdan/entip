@@ -4,7 +4,7 @@ Al's rule: every component must be openly licensed so it can be deployed in the 
 
 | Component | Use | Licence | Status |
 |---|---|---|---|
-| this package | code | MIT | open |
+| this package | code | PolyForm Noncommercial 1.0.0 (see ../LICENSE.md) | ours; non-commercial use, commercial use needs permission |
 | NumPy | arrays | BSD-3-Clause | open |
 | scikit-learn | live heads (logistic regression, histogram gradient boosting), CV | BSD-3-Clause | open |
 | joblib | saving heads | BSD-3-Clause | open |
