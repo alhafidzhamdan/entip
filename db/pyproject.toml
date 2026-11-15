@@ -11,7 +11,8 @@ license = "LicenseRef-PolyForm-Noncommercial-1.0.0"  # see ../LICENSE.md
 requires-python = ">=3.10"
 dependencies = [
   "psycopg[binary]>=3.1",  # LGPL-3.0 (used as an unmodified library); see LICENCES.md
-  "fastapi>=0.110",        # MIT
+  "fastapi>=0.110,<0.120", # MIT
+  "starlette<1",           # BSD-3-Clause (starlette 1.x test client needs httpx2)
   "pydantic>=2",           # MIT
   "uvicorn>=0.27",         # BSD-3-Clause
 ]
