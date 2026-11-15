@@ -12,8 +12,10 @@ export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$BASE/cache/pip}"
 export CONDA_PKGS_DIRS="${CONDA_PKGS_DIRS:-$BASE/cache/conda-pkgs}"
 
 activate_env() {
+  set +u          # module and conda activate/deactivate scripts read unset variables
   . /etc/profile.d/modules.sh
   module load anaconda
   # shellcheck disable=SC1091
   source activate "$ENV_DIR"
+  set -u
 }
