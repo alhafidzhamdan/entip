@@ -3,7 +3,8 @@
 #$ -N triage_test_stage
 #$ -q staging
 #$ -l h_rt=02:00:00
-#$ -l h_rss=16G                   # staging queue maximum per slot; the IDC query needs ~4 GB on one thread
+# Memory: 16 GB is the staging queue maximum per slot; the IDC query needs about 4 GB on one thread.
+#$ -l h_rss=16G
 #$ -j y
 set -euo pipefail
 . "$TRIAL/eddie/config.sh"
