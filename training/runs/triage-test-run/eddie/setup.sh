@@ -22,6 +22,7 @@ EOF
 [ -x "$ENV_DIR/bin/python" ] || conda create -y -p "$ENV_DIR" -c conda-forge --override-channels python=3.11
 set -u
 export PYTHONNOUSERSITE=1   # never fall back to ~/.local (home quota)
+unset PYTHONPATH PYTHONHOME  # in case the anaconda module set them
 PY="$ENV_DIR/bin/python"     # the env's own python and pip, whatever conda has activated
 "$PY" -m pip install -e "$REPO/platform/live-training" -e "$REPO/training/glioma[idc,slides,foundation]"
 "$PY" -c "import entip_glioma, idc_index, openslide, torch, timm; print('env ok, torch', torch.__version__)"
