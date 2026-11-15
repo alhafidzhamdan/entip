@@ -16,16 +16,16 @@ manifest → TCGA IDH status → pick the slides in a run plan → step 1 (pre-t
 | `gbm_idh_wildtype` | glioma | TCGA-GBM, IDH-wildtype only | 50 |
 | `lgg_idh_mutant` | glioma | TCGA-LGG, IDH-mutant only | 50 |
 | `other_primary_cns` | other primary CNS | CCDI-MCI | 50 |
-| `metastasis_brain` | metastasis | CCDI-MCI, HCMI (all the real brain cases there are: 3 FFPE) | up to 10 |
-| `metastasis_proxy` | metastasis | TCGA lung (LUAD, LUSC), breast, melanoma, kidney, colon, rectum primaries | 47 |
+| `non_cns_metastasis` | non-CNS / metastasis | the real brain metastases in IDC (CCDI-MCI, 3 FFPE), then TCGA lung (LUAD, LUSC), breast, melanoma, kidney, colon and rectum primaries | 50 |
 | `normal_brain` | normal brain | GTEx cerebral cortex (PAXgene) | 50 |
 
 - **IDH status** comes from cBioPortal's TCGA pan-glioma study (`lgggbm_tcga_pub`, Ceccarelli et al. 2016,
   `IDH_STATUS`), downloaded by `fetch_idh.py`. Patients with no recorded status are left out, never guessed.
   On 2026-11-15 this left out 55 IDH-mutant TCGA-GBM and 102 IDH-wildtype TCGA-LGG patients.
-- **Metastasis is mostly a proxy.** IDC has only 3 FFPE brain metastases, so TCGA primaries of the commonest
-  origins of brain metastasis stand in (manifest option `--proxy-metastasis`; their group ends in `|proxy`). They
-  are not brain tissue: the model may learn "not brain" rather than "metastasis". Edinburgh metastases replace them.
+- **Non-CNS / metastasis is one category** (class key `metastasis` in the output contract): the few real brain
+  metastases in IDC plus TCGA primaries of the commonest origins of brain metastasis (manifest option
+  `--non-cns`). Most of it is not brain tissue, so the model may learn "not brain" for this class; Edinburgh
+  metastases will sharpen it.
 - **Inadequate** is not a class: adequacy stays the separate tissue-area rule. Slides with no tissue tiles are
   skipped from training and listed in the report (`slides_empty_bags`).
 - **Slides** are chosen at random (seeded) between 100 MB and 2 GB, one per patient; groups with several

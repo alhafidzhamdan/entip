@@ -42,10 +42,9 @@ from .labels import map_idc
 
 OPEN_LICENCES = ("CC BY 4.0", "CC BY 3.0")
 
-# Stand-ins for brain metastases (IDC holds only about ten real ones): TCGA primary tumours of the commonest
-# origins of brain metastasis. Labelled "metastasis" only with ``proxy_metastasis``, and their group ends in
-# "|proxy" so reports can tell them apart. They are not brain tissue; Edinburgh metastases replace them.
-PROXY_METASTASIS_COLLECTIONS = ("tcga_luad", "tcga_lusc", "tcga_brca", "tcga_skcm", "tcga_kirc", "tcga_coad",
+# Non-CNS tumours, put in one category with metastasis: TCGA primaries of the commonest origins of brain
+# metastasis. Labelled "metastasis" only with ``non_cns``. IDC holds only a few real brain metastases.
+NON_CNS_COLLECTIONS = ("tcga_luad", "tcga_lusc", "tcga_brca", "tcga_skcm", "tcga_kirc", "tcga_coad",
                                 "tcga_read")
 
 IDC_SQL = """
@@ -79,9 +78,9 @@ def prep_of(fixative, embedding) -> str:
 
 
 def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None,
-               proxy_metastasis: bool = False) -> tuple[List[dict], Counter]:
+               non_cns: bool = False) -> tuple[List[dict], Counter]:
     """Keep open-licence rows that map to a triage class; ``preps`` limits preparation (e.g. ("ffpe",)).
-    ``proxy_metastasis`` also keeps the TCGA primaries in ``PROXY_METASTASIS_COLLECTIONS`` as "metastasis"."""
+    ``non_cns`` also keeps the TCGA primaries in ``NON_CNS_COLLECTIONS``, in the non-CNS / metastasis class."""
     kept, dropped = [], Counter()
     for r in rows:
         if r.get("license_short_name") not in OPEN_LICENCES:
@@ -92,15 +91,14 @@ def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None,
             dropped["prep"] += 1
             continue
         lab = map_idc(r.get("collection_id"), r.get("site"), r.get("dx"))
-        proxy = lab is None and proxy_metastasis and r.get("collection_id") in PROXY_METASTASIS_COLLECTIONS
-        if proxy:
+        if lab is None and non_cns and r.get("collection_id") in NON_CNS_COLLECTIONS:
             lab = "metastasis"
         if lab is None:
             dropped["unmapped"] += 1
             continue
         out = {k: r.get(k) for k in FIELDS}
         out["label"], out["prep"] = lab, prep
-        out["group"] = f"{r.get('collection_id')}|{r.get('Manufacturer') or 'unknown'}|{prep}" + ("|proxy" if proxy else "")
+        out["group"] = f"{r.get('collection_id')}|{r.get('Manufacturer') or 'unknown'}|{prep}"
         kept.append(out)
     return kept, dropped
 

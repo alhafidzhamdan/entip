@@ -11,7 +11,7 @@ from pathlib import Path
 def _manifest(a) -> int:
     from .manifest import from_idc, label_rows, write_manifest
     rows, dropped = label_rows(from_idc(), preps=tuple(a.prep) if a.prep else None,
-                               proxy_metastasis=a.proxy_metastasis)
+                               non_cns=a.non_cns)
     write_manifest(rows, a.out)
     print(json.dumps({"out": a.out, "kept": len(rows), "dropped": dropped,
                       "slides_per_class": Counter(r["label"] for r in rows),
@@ -102,8 +102,8 @@ def add_parser(sub) -> None:
     p = ts.add_parser("manifest", help="labelled slide list from IDC (needs internet and idc-index)")
     p.add_argument("--out", default="triage_manifest.csv")
     p.add_argument("--prep", nargs="*", default=None, help="keep only these: ffpe frozen paxgene_paraffin unknown")
-    p.add_argument("--proxy-metastasis", action="store_true",
-                   help="label TCGA lung, breast, melanoma, kidney and colorectal primaries as metastasis (proxy)")
+    p.add_argument("--non-cns", action="store_true",
+                   help="add TCGA lung, breast, melanoma, kidney and colorectal primaries to the non-CNS / metastasis class")
     p.set_defaults(fn=_manifest)
     from ..embed.cli import add_commands
     add_commands(ts, " (alias of `entip-train embed`, step 1)")
