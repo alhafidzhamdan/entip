@@ -132,6 +132,7 @@ https://arxiv.org/abs/1802.04712), `calibrate.py` (temperature scaling, ECE, the
 | `heads.py` | marks → labels, background negatives, live head, review queue |
 | `retrain.py` | gate, metrics (balanced accuracy, ECE, per scan), champion/challenger round |
 | `service.py`, `api.py`, `cli.py` | orchestration, HTTP API, `entip-train` command |
+| `panel/` | glioma panel markers from H&E, `entip-panel` command (see [PANEL.md](PANEL.md)) |
 | `wsi/` | shared slide bags, attention-MIL, calibration (glioma workflow steps 1 to 4) |
 | `triage/` | step 1: labels, IDC manifest, model, db writer, synthetic cohort, CLI |
 
