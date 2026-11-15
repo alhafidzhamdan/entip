@@ -8,9 +8,12 @@ mkdir -p "$WORK/logs"
 pass="BASE=$BASE,REPO=$REPO,WORK=$WORK,ENV_DIR=$ENV_DIR,ENCODER=$ENCODER,TRIAL=$TRIAL,HF_HOME=$HF_HOME"
 q() { qsub -terse -v "$pass" -o "$WORK/logs" "$@"; }
 
-s=$(q "$HERE/1_stage.sh")
+# All or nothing: the stage job is held until the other two are accepted, so a rejected request leaves no orphans.
+s=$(q -h "$HERE/1_stage.sh")
+cleanup() { qdel "$@" >/dev/null 2>&1 || true; echo "submission failed; nothing left queued" >&2; exit 1; }
 # shellcheck disable=SC2086
-e=$(q -hold_jid "$s" $GPU_REQUEST "$HERE/2_embed.sh")
-t=$(q -hold_jid "$e" "$HERE/3_train.sh")
+e=$(q -hold_jid "$s" $GPU_REQUEST "$HERE/2_embed.sh") || cleanup "$s"
+t=$(q -hold_jid "$e" "$HERE/3_train.sh") || cleanup "$s" "$e"
+qrls "$s" >/dev/null
 echo "submitted: stage $s -> embed $e ($GPU_REQUEST) -> train $t"
 echo "watch: qstat;  logs: $WORK/logs;  results: $WORK/report-$ENCODER.json"
