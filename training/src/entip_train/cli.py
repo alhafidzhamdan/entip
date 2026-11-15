@@ -1,5 +1,5 @@
 """Command line: ``entip-train demo`` (milestone check on a synthetic slide), ``entip-train serve`` and
-``entip-train triage ...`` (step 1 of the AI glioma workflow)."""
+``entip-train triage ...`` / ``entip-train methyl ...`` (steps 1 and 4 of the AI glioma workflow)."""
 from __future__ import annotations
 
 import argparse
@@ -75,6 +75,8 @@ def main(argv=None) -> int:
     s.set_defaults(fn=serve)
     from .triage.cli import add_parser as add_triage
     add_triage(sub)
+    from .methylation.cli import add_parser as add_methyl
+    add_methyl(sub)
     args = ap.parse_args(argv)
     return args.fn(args)
 

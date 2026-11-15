@@ -135,6 +135,7 @@ https://arxiv.org/abs/1802.04712), `calibrate.py` (temperature scaling, ECE, the
 | `panel/` | glioma panel markers from H&E, `entip-panel` command (see [PANEL.md](PANEL.md)) |
 | `wsi/` | shared slide bags, attention-MIL, calibration (glioma workflow steps 1 to 4) |
 | `triage/` | step 1: labels, IDC manifest, model, db writer, synthetic cohort, CLI |
+| `methylation/` | glioma step 4: methylation class from H&E (see [methylation.md](methylation.md)) |
 
 ## Open items
 
