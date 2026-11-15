@@ -95,9 +95,19 @@ def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None) -> tuple[Lis
 
 
 def from_idc() -> List[dict]:   # pragma: no cover - needs network and idc-index
+    import os
     from idc_index import IDCClient
     c = IDCClient()
     c.fetch_index("sm_index")
+    # On a cluster duckdb would start one thread per core of the node, not of the job, and run out of memory.
+    # Use the job's slots (Grid Engine NSLOTS, Slurm SLURM_CPUS_PER_TASK) or ENTIP_DUCKDB_THREADS.
+    threads = os.environ.get("ENTIP_DUCKDB_THREADS") or os.environ.get("NSLOTS") or os.environ.get("SLURM_CPUS_PER_TASK")
+    try:
+        if threads:
+            c._duckdb_conn.execute(f"SET threads TO {int(threads)}")
+        c._duckdb_conn.execute("SET preserve_insertion_order = false")
+    except Exception:                                # private attribute of idc-index; skip if it changes
+        pass
     return c.sql_query(IDC_SQL).to_dict("records")
 
 

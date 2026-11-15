@@ -3,11 +3,12 @@
 #$ -N triage_test_stage
 #$ -q staging
 #$ -l h_rt=02:00:00
-#$ -l h_vmem=8G
+#$ -l h_vmem=32G
 #$ -j y
 set -euo pipefail
 . "$TRIAL/eddie/config.sh"
 activate_env
+export ENTIP_DUCKDB_THREADS=1        # one slot here; more duckdb threads need more memory
 mkdir -p "$WORK"
 cd "$WORK"
 
