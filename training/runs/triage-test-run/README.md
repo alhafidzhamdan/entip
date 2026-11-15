@@ -40,6 +40,8 @@ no GPU weights. Defaults:
 - `ENV_DIR`: `$BASE/envs/entip`, the conda env
 - `HF_HOME`: `$BASE/hf`, the H-optimus-0 weights, downloaded once and reused by later runs
 - conda cache and other tools' caches: `$BASE/cache/` (pip cache off); pip temp files: `$BASE/tmp`
+- `HOME`: `$BASE/home`. Every Eddie script moves `HOME` here, so no tool can write to the real home folder
+  (its quota is small). A Hugging Face login made from your normal shell is still picked up.
 - `ENCODER`: `h-optimus-0`
 
 Check on first use: the GPU request (`-q gpu`, `-pe gpu-a100 1`) and the `anaconda` module name follow Eddie's
