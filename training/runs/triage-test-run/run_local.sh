@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Test training run of the AI glioma workflow on 10 public IDC slides: manifest -> pick 10 -> step 1 embed -> step 2 triage.
 # Needs internet and: pip install -e platform/live-training -e "training/glioma[idc,slides]"  (add [foundation] for H-optimus-0)
-# Usage (from anywhere):  training/runs/triage-trial-10/run_local.sh            # handcrafted test encoder, CPU
-#                         ENCODER=h-optimus-0 training/runs/triage-trial-10/run_local.sh
+# Usage (from anywhere):  training/runs/triage-test-run/run_local.sh            # handcrafted test encoder, CPU
+#                         ENCODER=h-optimus-0 training/runs/triage-test-run/run_local.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT="$HERE/out"

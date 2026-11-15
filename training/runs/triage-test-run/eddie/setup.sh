@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run once on an Eddie login node (it has internet): makes the conda env and installs the packages.
-#   bash training/runs/triage-trial-10/eddie/setup.sh
+#   bash training/runs/triage-test-run/eddie/setup.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"

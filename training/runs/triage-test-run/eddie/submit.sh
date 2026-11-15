@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Submit the three jobs on Eddie, each waiting for the one before:  bash training/runs/triage-trial-10/eddie/submit.sh
+# Submit the three jobs on Eddie, each waiting for the one before:  bash training/runs/triage-test-run/eddie/submit.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"

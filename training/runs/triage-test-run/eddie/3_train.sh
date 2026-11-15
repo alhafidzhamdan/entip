@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Job 3 of 3, CPU: step 2 (triage) - cross-validated attention-MIL, calibration and the accept threshold.
 # With 10 patients the gate accepts nothing (it needs >= 20 accepted patients): this checks the pipeline, not the model.
-#$ -N triage10_train
+#$ -N triage_test_train
 #$ -pe sharedmem 4
 #$ -l h_rt=02:00:00
 #$ -l h_vmem=8G

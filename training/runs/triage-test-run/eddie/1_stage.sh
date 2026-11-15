@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Job 1 of 3, staging queue (has internet): IDC manifest -> pick 10 slides -> download them -> fetch H-optimus-0.
-#$ -N triage10_stage
+#$ -N triage_test_stage
 #$ -q staging
 #$ -l h_rt=02:00:00
 #$ -l h_vmem=8G

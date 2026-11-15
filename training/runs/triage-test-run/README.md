@@ -1,4 +1,4 @@
-# Test training run: 10 slides, steps 1 and 2
+# Triage test run: 10 slides
 
 A small end-to-end run of the AI glioma workflow on public slides from the Imaging Data Commons (IDC):
 manifest → pick 10 slides → step 1 (pre-training: frozen tile bags) → step 2 (triage training). It checks that the
@@ -24,8 +24,8 @@ the first job.
 
 ```bash
 git clone <this repository> ~/entip && cd ~/entip
-bash training/runs/triage-trial-10/eddie/setup.sh       # once, on a login node: conda env in scratch
-bash training/runs/triage-trial-10/eddie/submit.sh      # submits the three jobs
+bash training/runs/triage-test-run/eddie/setup.sh       # once, on a login node: conda env in scratch
+bash training/runs/triage-test-run/eddie/submit.sh      # submits the three jobs
 qstat                                                   # watch them
 ```
 
@@ -34,7 +34,7 @@ Settings are in `eddie/config.sh`, and each can be overridden from the environme
 no GPU weights. Defaults:
 
 - `REPO`: `~/entip`
-- `WORK`: `/exports/eddie/scratch/$USER/entip-triage-trial-10` (slides, bags, model, report, `logs/`). Scratch is
+- `WORK`: `/exports/eddie/scratch/$USER/entip-triage-test-run` (slides, bags, model, report, `logs/`). Scratch is
   cleared after a month, so copy out anything you want to keep.
 - `ENV_DIR`: `/exports/eddie/scratch/$USER/envs/entip`, because the home quota is too small for PyTorch.
 - `ENCODER`: `h-optimus-0`
@@ -50,8 +50,8 @@ per slide). It defaults to the `handcrafted` CPU test encoder, which needs no GP
 
 ```bash
 pip install -e platform/live-training -e "training/glioma[idc,slides]"
-training/runs/triage-trial-10/run_local.sh                       # handcrafted encoder
-ENCODER=h-optimus-0 training/runs/triage-trial-10/run_local.sh   # needs [foundation] and a GPU or Apple MPS
+training/runs/triage-test-run/run_local.sh                       # handcrafted encoder
+ENCODER=h-optimus-0 training/runs/triage-test-run/run_local.sh   # needs [foundation] and a GPU or Apple MPS
 ```
 
 Outputs go to `out/` here, which git ignores.
