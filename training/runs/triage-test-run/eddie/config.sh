@@ -36,6 +36,7 @@ export CUDA_CACHE_PATH="$BASE/cache/nv"
 export MPLCONFIGDIR="$BASE/cache/matplotlib"
 export TMPDIR="${ENTIP_TMPDIR:-$BASE/tmp}"                   # pip's build space, joblib, tempfile
 export PYTHONNOUSERSITE=1                                    # never read or install packages in ~/.local
+unset PYTHONPATH PYTHONHOME                                  # only the env's own packages, never a shared Anaconda's
 
 mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CONFIG_HOME" "$CONDA_PKGS_DIRS" \
   "$PIP_CACHE_DIR" "$TORCH_HOME" "$TRITON_CACHE_DIR" "$CUDA_CACHE_PATH" "$MPLCONFIGDIR" "$TMPDIR" "$HF_HOME"
