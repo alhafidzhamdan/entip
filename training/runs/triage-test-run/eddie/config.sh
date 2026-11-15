@@ -12,6 +12,7 @@ export PIP_NO_CACHE_DIR="${PIP_NO_CACHE_DIR:-1}"                # no second copy
 export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$BASE/cache/pip}"
 export CONDA_PKGS_DIRS="${CONDA_PKGS_DIRS:-$BASE/cache/conda-pkgs}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/cache/xdg}"       # other tools' caches; nothing goes to the small home quota
+export TMPDIR="${ENTIP_TMPDIR:-$BASE/tmp}"                         # pip's build and unpack space
 
 activate_env() {
   set +u          # module and conda activate/deactivate scripts read unset variables

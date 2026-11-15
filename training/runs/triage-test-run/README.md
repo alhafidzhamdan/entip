@@ -39,7 +39,7 @@ no GPU weights. Defaults:
 - `WORK`: `$BASE/runs/triage-test-run` (slides, bags, model, report, `logs/`)
 - `ENV_DIR`: `$BASE/envs/entip`, the conda env
 - `HF_HOME`: `$BASE/hf`, the H-optimus-0 weights, downloaded once and reused by later runs
-- conda and pip caches: `$BASE/cache/`
+- conda cache and other tools' caches: `$BASE/cache/` (pip cache off); pip temp files: `$BASE/tmp`
 - `ENCODER`: `h-optimus-0`
 
 Check on first use: the GPU request (`-q gpu`, `-pe gpu-a100 1`) and the `anaconda` module name follow Eddie's
