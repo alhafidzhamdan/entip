@@ -8,8 +8,10 @@ ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a
 TRIAL="$REPO/training/runs/triage-test-run"
 
 export HF_HOME="${HF_HOME:-$BASE/hf}"                        # H-optimus-0 weights, fetched once by the staging job
+export PIP_NO_CACHE_DIR="${PIP_NO_CACHE_DIR:-1}"                # no second copy of torch and CUDA wheels
 export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$BASE/cache/pip}"
 export CONDA_PKGS_DIRS="${CONDA_PKGS_DIRS:-$BASE/cache/conda-pkgs}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$BASE/cache/xdg}"       # other tools' caches; nothing goes to the small home quota
 
 activate_env() {
   set +u          # module and conda activate/deactivate scripts read unset variables

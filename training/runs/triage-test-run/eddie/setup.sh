@@ -9,7 +9,7 @@ REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"
 set +u          # module and conda activate/deactivate scripts read unset variables
 . /etc/profile.d/modules.sh
 module load anaconda
-mkdir -p "$(dirname "$ENV_DIR")" "$PIP_CACHE_DIR" "$CONDA_PKGS_DIRS" "$HF_HOME"
+mkdir -p "$(dirname "$ENV_DIR")" "$PIP_CACHE_DIR" "$CONDA_PKGS_DIRS" "$HF_HOME" "$XDG_CACHE_HOME"
 [ -d "$ENV_DIR" ] || conda create -y -p "$ENV_DIR" python=3.11
 source activate "$ENV_DIR"
 set -u
