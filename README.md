@@ -10,4 +10,16 @@
 4. **Clinician GUI** (`gui/`): viewer and review for clinicians.
 5. **Central database** (`db/`): one row per patient, linked to slides, assays and model outputs.
 
+## AI glioma workflow
+
+Six steps from H&E slides to a draft WHO CNS5 integrated diagnosis for a pathologist to sign off
+([docs](docs/glioma-workflow/README.md)).
+
+1. **Pre-training** (`training/.../embed/`): frozen H-optimus-0 tile embeddings, once per slide.
+2. **Triage** (`training/.../triage/`): tumour? glial? enough tissue?
+3. **High-grade features** (`training/.../highgrade/`): necrosis, microvascular proliferation, mitoses.
+4. **Panel markers** (`training/.../panel/`): IDH, 1p/19q, ATRX, TP53, CDKN2A/B, EGFR and more.
+5. **Methylation class** (`training/.../methylation/`): CNS methylation class from H&E.
+6. **Integrated diagnosis** (`dx/`): WHO CNS5 rules engine and draft report.
+
 <sub>Research use only.</sub>
