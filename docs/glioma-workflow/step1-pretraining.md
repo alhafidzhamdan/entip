@@ -1,6 +1,6 @@
 # Step 1: pre-training (frozen foundation model → tile bags)
 
-[← workflow](README.md) · code `training/src/entip_train/embed/` and `wsi/bags.py` · command `entip-train embed`
+[← workflow](README.md) · code `training/glioma/src/entip_glioma/embed/` and `wsi/bags.py` · command `entip-train embed`
 
 ![Step 1 workflow](diagrams/1-pretraining.png)
 
@@ -35,7 +35,7 @@ different one.
 4. Embed each kept tile with the frozen H-optimus-0 and save the bag.
 
 ```bash
-pip install -e "training[slides,foundation]"     # add [idc] for build-bags
+pip install -e platform/live-training -e "training/glioma[slides,foundation]"   # add [idc] for build-bags
 entip-train embed extract slide.svs --out bags/                                  # slides already on disk
 entip-train embed build-bags --manifest manifest.csv --out bags/ --per-class 5   # IDC trial: 5 slides per source
 entip-train embed build-bags --manifest manifest.csv --out bags/                 # everything; stop and rerun freely

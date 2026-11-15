@@ -1,6 +1,6 @@
 # Step 2: triage (tumour? glial? enough tissue?)
 
-[← workflow](README.md) · code `training/src/entip_train/triage/` and `wsi/` · PR #14 (branch `claude/project-thread-6u7wis`)
+[← workflow](README.md) · code `training/glioma/src/entip_glioma/triage/` and `wsi/` · PR #14 (branch `claude/project-thread-6u7wis`)
 
 ![Step 2 workflow](diagrams/2-triage.png)
 

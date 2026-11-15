@@ -1,6 +1,6 @@
 # Step 6: WHO CNS5 integrated diagnosis
 
-[← workflow](README.md) · code `dx/` (`entip-dx`), contract `dx/contract/` · PR #11 (branch `claude/project-thread-o3tsg0`)
+[← workflow](README.md) · code `training/dx/` (`entip-dx`), contract `training/dx/contract/` · PR #11 (branch `claude/project-thread-o3tsg0`)
 
 ![Step 6 workflow](diagrams/6-rules.png)
 

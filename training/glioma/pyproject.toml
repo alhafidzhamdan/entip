@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "entip-glioma"
+version = "0.1.0"
+description = "ENTIP AI glioma workflow, steps 1 to 5: frozen foundation-model tile bags, triage, high-grade features, panel markers, methylation class. Research use only."
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"  # see ../../LICENSE.md
+requires-python = ">=3.10"
+dependencies = [
+  "entip-train",        # platform/live-training: slide readers, encoders, ontology (this repository)
+  "numpy>=1.24",        # BSD-3-Clause
+  "scikit-learn>=1.3",  # BSD-3-Clause
+  "joblib>=1.3",        # BSD-3-Clause
+  "scipy>=1.10",        # BSD-3-Clause (exact binomial bound for the accept threshold)
+]
+
+[project.optional-dependencies]
+foundation = ["entip-train[foundation]"]           # H-optimus-0 (Apache-2.0)
+slides = ["entip-train[slides]"]                   # OpenSlide (LGPL-2.1), wsidicom, Pillow
+idc = ["idc-index>=0.13"]                          # MIT (triage manifest from the Imaging Data Commons)
+dx = ["entip-dx"]                                  # training/dx: validate records against the step 6 contract
+dev = ["pytest>=7"]                                # MIT
+
+[project.scripts]
+entip-glioma = "entip_glioma.cli:main"
+entip-panel = "entip_glioma.panel.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

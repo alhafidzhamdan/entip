@@ -1,6 +1,6 @@
 # Step 4: glioma panel markers from H&E
 
-[← workflow](README.md) · code `training/src/entip_train/panel/`, doc `training/PANEL.md` · PR #13 (branch `claude/project-thread-eg24j4`)
+[← workflow](README.md) · code `training/glioma/src/entip_glioma/panel/`, doc `training/glioma/PANEL.md` · PR #13 (branch `claude/project-thread-eg24j4`)
 
 ![Step 4 workflow](diagrams/4-panel.png)
 
@@ -8,7 +8,7 @@
 
 One attention-MIL model per marker, on all of a patient's slides pooled: `IDH`, `ATRX`, `TP53`, `1p19q`,
 `CDKN2A`, `EGFR`, `chr7_chr10`, `TERT`, `H3K27`, `H3G34`, `MGMT`. Which markers run is set in
-`training/configs/glioma_panel.json`, since Edinburgh's panel list is not confirmed. A call is used only if it
+`training/glioma/configs/glioma_panel.json`, since Edinburgh's panel list is not confirmed. A call is used only if it
 passes every gate; otherwise the record orders the real test.
 
 ## Gates

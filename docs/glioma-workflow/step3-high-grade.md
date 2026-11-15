@@ -1,6 +1,6 @@
 # Step 3: high-grade features (necrosis, microvascular proliferation, mitoses)
 
-[← workflow](README.md) · code `training/src/entip_train/highgrade/` · PR #12 (branch `claude/project-thread-x3eukx`)
+[← workflow](README.md) · code `training/glioma/src/entip_glioma/highgrade/` · PR #12 (branch `claude/project-thread-x3eukx`)
 
 ![Step 3 workflow](diagrams/3-highgrade.png)
 
