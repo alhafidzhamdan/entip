@@ -2,7 +2,7 @@
 # Job 3 of 3, CPU: step 2 (triage) - cross-validated attention-MIL, calibration and the accept threshold.
 # Training options (e.g. --no-loso) come from the run plan.
 #$ -N triage_train
-#$ -l h_rt=12:00:00
+#$ -l h_rt=48:00:00
 # Cores and memory come from TRAIN_REQUEST in config.sh, passed by submit.sh / retrain.sh.
 #$ -j y
 set -euo pipefail

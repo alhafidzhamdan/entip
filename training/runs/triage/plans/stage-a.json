@@ -1,0 +1,15 @@
+{
+  "description": "Stage A: the full public triage set. Every glioma with a confirmed IDH status (TCGA-GBM, TCGA-LGG, CPTAC-GBM; IDH from cBioPortal), all their slides; all other primary CNS (CCDI-MCI) and normal brain (GTEx) slides; non-CNS / metastasis capped at 600 patients, one slide each, spread across TCGA and CPTAC primaries of the commonest origins of brain metastasis. FFPE, PAXgene for GTEx, and CPTAC (fixative not recorded). Slides of at least 100 MB.",
+  "manifest_args": ["--prep", "ffpe", "paxgene_paraffin", "unknown", "--non-cns"],
+  "pick": {"order": "random", "seed": 0, "min_mb": 100},
+  "groups": [
+    {"name": "glioma_idh_wildtype", "label": "glioma", "collections": ["tcga_gbm", "tcga_lgg", "cptac_gbm"], "idh": "wildtype", "n": null, "all_slides": true},
+    {"name": "glioma_idh_mutant", "label": "glioma", "collections": ["tcga_gbm", "tcga_lgg", "cptac_gbm"], "idh": "mutant", "n": null, "all_slides": true},
+    {"name": "other_primary_cns", "label": "other_primary_cns", "collections": ["ccdi_mci"], "n": null, "all_slides": true},
+    {"name": "normal_brain", "label": "normal_brain", "collections": ["gtex"], "n": null, "all_slides": true},
+    {"name": "non_cns_metastasis", "label": "metastasis",
+     "collections": ["tcga_luad", "tcga_lusc", "tcga_brca", "tcga_skcm", "tcga_kirc", "tcga_coad", "tcga_read",
+                     "cptac_luad", "cptac_lscc", "cptac_brca", "cptac_cm", "cptac_ccrcc", "cptac_coad"], "n": 600}
+  ],
+  "train_args": []
+}

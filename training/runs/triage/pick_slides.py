@@ -2,8 +2,9 @@
 
     python pick_slides.py manifest.csv trial.csv --plan plans/diverse.json --idh idh.tsv
 
-A plan lists groups; each group takes up to ``n`` patients (one slide each) of one class from the given IDC
-collections, optionally only patients with a given IDH status. With several collections in a group the
+A plan lists groups; each group takes up to ``n`` patients (``null``: all of them) of one class from the given
+IDC collections, one slide each or, with ``"all_slides": true``, every eligible slide of each patient, optionally
+only patients with a given IDH status. With several collections in a group the
 patients are spread evenly across them. Slides must be between ``min_mb`` and ``max_mb``: the very smallest
 IDC slides are small because they hold almost no stained tissue (an 18 MB TCGA-GBM slide was a faint, nearly
 unstained smear and gave no tissue tiles), and a cap keeps the download in hand. ``order`` is ``random``
@@ -67,19 +68,33 @@ def pick(rows: list, plan: dict, idh: dict | None = None) -> tuple[list, list]:
         queues = [by_col[c] for c in sorted(by_col)]
         if order == "smallest" and len(queues) > 1:      # one size-sorted queue across collections
             queues = [sorted((r for q in queues for r in q), key=lambda r: float(r.get("series_size_MB") or 0))]
-        taken = []
-        while len(taken) < g["n"] and any(queues):        # round-robin across collections, one slide per patient
-            for q in queues:
-                while q and q[0]["PatientID"] in used:
-                    q.pop(0)
-                if q and len(taken) < g["n"]:
-                    r = q.pop(0)
-                    used.add(r["PatientID"])
-                    taken.append(r)
+        # each queue becomes a list of patients, in the order their first slide comes up
+        slides_of = defaultdict(list)
+        pqueues = []
+        for q in queues:
+            seen, pq = set(), []
+            for r in q:
+                slides_of[r["PatientID"]].append(r)
+                if r["PatientID"] not in seen:
+                    seen.add(r["PatientID"])
+                    pq.append(r["PatientID"])
+            pqueues.append(pq)
+        want = g.get("n")                                 # null: every eligible patient
+        all_slides = bool(g.get("all_slides"))            # every eligible slide of a chosen patient, not just one
+        taken, n_pat = [], 0
+        while (want is None or n_pat < want) and any(pqueues):    # round-robin across collections
+            for pq in pqueues:
+                while pq and pq[0] in used:
+                    pq.pop(0)
+                if pq and (want is None or n_pat < want):
+                    pid = pq.pop(0)
+                    used.add(pid)
+                    n_pat += 1
+                    taken += slides_of[pid] if all_slides else slides_of[pid][:1]
         chosen += taken
-        notes.append({"group": g.get("name", g["label"]), "label": g["label"], "wanted": g["n"],
-                      "taken": len(taken), "by_collection": dict(Counter(r["collection_id"] for r in taken)),
-                      "skipped": dict(dropped)})
+        notes.append({"group": g.get("name", g["label"]), "label": g["label"],
+                      "wanted": "all" if want is None else want, "taken": n_pat, "slides": len(taken),
+                      "by_collection": dict(Counter(r["collection_id"] for r in taken)), "skipped": dict(dropped)})
     return chosen, notes
 
 
@@ -97,16 +112,17 @@ def main() -> None:
     if any(g.get("idh") for g in plan["groups"]) and not a.idh:
         raise SystemExit("this plan filters on IDH status: pass --idh (see fetch_idh.py)")
     chosen, notes = pick(rows, plan, read_idh(a.idh) if a.idh else None)
-    short = [n for n in notes if n["taken"] < n["wanted"] and not plan_group(plan, n).get("up_to")]
+    short = [n for n in notes if n["wanted"] != "all" and n["taken"] < n["wanted"] and not plan_group(plan, n).get("up_to")]
     with open(a.out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(chosen)
     mb = sum(float(r["series_size_MB"]) for r in chosen)
-    print(f"{len(chosen)} slides, {mb / 1000:.1f} GB to download: "
+    print(f"{len(chosen)} slides from {len({r['PatientID'] for r in chosen})} patients, {mb / 1000:.1f} GB to download: "
           + ", ".join(f"{k} {v}" for k, v in sorted(Counter(r['label'] for r in chosen).items())))
     for n in notes:
-        print(f"  {n['group']:<24} {n['taken']:>4} of {n['wanted']:<4} {n['by_collection']}  skipped {n['skipped']}")
+        print(f"  {n['group']:<24} {n['taken']:>5} of {str(n['wanted']):<4} patients, {n['slides']:>5} slides  "
+              f"{n['by_collection']}  skipped {n['skipped']}")
     if short:
         raise SystemExit(f"not enough eligible slides for: {[n['group'] for n in short]}")
 

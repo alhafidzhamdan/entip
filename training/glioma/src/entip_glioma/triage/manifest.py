@@ -45,7 +45,9 @@ OPEN_LICENCES = ("CC BY 4.0", "CC BY 3.0")
 # Non-CNS tumours, put in one category with metastasis: TCGA primaries of the commonest origins of brain
 # metastasis. Labelled "metastasis" only with ``non_cns``. IDC holds only a few real brain metastases.
 NON_CNS_COLLECTIONS = ("tcga_luad", "tcga_lusc", "tcga_brca", "tcga_skcm", "tcga_kirc", "tcga_coad",
-                                "tcga_read")
+                       "tcga_read",
+                       # CPTAC: the same organs from another programme, a second source for the class
+                       "cptac_luad", "cptac_lscc", "cptac_brca", "cptac_cm", "cptac_ccrcc", "cptac_coad")
 
 IDC_SQL = """
 SELECT i.collection_id, i.PatientID, i.SeriesInstanceUID, i.license_short_name, i.Manufacturer,

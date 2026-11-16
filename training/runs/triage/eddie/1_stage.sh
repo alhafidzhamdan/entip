@@ -3,7 +3,7 @@
 # download them -> fetch H-optimus-0.
 #$ -N triage_stage
 #$ -q staging
-#$ -l h_rt=12:00:00
+#$ -l h_rt=48:00:00
 # Memory: 16 GB is the staging queue maximum per slot; the IDC query needs about 4 GB on one thread.
 #$ -l h_rss=16G
 #$ -j y

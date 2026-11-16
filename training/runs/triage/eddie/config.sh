@@ -19,6 +19,8 @@ ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a
 GPU_REQUEST="${GPU_REQUEST:--q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G}"   # 1 A100, 4 cores, 64 GB RAM
 # The CPU training job: cores (sharedmem slots) and memory per core (h_rss, at most 32G). Total RAM = both multiplied.
 TRAIN_REQUEST="${TRAIN_REQUEST:--pe sharedmem 8 -l h_rss=8G}"             # 8 cores, 64 GB RAM
+# GPU tasks the embedding is split across (each its own GPU job). 1 for small runs; ~8 for stage A.
+EMBED_SHARDS="${EMBED_SHARDS:-1}"
 
 export HF_HOME="${HF_HOME:-$BASE/hf}"                        # H-optimus-0 weights, fetched once by the staging job
 

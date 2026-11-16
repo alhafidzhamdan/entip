@@ -8,9 +8,10 @@ from pathlib import Path
 INDEX = "index.jsonl"
 
 
-def _record(out_dir: Path, info: dict) -> None:
-    """Append one slide's provenance to ``index.jsonl``: which encoder, tile size and pixel size made the bag."""
-    with (out_dir / INDEX).open("a") as f:
+def _record(out_dir: Path, info: dict, name: str = INDEX) -> None:
+    """Append one slide's provenance to ``index.jsonl`` (or ``name``): which encoder, tile size and pixel size made
+    the bag, and how long each part took. Parallel jobs writing to one folder each use their own ``name``."""
+    with (out_dir / name).open("a") as f:
         f.write(json.dumps(info) + "\n")
 
 
@@ -58,7 +59,7 @@ def extract(a) -> int:
         p = Path(path)
         sid = a.scan_id or (p.name if p.is_dir() else p.stem)
         info = embed_slide(path, sid, enc, a, out)
-        _record(out, info)
+        _record(out, info, a.index or INDEX)
         print(json.dumps(info), flush=True)
     return 0
 
@@ -101,7 +102,7 @@ def build_bags(a) -> int:
                 raise RuntimeError("download returned no DICOM files")
             info = embed_slide(str(dcm.parent), uid, enc, a, out)
             info["label"] = r["label"]
-            _record(out, info)
+            _record(out, info, a.index or INDEX)
             print(json.dumps(info), flush=True)
         except Exception as e:                      # one bad slide must not stop a run of thousands
             failed += 1
@@ -122,6 +123,8 @@ def _embed_args(p) -> None:
     p.add_argument("--tile-um", type=float, default=112.0)
     p.add_argument("--min-tissue", type=float, default=0.5)
     p.add_argument("--max-tiles", type=int, default=None, help="random cap on tiles per slide")
+    p.add_argument("--index", default=None,
+                   help="name of the provenance file in --out (default index.jsonl; one per job when several share a folder)")
     p.add_argument("--workers", type=int, default=None,
                    help="processes that read tiles in parallel (default: the job's cores, NSLOTS, else 1)")
 

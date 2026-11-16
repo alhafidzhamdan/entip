@@ -8,6 +8,7 @@ manifest → TCGA IDH status → pick the slides in a run plan → step 1 (pre-t
 |---|---|---|
 | `test-run` | 10 (≈1 GB): 5 glioma, 5 normal brain, the smallest of at least 100 MB | Checks the pipeline. First run on Eddie 2026-11-15: worked end to end; the gate accepted nothing, as expected at this size |
 | `diverse` | 250 (≈190 GB): see below | A first model across classes and sources |
+| `stage-a` | 3,138 slides, 2,373 patients (≈2.7 TB): see below | The full public triage set |
 
 ## The diverse set
 
@@ -35,6 +36,27 @@ manifest → TCGA IDH status → pick the slides in a run plan → step 1 (pre-t
   single source, so the classes can still be told apart partly by source. This run trains with
   leave-one-source-out on; read `source_check` and `leave_one_source_out` in the report with that in mind.
 
+## Stage A
+
+Every eligible public slide, checked on 2026-11-16 against IDC v25 and cBioPortal:
+
+| Group | Source | Patients | Slides |
+|---|---|---|---|
+| `glioma_idh_wildtype` | TCGA-GBM, TCGA-LGG, CPTAC-GBM; IDH-wildtype confirmed | 414 | 809 |
+| `glioma_idh_mutant` | TCGA-GBM, TCGA-LGG, CPTAC-GBM; IDH-mutant confirmed | 406 | 759 |
+| `other_primary_cns` | CCDI-MCI | 537 | 553 |
+| `normal_brain` | GTEx | 416 | 417 |
+| `non_cns_metastasis` | TCGA and CPTAC primaries of 7 organs, one slide each | 600 | 600 |
+
+- **Every glioma has a confirmed IDH status** (`fetch_idh.py`): TCGA from the pan-glioma study's curated
+  `IDH_STATUS`; CPTAC-GBM from its exome calls (IDH1 R132 / IDH2 R172 = mutant; sequenced with neither = wildtype;
+  another IDH variant = uncertain, left out). Gliomas without one are left out (293 patients' slides here), and
+  CCDI-MCI's paediatric gliomas have no public IDH status, so none are included.
+- CPTAC adds a second source for glioma and for every non-CNS organ. Its fixative is not recorded in IDC.
+- All slides of each glioma, other CNS and normal brain patient are used (they share one cross-validation fold).
+- Embedding about 3,100 slides is far beyond one GPU job: submit with `EMBED_SHARDS=8` so eight GPU tasks share
+  the slides, and each skips what is done, so a task that runs out of time can be submitted again.
+
 ## On Eddie
 
 Grid Engine, three jobs chained with `-hold_jid`. Compute nodes have no internet, so everything is downloaded in
@@ -51,6 +73,7 @@ git clone <this repository> /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip &
 bash training/runs/triage/eddie/setup.sh                 # once, on a login node: conda env in the group space
 bash training/runs/triage/eddie/submit.sh                # the test run
 RUN=diverse bash training/runs/triage/eddie/submit.sh    # the diverse set
+RUN=stage-a EMBED_SHARDS=8 bash training/runs/triage/eddie/submit.sh   # stage A, embedding on 8 GPUs
 qstat                                                    # watch them
 RUN=diverse bash training/runs/triage/eddie/retrain.sh   # re-run only the training job, on the existing bags
 ```
@@ -76,6 +99,7 @@ Settings are in `eddie/config.sh`, and each can be overridden from the environme
 - `GPU_REQUEST`: `-q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G` (one A100, 4 cores, 64 GB RAM; Eddie
   limits memory with `h_rss` per slot, at most 32 GB per slot). Use `-l l40s=true` for an L40S, or
   `-l h200=true` for an H200 (IGC users). `qstat -F gpu,gputype,h_rss -q gpu` shows what is free.
+- `EMBED_SHARDS`: `1`. GPU tasks the embedding is split across (`-t 1-N` array job); each writes `index-<i>.jsonl`.
 - `TRAIN_REQUEST`: `-pe sharedmem 8 -l h_rss=8G` for the CPU training job (8 cores, 64 GB). The embed job's cores
   (in `GPU_REQUEST`) are also its tile-reading workers. Every job limits its maths libraries to the cores it was given.
 

@@ -14,9 +14,12 @@ q() { qsub -terse -v "$pass" -o "$WORK/logs" "$@"; }
 s=$(q -h -N "triage_${RUN}_stage" "$HERE/1_stage.sh")
 cleanup() { qdel "$@" >/dev/null 2>&1 || true; echo "submission failed; nothing left queued" >&2; exit 1; }
 # shellcheck disable=SC2086
-e=$(q -hold_jid "$s" -N "triage_${RUN}_embed" $GPU_REQUEST "$HERE/2_embed.sh") || cleanup "$s"
+shards=""; [ "$EMBED_SHARDS" -gt 1 ] && shards="-t 1-$EMBED_SHARDS"
+# shellcheck disable=SC2086
+e=$(q -hold_jid "$s" -N "triage_${RUN}_embed" $shards $GPU_REQUEST "$HERE/2_embed.sh") || cleanup "$s"
+e="${e%%.*}"                                         # an array job id comes back as 12345.1-8:1
 # shellcheck disable=SC2086
 t=$(q -hold_jid "$e" -N "triage_${RUN}_train" $TRAIN_REQUEST "$HERE/3_train.sh") || cleanup "$s" "$e"
 qrls "$s" >/dev/null
-echo "submitted run $RUN ($PLAN): stage $s -> embed $e ($GPU_REQUEST) -> train $t"
+echo "submitted run $RUN ($PLAN): stage $s -> embed $e (${EMBED_SHARDS} task(s), $GPU_REQUEST) -> train $t"
 echo "watch: qstat;  logs: $WORK/logs;  results: $WORK/report-$ENCODER.json"
