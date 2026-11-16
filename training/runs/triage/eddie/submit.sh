@@ -15,7 +15,8 @@ s=$(q -h -N "triage_${RUN}_stage" "$HERE/1_stage.sh")
 cleanup() { qdel "$@" >/dev/null 2>&1 || true; echo "submission failed; nothing left queued" >&2; exit 1; }
 # shellcheck disable=SC2086
 e=$(q -hold_jid "$s" -N "triage_${RUN}_embed" $GPU_REQUEST "$HERE/2_embed.sh") || cleanup "$s"
-t=$(q -hold_jid "$e" -N "triage_${RUN}_train" "$HERE/3_train.sh") || cleanup "$s" "$e"
+# shellcheck disable=SC2086
+t=$(q -hold_jid "$e" -N "triage_${RUN}_train" $TRAIN_REQUEST "$HERE/3_train.sh") || cleanup "$s" "$e"
 qrls "$s" >/dev/null
 echo "submitted run $RUN ($PLAN): stage $s -> embed $e ($GPU_REQUEST) -> train $t"
 echo "watch: qstat;  logs: $WORK/logs;  results: $WORK/report-$ENCODER.json"

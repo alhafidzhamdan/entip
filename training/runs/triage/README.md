@@ -76,6 +76,8 @@ Settings are in `eddie/config.sh`, and each can be overridden from the environme
 - `GPU_REQUEST`: `-q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G` (one A100, 4 cores, 64 GB RAM; Eddie
   limits memory with `h_rss` per slot, at most 32 GB per slot). Use `-l l40s=true` for an L40S, or
   `-l h200=true` for an H200 (IGC users). `qstat -F gpu,gputype,h_rss -q gpu` shows what is free.
+- `TRAIN_REQUEST`: `-pe sharedmem 8 -l h_rss=8G` for the CPU training job (8 cores, 64 GB). The embed job's cores
+  (in `GPU_REQUEST`) are also its tile-reading workers. Every job limits its maths libraries to the cores it was given.
 
 H-optimus-0 is a gated model: request access on its Hugging Face page, then log in once on Eddie with
 `HF_HOME=$BASE/hf $BASE/envs/entip/bin/hf auth login` and `chmod 600 $BASE/hf/token`.

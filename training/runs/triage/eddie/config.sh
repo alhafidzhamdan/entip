@@ -17,6 +17,8 @@ ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a
 # Eddie GPU wiki: gpu queue + gpu resource; a100=true picks an A100 (else A100 or L40S, whichever is free);
 # memory is h_rss per slot (max 32G), times the sharedmem slots. No h_vmem.
 GPU_REQUEST="${GPU_REQUEST:--q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G}"   # 1 A100, 4 cores, 64 GB RAM
+# The CPU training job: cores (sharedmem slots) and memory per core (h_rss, at most 32G). Total RAM = both multiplied.
+TRAIN_REQUEST="${TRAIN_REQUEST:--pe sharedmem 8 -l h_rss=8G}"             # 8 cores, 64 GB RAM
 
 export HF_HOME="${HF_HOME:-$BASE/hf}"                        # H-optimus-0 weights, fetched once by the staging job
 
@@ -50,5 +52,8 @@ mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CONF
 
 activate_env() {   # put the env's python, pip and entip-* commands first; no conda activate needed
   export PATH="$ENV_DIR/bin:$PATH"
+  # Maths libraries (NumPy's BLAS, PyTorch) use only the cores this job was given, not every core on the node.
+  local n="${NSLOTS:-1}"
+  export OMP_NUM_THREADS="$n" OPENBLAS_NUM_THREADS="$n" MKL_NUM_THREADS="$n" NUMEXPR_NUM_THREADS="$n"
   command -v entip-train >/dev/null || { echo "entip-train not found in $ENV_DIR; run setup.sh" >&2; exit 1; }
 }

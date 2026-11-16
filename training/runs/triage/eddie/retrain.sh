@@ -8,6 +8,7 @@ REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"
 [ -d "$WORK/bags-$ENCODER" ] || { echo "no bags in $WORK/bags-$ENCODER (RUN=$RUN); run submit.sh first" >&2; exit 1; }
 mkdir -p "$WORK/logs"
 pass="BASE=$BASE,REPO=$REPO,RUN=$RUN,PLAN=$PLAN,WORK=$WORK,ENV_DIR=$ENV_DIR,ENCODER=$ENCODER,TRIAL=$TRIAL,HF_HOME=$HF_HOME"
-t=$(qsub -terse -v "$pass" -o "$WORK/logs" -N "triage_${RUN}_train" "$HERE/3_train.sh")
-echo "submitted training of run $RUN: $t"
+# shellcheck disable=SC2086
+t=$(qsub -terse -v "$pass" -o "$WORK/logs" -N "triage_${RUN}_train" $TRAIN_REQUEST "$HERE/3_train.sh")
+echo "submitted training of run $RUN ($TRAIN_REQUEST): $t"
 echo "when it finishes: python3 $TRIAL/mistakes.py $WORK/report-$ENCODER.json"
