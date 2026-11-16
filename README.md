@@ -22,4 +22,6 @@
 4. **Clinician GUI** (`platform/gui/`): viewer and review for clinicians.
 5. **Central database** (`platform/db/`): one row per patient, linked to slides, assays and model outputs.
 
+Data sources, model weights and their licences: [docs/data-sources.md](docs/data-sources.md).
+
 <sub>Research use only.</sub>

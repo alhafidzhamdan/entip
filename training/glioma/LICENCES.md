@@ -2,6 +2,8 @@
 
 Al's rule: every component must be openly licensed so it can be deployed in the NHS. Research use only.
 
+Datasets and model weights for every step are tracked in one register: [docs/data-sources.md](../../docs/data-sources.md).
+
 | Component | Use | Licence | Status |
 |---|---|---|---|
 | this package | code | PolyForm Noncommercial 1.0.0 (see ../../LICENSE.md) | ours; non-commercial use, commercial use needs permission |
