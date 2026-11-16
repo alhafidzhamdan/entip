@@ -113,14 +113,14 @@ Osteosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: t
 Rhabdomyosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
 Undifferentiated pleomorphic sarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
 Metastatic tumours,metastasis,real metastases in the CNS
-Diffuse large B-cell lymphoma of the CNS,lymphoma,"lymphoma: not in training, scored as an unseen class"
+Diffuse large B-cell lymphoma of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
 "EBV-positive diffuse large B-cell lymphoma, NOS",lymphoma,"lymphoma: not in training, scored as an unseen class"
 Follicular lymphoma,lymphoma,"lymphoma: not in training, scored as an unseen class"
-Immunodeficiency-associated CNS lymphoma,lymphoma,"lymphoma: not in training, scored as an unseen class"
-Intravascular large B-cell lymphoma,lymphoma,"lymphoma: not in training, scored as an unseen class"
-Low-grade B-cell lymphomas of the CNS,lymphoma,"lymphoma: not in training, scored as an unseen class"
-MALT lymphoma of the dura,lymphoma,"lymphoma: not in training, scored as an unseen class"
-T-cell and NK/T-cell lymphomas of the CNS,lymphoma,"lymphoma: not in training, scored as an unseen class"
+Immunodeficiency-associated CNS lymphoma,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+Intravascular large B-cell lymphoma,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+Low-grade B-cell lymphomas of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+MALT lymphoma of the dura,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+T-cell and NK/T-cell lymphomas of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
 Langerhans cell histiocytosis,,histiocytic: no triage class; left out
 Erdheim-Chester disease,,histiocytic: no triage class; left out
 Juvenile xanthogranuloma,,histiocytic: no triage class; left out

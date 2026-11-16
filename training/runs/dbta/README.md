@@ -5,7 +5,7 @@ Scores a trained triage model on the Digital Brain Tumour Atlas (DBTA; Roetzer-P
 on a Hamamatsu NanoZoomer 2.0 HT. **It is a test set only: no ENTIP model is ever trained on it.**
 
 Why it is worth it: a lab, scanner and population the model has never seen, and the classes public IDC data could
-not give us - 47 real metastases in the CNS, about 90 lymphomas, and dozens of glioma and other CNS types beyond
+not give us - 47 real metastases in the CNS, about 90 lymphomas (primary CNS lymphoma, counted as other primary CNS), and dozens of glioma and other CNS types beyond
 adult diffuse gliomas (ependymomas, pilocytic astrocytomas, glioneuronal tumours, meningiomas, schwannomas, ...).
 
 ## Terms
@@ -22,9 +22,10 @@ University's data protection steps, and do not copy them elsewhere. See `docs/da
 | `eddie/2_embed.sh` | GPU array | step 1 with the same frozen encoder as the model; each task takes every N-th slide and skips what is done |
 | `eddie/3_evaluate.sh` | CPU | `entip-train triage evaluate`: each patient's call exactly as in use (same temperature, threshold and novelty check) |
 
-`dbta_classes.csv` maps every DBTA diagnosis to a triage class: 34 glial / glioneuronal diagnoses to glioma, 79 to
+`dbta_classes.csv` maps every DBTA diagnosis to a triage class: 34 glial / glioneuronal diagnoses to glioma, 85 to
 other primary CNS (neuronal-only, embryonal, pineal, choroid plexus, meningiomas, nerve sheath, melanocytic, germ cell,
-sellar and mesenchymal tumours), "Metastatic tumours" to metastasis, 8 lymphomas to lymphoma (not trained, so scored
+sellar and mesenchymal tumours, and the 6 lymphomas in the WHO CNS5 haematolymphoid chapter), "Metastatic tumours" to
+metastasis, the 2 systemic-type lymphomas (EBV-positive DLBCL NOS, follicular) to lymphoma (not trained, so scored
 as an unseen class), and the 4 histiocytic diagnoses to none. **It is a judgement table: review it.** The 47
 non-tumour controls are left out until someone sets each to normal brain or reactive (their kind is only in the
 free-text comment).

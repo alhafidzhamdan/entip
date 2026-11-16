@@ -4,6 +4,10 @@
 
 ![Step 2 workflow](diagrams/2-triage.png)
 
+Jobs 2 and 3 on Eddie, end to end (embedding, then the triage model and how it trains):
+
+![Embed and train](diagrams/embed-and-train.png)
+
 ## What it does
 
 One attention-MIL model reads every tile of a patient's H&E slides and gives six classes: `normal_brain`,

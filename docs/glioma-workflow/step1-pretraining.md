@@ -4,6 +4,10 @@
 
 ![Step 1 workflow](diagrams/1-pretraining.png)
 
+Jobs 2 and 3 on Eddie, end to end (embedding, then the triage model and how it trains):
+
+![Embed and train](diagrams/embed-and-train.png)
+
 ## What it does
 
 This is the only step that runs the foundation model. Each H&E slide is cut into tissue tiles of a fixed

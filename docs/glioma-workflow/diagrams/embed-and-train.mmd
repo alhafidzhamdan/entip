@@ -1,0 +1,28 @@
+flowchart LR
+  subgraph J2["Job 2: embed (GPU, frozen) = step 1"]
+    direction TB
+    W["H&E whole-slide image<br/>0.25–0.5 µm per pixel"] --> T["Tissue tiles<br/>112 µm → 224 px, ≥50% tissue"]
+    T --> H["H-optimus-0, frozen<br/>ViT-g/14, about 1.1B parameters"]
+    H --> E["1,536 numbers per tile<br/>tiles read in parallel, batched"]
+    E --> B["Bag per slide (.npz)<br/>median about 9,000 tiles"]
+  end
+  subgraph J3["Job 3: triage model (CPU) = step 2"]
+    direction TB
+    S["Sample ≤512 tiles, standardise<br/>(all tiles when predicting)"] --> P["Project to 128, ReLU<br/>h: one vector per tile"]
+    P --> A["Gated attention (64)<br/>tanh ⊙ sigmoid → score per tile"]
+    A --> SM["Softmax → tile weights<br/>top tiles = evidence shown"]
+    SM --> Z["Slide embedding (128)<br/>weighted sum of h"]
+    P -.-> Z
+    Z --> C["Classifier ÷ temperature<br/>6 classes, untrained ones masked"]
+    C --> O["Calibrated probabilities → call<br/>gate, novelty check, per patient"]
+    O ~~~ TR["How it trains: Adam, class-weighted cross-entropy,<br/>one bag per step · 5 patient folds in parallel ·<br/>temperature fitted out of fold · gate: exact bound,<br/>≤5% error at 95% · final model on all patients"]
+  end
+  J2 -- "bags" --> J3
+  classDef data fill:#efedff,stroke:#6a5acd;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef attn fill:#e5f4e4,stroke:#3c7a3a;
+  classDef note fill:#f9eeda,stroke:#9a6a12;
+  class W,T,B,S,O data;
+  class H,E,P,Z,C model;
+  class A,SM attn;
+  class TR note;

@@ -11,7 +11,7 @@ The report separates:
   tumour / glial questions that triage exists to answer;
 * **the gate**: how many patients were accepted (confident), how many of those were wrong, and the exact upper
   bound on that error rate - the external check of the guarantee set in cross-validation;
-* **unseen classes** (in the external set but not trained, e.g. lymphoma): how often the model was confidently
+* **unseen classes** (in the external set but not trained, e.g. systemic-type lymphoma): how often the model was confidently
   wrong about them;
 * **per diagnosis**, when the manifest has a ``diagnosis`` column.
 """
