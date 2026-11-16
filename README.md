@@ -23,5 +23,6 @@
 5. **Central database** (`platform/db/`): one row per patient, linked to slides, assays and model outputs.
 
 Data sources, model weights and their licences: [docs/data-sources.md](docs/data-sources.md).
+How the training and test sets compare with published classifiers: [docs/literature-comparison.md](docs/literature-comparison.md).
 
 <sub>Research use only.</sub>
