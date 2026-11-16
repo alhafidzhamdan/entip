@@ -1,3 +1,4 @@
 patient_id,label,diagnosis,source,date,note
 PBCIAR,other_primary_cns,Medulloblastoma,"Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Carcinoma, NOS', which mapped it to metastasis"
 PBCWUR,other_primary_cns,Choroid plexus carcinoma,"Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Carcinoma, NOS', which mapped it to metastasis"
+PBCJIG,other_primary_cns,Meningeal melanocytic neoplasm,"Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Malignant melanoma, NOS', which mapped it to metastasis"
