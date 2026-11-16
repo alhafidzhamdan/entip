@@ -64,6 +64,19 @@ def _train(a) -> int:
     return 0
 
 
+def _evaluate(a) -> int:
+    """Score a trained model on an external set it never trained on (see evaluate.py)."""
+    from .evaluate import evaluate
+    from .manifest import read_manifest
+    from .model import TriageModel
+    rep = evaluate(TriageModel.load(a.model), read_manifest(a.manifest), a.bags, id_col=a.id_col)
+    if a.out:
+        Path(a.out).write_text(json.dumps(rep, indent=2, default=float))
+    short = {k: v for k, v in rep.items() if k not in ("patients", "per_diagnosis")}
+    print(json.dumps(short, indent=2, default=float))
+    return 0
+
+
 def _predict(a) -> int:
     from ..wsi.bags import Bag
     from .db import build_actions, post_patient
@@ -129,6 +142,13 @@ def add_parser(sub) -> None:
                    help="processes for the cross-validation folds (default: the job's cores, NSLOTS, else 1)")
     p.add_argument("--db", default=None, help="db API base URL: register the model there (status draft)")
     p.set_defaults(fn=_train)
+    p = ts.add_parser("evaluate", help="score a trained model on an external set it never trained on")
+    p.add_argument("--manifest", required=True, help="CSV with SeriesInstanceUID (or --id-col), PatientID, label[, diagnosis]")
+    p.add_argument("--bags", required=True)
+    p.add_argument("--model", required=True)
+    p.add_argument("--id-col", default="SeriesInstanceUID")
+    p.add_argument("--out", default=None, help="write the full report (every patient, per diagnosis) here")
+    p.set_defaults(fn=_evaluate)
     p = ts.add_parser("predict", help="score one patient's bags; optionally write to the db")
     p.add_argument("bags", nargs="+")
     p.add_argument("--model", required=True)

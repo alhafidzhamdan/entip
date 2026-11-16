@@ -421,3 +421,28 @@ def test_parallel_training_gives_the_same_model():
     assert ra["cv"] == rb["cv"] and ra["leave_one_source_out"] == rb["leave_one_source_out"]
     assert [r["confidence"] for r in ra["oof_patients"]] == [r["confidence"] for r in rb["oof_patients"]]
     assert a.model_id == b.model_id and a.temperature == b.temperature
+
+
+def test_evaluate_on_an_external_set(trained, tmp_path, capsys):
+    """An unseen cohort, with a class the model never trained on, scored as in use: known classes, the gate and
+    unseen classes are reported separately, and nothing is refitted."""
+    from entip_glioma.cli import main
+    from entip_glioma.triage.manifest import FIELDS, write_manifest
+    m, _, _, _ = trained
+    m.save(tmp_path / "model")
+    ext, labels, groups, patients = synthetic_cohort({"glioma": 6, "normal_brain": 6, "lymphoma": 3}, seed=11)
+    rows = []
+    for i, (b, lab, p) in enumerate(zip(ext, labels, patients)):
+        b.save(tmp_path / "bags" / f"x{i}.npz")
+        rows.append(dict.fromkeys(FIELDS, "") | {"SeriesInstanceUID": f"x{i}", "PatientID": f"ext-{p}", "label": lab})
+    write_manifest(rows, tmp_path / "ext.csv")
+    threshold_before = m.threshold
+    assert main(["triage", "evaluate", "--manifest", str(tmp_path / "ext.csv"), "--bags", str(tmp_path / "bags"),
+                 "--model", str(tmp_path / "model"), "--out", str(tmp_path / "ext.json")]) == 0
+    rep = json.loads((tmp_path / "ext.json").read_text())
+    assert rep["patients_scored"] == len({r["PatientID"] for r in rows})
+    assert set(rep["known"]["recall"]) == {"glioma", "normal_brain"} and rep["unseen"]["lymphoma"]["n"] > 0
+    g = rep["gate"]
+    assert g["accepted"] <= g["n"] and (g["error_upper_95"] is None or 0 <= g["error_upper_95"] <= 1)
+    assert rep["threshold"] == round(min(threshold_before, 1.0), 4)
+    assert all(p["patient"].startswith("ext-") for p in rep["patients"])
