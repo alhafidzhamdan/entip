@@ -9,12 +9,19 @@ HistoQC (BSD-3-Clause-Clear) upstream for pen and folds; this only drops backgro
 focus measure (``sharpness``), because some public scans are out of focus (seen on a TCGA-GBM slide).
 
 A bag is saved as an ``.npz`` without pickles, so loading one cannot run code.
+
+Reading tiles is usually slower than embedding them (one tile at a time, and JPEG 2000 DICOM slides are slow to
+decode), so ``extract_bag`` can read in parallel: ``workers`` processes each open their own copy of the slide
+with ``opener`` and decode batches of tiles while the encoder works on earlier ones. The tiles, their order
+and so the bag are the same either way.
 """
 from __future__ import annotations
 
+import time
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -99,20 +106,73 @@ def tile_grid(reader, width_um: float, height_um: float, tile_um: float = DEFAUL
     return np.asarray(xy, np.float64).reshape(-1, 2)[order], np.asarray(frac, np.float32)[order]
 
 
+_WORKER_READER = None
+
+
+def _worker_open(opener: Callable) -> None:
+    global _WORKER_READER
+    _WORKER_READER = opener()
+
+
+def _read_tiles(reader, coords, tile_um: float, px: int) -> np.ndarray:
+    return np.stack([reader.read_um(x + tile_um / 2, y + tile_um / 2, tile_um, px) for x, y in coords])
+
+
+def _worker_read(coords, tile_um: float, px: int) -> np.ndarray:
+    return _read_tiles(_WORKER_READER, coords, tile_um, px)
+
+
 def extract_bag(reader, scan_id: str, width_um: float, height_um: float, encoder,
                 tile_um: float = DEFAULT_TILE_UM, min_tissue: float = 0.5, max_tiles: Optional[int] = None,
-                batch: int = 64, seed: int = 0) -> Bag:
+                batch: int = 64, seed: int = 0, workers: int = 1, opener: Optional[Callable] = None,
+                timings: Optional[dict] = None) -> Bag:
     """Embed every tissue tile of one slide with a frozen encoder. ``max_tiles`` subsamples at random
-    (seeded) for very large slides; leave it None for the final runs."""
+    (seeded) for very large slides; leave it None for the final runs.
+
+    ``workers`` > 1 reads tiles in that many processes, each opening the slide with ``opener`` (a picklable
+    callable that returns a reader, such as ``functools.partial(open_slide, path)``). ``timings``, if given, is
+    filled with seconds: ``tissue`` (finding tissue tiles), ``read`` (reading tiles; with workers, the time the
+    encoder waited for them), ``embed`` (the encoder) and the number of ``workers`` used."""
+    t0 = time.perf_counter()
     xy, frac = tile_grid(reader, width_um, height_um, tile_um, min_tissue)
     if max_tiles is not None and len(xy) > max_tiles:
         keep = np.sort(np.random.default_rng(seed).choice(len(xy), max_tiles, replace=False))
         xy, frac = xy[keep], frac[keep]
-    feats, sharp = [], []
-    for k in range(0, len(xy), batch):
-        crops = np.stack([reader.read_um(x + tile_um / 2, y + tile_um / 2, tile_um, encoder.input_px)
-                          for x, y in xy[k:k + batch]])
+    t_tissue = time.perf_counter() - t0
+    chunks = [xy[k:k + batch] for k in range(0, len(xy), batch)]
+    parallel = workers > 1 and opener is not None and len(chunks) > 1
+    feats, sharp, t_read, t_embed = [], [], 0.0, 0.0
+
+    def embed(crops):
+        nonlocal t_embed
+        t = time.perf_counter()
         feats.append(encoder.embed(crops))
-        sharp += [sharpness(c) for c in crops]
+        t_embed += time.perf_counter() - t
+        sharp.extend(sharpness(c) for c in crops)
+
+    if parallel:
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor
+        # spawn, not fork: the parent may already hold a GPU context, which forked children must not inherit
+        with ProcessPoolExecutor(workers, mp_context=mp.get_context("spawn"), initializer=_worker_open,
+                                 initargs=(opener,)) as pool:
+            pending, nxt = deque(), 0
+            while pending or nxt < len(chunks):
+                while nxt < len(chunks) and len(pending) < 2 * workers:     # keep a few batches ready, no more
+                    pending.append(pool.submit(_worker_read, chunks[nxt], tile_um, encoder.input_px))
+                    nxt += 1
+                t = time.perf_counter()
+                crops = pending.popleft().result()
+                t_read += time.perf_counter() - t
+                embed(crops)
+    else:
+        for c in chunks:
+            t = time.perf_counter()
+            crops = _read_tiles(reader, c, tile_um, encoder.input_px)
+            t_read += time.perf_counter() - t
+            embed(crops)
+    if timings is not None:
+        timings.update(tissue=round(t_tissue, 2), read=round(t_read, 2), embed=round(t_embed, 2),
+                       workers=workers if parallel else 1)
     f = np.concatenate(feats).astype(np.float32) if feats else np.zeros((0, encoder.dim), np.float32)
     return Bag(scan_id, f, xy, tile_um, encoder.version, frac, np.asarray(sharp, np.float32))

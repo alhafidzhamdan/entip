@@ -1,6 +1,8 @@
 """Step 1 pre-training: slides -> frozen-encoder tile bags, on synthetic data only."""
 import json
 
+import numpy as np
+
 import pytest
 
 from entip_glioma.cli import main
@@ -50,3 +52,32 @@ def test_build_bags_dry_run_counts_what_is_left(tmp_path, capsys, cmd):
                        "--dry-run"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out == {"slides": 4, "already_done": 1, "to_do": 3, "download_GB": 1.5}
+
+
+def test_parallel_reading_gives_the_same_bag(slide):
+    """Tiles read by worker processes (each opening its own copy of the slide) give exactly the serial bag."""
+    import functools
+
+    from entip_glioma.wsi.bags import extract_bag
+    from entip_train.encoders import HandcraftedEncoder
+    rgb = slide.reader.rgb[:1024, :1024].copy()
+    r, enc = _Reader(rgb, 0.5), HandcraftedEncoder()
+    t1, t4 = {}, {}
+    serial = extract_bag(r, "a", r.width_um, r.height_um, enc, tile_um=64, batch=8, timings=t1)
+    par = extract_bag(r, "a", r.width_um, r.height_um, enc, tile_um=64, batch=8, workers=2,
+                      opener=functools.partial(ArrayReader, rgb, 0.5), timings=t4)
+    assert len(serial) > 16 and np.array_equal(serial.coords_um, par.coords_um)
+    assert np.allclose(serial.features, par.features) and np.allclose(serial.sharpness, par.sharpness)
+    assert t1["workers"] == 1 and t4["workers"] == 2
+    assert {"tissue", "read", "embed"} <= set(t4) and all(t4[k] >= 0 for k in ("tissue", "read", "embed"))
+
+
+def test_index_records_timings(tmp_path, monkeypatch, slide):
+    import entip_train.slides as slides
+    rgb = slide.reader.rgb[:512, :512]
+    monkeypatch.setattr(slides, "open_slide", lambda path, mpp=None: _Reader(rgb, 0.5))
+    assert main(["embed", "extract", "a.svs", "--out", str(tmp_path), "--encoder", "handcrafted", "--tile-um", "64",
+                 "--workers", "1"]) == 0
+    rec = json.loads((tmp_path / "index.jsonl").read_text().splitlines()[0])
+    assert rec["workers"] == 1 and set(rec["seconds"]) == {"open", "tissue", "read", "embed", "total"}
+    assert rec["tiles_per_second"] > 0

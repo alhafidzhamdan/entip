@@ -14,19 +14,37 @@ def _record(out_dir: Path, info: dict) -> None:
         f.write(json.dumps(info) + "\n")
 
 
+def default_workers() -> int:
+    """Processes that read tiles: the job's cores on a cluster (Grid Engine NSLOTS, Slurm SLURM_CPUS_PER_TASK),
+    else 1 (read in this process)."""
+    import os
+    return max(1, int(os.environ.get("NSLOTS") or os.environ.get("SLURM_CPUS_PER_TASK") or 1))
+
+
 def embed_slide(path: str, scan_id: str, enc, a, out_dir: Path) -> dict:
+    import functools
+    import time
     from entip_train.slides import open_slide
     from ..wsi.bags import extract_bag
+    workers = getattr(a, "workers", None) or default_workers()
+    t0 = time.perf_counter()
     r = open_slide(path, mpp=a.mpp)
+    t_open = time.perf_counter() - t0
+    timings: dict = {}
     bag = extract_bag(r, scan_id, r.width_um, r.height_um, enc, tile_um=a.tile_um, min_tissue=a.min_tissue,
-                      max_tiles=a.max_tiles)
+                      max_tiles=a.max_tiles, workers=workers, opener=functools.partial(open_slide, path, mpp=a.mpp),
+                      timings=timings)
     p = bag.save(out_dir / f"{scan_id}.npz")
+    total = time.perf_counter() - t0
     if len(bag) == 0:
         import sys
         print(f"warning: {scan_id}: no tissue tiles kept (blank, tiny or unreadable slide); "
               "triage training will skip it", file=sys.stderr)
+    seconds = {"open": round(t_open, 2), **{k: v for k, v in timings.items() if k != "workers"},
+               "total": round(total, 2)}
     return {"scan_id": scan_id, "tiles": len(bag), "reader": type(r).__name__, "mpp": round(r.mpp, 4),
-            "tile_um": a.tile_um, "encoder": bag.encoder, "out": str(p)}
+            "tile_um": a.tile_um, "encoder": bag.encoder, "out": str(p), "workers": timings.get("workers", 1),
+            "seconds": seconds, "tiles_per_second": round(len(bag) / total, 1) if total > 0 else None}
 
 
 def extract(a) -> int:
@@ -104,6 +122,8 @@ def _embed_args(p) -> None:
     p.add_argument("--tile-um", type=float, default=112.0)
     p.add_argument("--min-tissue", type=float, default=0.5)
     p.add_argument("--max-tiles", type=int, default=None, help="random cap on tiles per slide")
+    p.add_argument("--workers", type=int, default=None,
+                   help="processes that read tiles in parallel (default: the job's cores, NSLOTS, else 1)")
 
 
 def add_commands(sp, help_suffix: str = "") -> None:
