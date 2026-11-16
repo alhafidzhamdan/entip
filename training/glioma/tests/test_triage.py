@@ -370,3 +370,42 @@ def test_report_lists_out_of_fold_calls_per_patient(trained):
     wrong = [r["rank"] for r in rows if not r["correct"]]
     assert rep["cv"]["gate"]["first_error_rank"] == (wrong[0] if wrong else None)
     assert set(rows[0]["probs"]) == set(rep["classes_trained"]) and rows[0]["slide"]
+
+
+def test_label_corrections_relabel_or_drop(tmp_path):
+    from entip_glioma.triage.manifest import CORRECTIONS, apply_corrections, read_corrections
+    shipped = read_corrections(CORRECTIONS)
+    assert shipped["PBCIAR"]["label"] == "other_primary_cns" and "edulloblastoma" in shipped["PBCIAR"]["diagnosis"]
+    f = tmp_path / "c.csv"
+    f.write_text("patient_id,label,diagnosis,source,date,note\np1,other_primary_cns,Medulloblastoma,test,,\np2,,,test,,unclear\n")
+    rows = [{"PatientID": "p1", "label": "metastasis"}, {"PatientID": "p2", "label": "metastasis"},
+            {"PatientID": "p3", "label": "glioma"}]
+    out, changed = apply_corrections(rows, read_corrections(f))
+    assert [(r["PatientID"], r["label"]) for r in out] == [("p1", "other_primary_cns"), ("p3", "glioma")]
+    assert [(c["patient"], c["to"]) for c in changed] == [("p1", "other_primary_cns"), ("p2", None)]
+
+
+def test_label_rows_applies_the_shipped_corrections():
+    row = {"collection_id": "ccdi_mci", "PatientID": "PBCIAR", "license_short_name": "CC BY 4.0", "site": "Brain",
+           "dx": "Carcinoma, NOS", "fixative": "Formalin", "embedding": "Paraffin wax", "Manufacturer": "Leica Biosystems"}
+    kept, dropped = label_rows([row])
+    assert kept[0]["label"] == "other_primary_cns" and dropped["corrected"] == 1
+
+
+def test_train_reports_corrections(tmp_path, capsys):
+    from entip_glioma.cli import main
+    from entip_glioma.triage.manifest import FIELDS, write_manifest
+    bags, labels, groups, patients = synthetic_cohort(seed=0)
+    rows = []
+    for i, (b, lab, g, p) in enumerate(zip(bags, labels, groups, patients)):
+        b.save(tmp_path / "bags" / f"s{i}.npz")
+        rows.append(dict.fromkeys(FIELDS, "") | {"SeriesInstanceUID": f"s{i}", "label": lab, "group": g, "PatientID": p})
+    write_manifest(rows, tmp_path / "m.csv")
+    victim = rows[0]["PatientID"]
+    (tmp_path / "c.csv").write_text(f"patient_id,label,diagnosis,source,date,note\n{victim},,,test,,\n")
+    assert main(["triage", "train", "--manifest", str(tmp_path / "m.csv"), "--bags", str(tmp_path / "bags"),
+                 "--out", str(tmp_path / "model"), "--epochs", "2", "--folds", "3", "--no-loso",
+                 "--corrections", str(tmp_path / "c.csv")]) == 0
+    rep = json.loads(capsys.readouterr().out)
+    assert {c["patient"] for c in rep["label_corrections"]} == {victim}     # one entry per slide of that patient
+    assert victim not in {r["patient"] for r in rep["oof_patients"]}

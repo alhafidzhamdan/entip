@@ -100,6 +100,9 @@ def label_rows(rows: Iterable[dict], preps: Optional[tuple] = None,
         out["label"], out["prep"] = lab, prep
         out["group"] = f"{r.get('collection_id')}|{r.get('Manufacturer') or 'unknown'}|{prep}"
         kept.append(out)
+    kept, changed = apply_corrections(kept, read_corrections())
+    if changed:
+        dropped["corrected"] = len(changed)
     return kept, dropped
 
 
@@ -132,3 +135,32 @@ def write_manifest(rows: List[dict], out: str | Path) -> Path:
 def read_manifest(path: str | Path) -> List[dict]:
     with Path(path).open(newline="") as f:
         return list(csv.DictReader(f))
+
+
+CORRECTIONS = Path(__file__).with_name("label_corrections.csv")
+
+
+def read_corrections(path: str | Path | None = CORRECTIONS) -> dict:
+    """Patient-level label corrections: ``{patient_id: row}`` from a CSV with ``patient_id, label, diagnosis,
+    source, date, note``. They fix public metadata that is known to be wrong (IDC listed a medulloblastoma as
+    'Carcinoma, NOS'), and each says who confirmed it. ``label`` may be empty to drop the patient."""
+    if not path or not Path(path).exists():
+        return {}
+    with Path(path).open(newline="") as f:
+        return {r["patient_id"].strip(): r for r in csv.DictReader(f) if r.get("patient_id", "").strip()}
+
+
+def apply_corrections(rows: List[dict], corrections: dict) -> tuple[List[dict], List[dict]]:
+    """Relabel (or, with an empty label, drop) the rows of corrected patients. Returns the rows and a list of
+    what changed: patient, old label, new label, source."""
+    out, changed = [], []
+    for r in rows:
+        c = corrections.get(r.get("PatientID", ""))
+        if c is None or (c.get("label") or "") == r.get("label"):
+            out.append(r)
+            continue
+        changed.append({"patient": r["PatientID"], "from": r.get("label"), "to": c.get("label") or None,
+                        "diagnosis": c.get("diagnosis"), "source": c.get("source")})
+        if c.get("label"):
+            out.append({**r, "label": c["label"]})
+    return out, changed

@@ -30,5 +30,8 @@ entip-panel = "entip_glioma.panel.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+entip_glioma = ["triage/label_corrections.csv"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

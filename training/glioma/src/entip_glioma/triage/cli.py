@@ -7,6 +7,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from .manifest import CORRECTIONS
+
 
 def _manifest(a) -> int:
     from .manifest import from_idc, label_rows, write_manifest
@@ -23,9 +25,10 @@ def _manifest(a) -> int:
 def _train(a) -> int:
     import numpy as np
     from ..wsi.bags import Bag
-    from .manifest import read_manifest
+    from .manifest import apply_corrections, read_corrections, read_manifest
     from .model import TriageConfig, TriageModel
-    rows = read_manifest(a.manifest)
+    rows, corrected = apply_corrections(read_manifest(a.manifest),
+                                        read_corrections(None if a.no_corrections else a.corrections or CORRECTIONS))
     bags, labels, groups, patients, missing, empty = [], [], [], [], 0, []
     for r in rows:
         f = Path(a.bags) / f"{r[a.id_col]}.npz"
@@ -49,6 +52,7 @@ def _train(a) -> int:
     m = TriageModel(cfg)
     rep = m.fit(bags, labels, groups, patients, loso=not a.no_loso)
     rep["slides_missing_bags"] = missing
+    rep["label_corrections"] = corrected
     rep["slides_empty_bags"] = empty
     m.report = rep
     m.save(a.out)
@@ -118,6 +122,8 @@ def add_parser(sub) -> None:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--no-loso", action="store_true", help="skip leave-one-source-out runs")
     p.add_argument("--train-tiles", type=int, default=1024, help="tiles kept per slide in memory for training")
+    p.add_argument("--corrections", default=None, help="label corrections CSV (default: the one shipped with ENTIP)")
+    p.add_argument("--no-corrections", action="store_true", help="train on the manifest's labels as they are")
     p.add_argument("--db", default=None, help="db API base URL: register the model there (status draft)")
     p.set_defaults(fn=_train)
     p = ts.add_parser("predict", help="score one patient's bags; optionally write to the db")
