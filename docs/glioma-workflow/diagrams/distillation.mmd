@@ -1,0 +1,21 @@
+flowchart TB
+  R["Finished triage run (e.g. diverse)<br/>slides + H-optimus-0 bags, trial.csv"]
+  R --> T["Job 1: tiles (CPU, 4 cores)<br/>up to 1,000 tissue tiles per slide, 224 px,<br/>each stored with the teacher's 1,536 numbers"]
+  T --> S["Job 2: train student (GPU)<br/>ViT-Small, about 22M parameters<br/>20% of patients per class held out<br/>MSE + cosine loss; best by held-out cosine"]
+  S --> C["Job 3: check (GPU)<br/>agreement on held-out tiles ·<br/>re-embed every slide with the student ·<br/>retrain triage on the student's bags"]
+  C --> D{"Student's triage close<br/>to the teacher's?"}
+  D -- yes --> Y["Use the student for triage<br/>(confirm on new slides first)"]
+  D -- no --> N["Keep H-optimus-0<br/>(more tiles, epochs or a larger student)"]
+  T -.-> TO["tiles/<br/>about 38 GB for 250 slides"]
+  S -.-> SO["student/student.pt<br/>about 89 MB"]
+  C -.-> CO["comparison.txt<br/>teacher vs student, side by side"]
+  classDef data fill:#efedff,stroke:#6a5acd;
+  classDef model fill:#e7f1fb,stroke:#3b6ea8;
+  classDef out fill:#f3f3f1,stroke:#888780;
+  classDef good fill:#e5f4e4,stroke:#3c7a3a;
+  classDef note fill:#f9eeda,stroke:#9a6a12;
+  class R data;
+  class T,S,C model;
+  class TO,SO,CO out;
+  class Y good;
+  class D,N note;

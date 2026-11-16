@@ -7,6 +7,10 @@ H-optimus-0's tile embeddings, so new slides can be embedded on a CPU, a Mac or 
 It distils from a finished triage run (`training/runs/triage/`): that run has already downloaded the slides and
 embedded every tissue tile with H-optimus-0, so the teacher does not run again.
 
+![Distillation workflow](../../../docs/glioma-workflow/diagrams/distillation.png)
+
+Source: `docs/glioma-workflow/diagrams/distillation.mmd`.
+
 | Job | Queue | What |
 |---|---|---|
 | `1_tiles.sh` | CPU, 4 cores | Cut each teacher bag's tiles from its slide into a cache (up to 1,000 tiles per slide, 224 px; about 38 GB for 250 slides), next to the teacher's numbers |
