@@ -27,8 +27,7 @@ other primary CNS (neuronal-only, embryonal, pineal, choroid plexus, meningiomas
 sellar and mesenchymal tumours, and the 6 lymphomas in the WHO CNS5 haematolymphoid chapter), "Metastatic tumours" to
 metastasis, the 2 systemic-type lymphomas (EBV-positive DLBCL NOS, follicular) to lymphoma (not trained, so scored
 as an unseen class), and the 4 histiocytic diagnoses to none. **It is a judgement table: review it.** The 47
-non-tumour controls are left out until someone sets each to normal brain or reactive (their kind is only in the
-free-text comment).
+non-tumour controls are all set to normal brain (some may be reactive tissue; only the free-text comment says).
 
 ## The report (`evaluation-<run>.json`)
 

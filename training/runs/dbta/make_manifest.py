@@ -6,7 +6,7 @@
   the dataset's EBRAINS page (Roetzer-Pejrimovsky et al. 2022, Scientific Data).
 * ``--slides``: the folder you downloaded the .ndpi files into (searched recursively; matched by uuid in the name).
 * ``dbta_classes.csv`` (next to this script) maps each DBTA diagnosis to a triage class, or to none (left out).
-  It is a judgement table: review it, and set the controls (normal_brain or reactive) there or per slide.
+  It is a judgement table: review it. The non-tumour controls are all set to normal_brain there.
 
 Writes, in ``--out``: ``manifest.csv`` (SeriesInstanceUID = uuid, PatientID = pat_id, label, diagnosis, ...),
 ``left_out.csv`` (every slide not in the manifest and why) and ``slides/<uuid>.ndpi`` links to the files, so each

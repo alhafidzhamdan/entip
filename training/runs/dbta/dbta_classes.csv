@@ -125,4 +125,4 @@ Langerhans cell histiocytosis,,histiocytic: no triage class; left out
 Erdheim-Chester disease,,histiocytic: no triage class; left out
 Juvenile xanthogranuloma,,histiocytic: no triage class; left out
 Crystal-storing histiocytosis,,histiocytic: no triage class; left out
-control,,non-tumour controls (control = 1): what they are is only in the free-text comment; set normal_brain or reactive by hand
+control,normal_brain,"non-tumour controls (control = 1): all set to normal brain; some may be reactive (only the free-text comment says)"
