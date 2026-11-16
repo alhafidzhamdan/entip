@@ -97,6 +97,55 @@ def _fit_one(cfg, X, y, patients, seed) -> ABMIL:
     return m.fit([X[i] for i in tr], y[tr], val=val)
 
 
+# ------------------------------------------------------------------ parallel training
+# Cross-validation folds, leave-one-source-out runs and the final model are independent fits, each fully set by
+# its training rows and seed, so they can run in worker processes and give the same numbers as running them in
+# turn. Workers get the data once, when they start (forked on Linux, so it is shared rather than copied).
+_TASK_DATA = None
+
+
+def _task_init(data, threads: int) -> None:
+    global _TASK_DATA
+    _TASK_DATA = data
+    try:                                          # each worker's maths libraries get its share of the cores
+        from threadpoolctl import threadpool_limits
+        threadpool_limits(threads)
+    except Exception:
+        pass
+
+
+def _task_run(task):
+    cfg, X, y, P = _TASK_DATA
+    kind, tr, te, seed = task
+    m = _fit_one(cfg, [X[i] for i in tr], y[tr], P[tr], seed)
+    return m if kind == "final" else m.logits([X[i] for i in te])
+
+
+def _run_tasks(tasks: list, data, n_jobs: int) -> list:
+    if n_jobs <= 1 or len(tasks) <= 1:
+        global _TASK_DATA
+        _TASK_DATA = data
+        try:
+            return [_task_run(t) for t in tasks]
+        finally:
+            _TASK_DATA = None
+    import multiprocessing as mp
+    import os
+    import sys
+    from concurrent.futures import ProcessPoolExecutor
+    n = min(n_jobs, len(tasks))
+    cores = int(os.environ.get("NSLOTS") or os.environ.get("SLURM_CPUS_PER_TASK") or os.cpu_count() or n)
+    ctx = mp.get_context("fork" if sys.platform.startswith("linux") else "spawn")
+    with ProcessPoolExecutor(n, mp_context=ctx, initializer=_task_init, initargs=(data, max(1, cores // n))) as pool:
+        return list(pool.map(_task_run, tasks))
+
+
+def default_jobs() -> int:
+    """Training processes: the job's cores on a cluster (Grid Engine NSLOTS, Slurm SLURM_CPUS_PER_TASK), else 1."""
+    import os
+    return max(1, int(os.environ.get("NSLOTS") or os.environ.get("SLURM_CPUS_PER_TASK") or 1))
+
+
 def _folds(y, patients, k, seed):
     from sklearn.model_selection import StratifiedGroupKFold
     k = min(k, len(np.unique(patients)))
@@ -184,7 +233,9 @@ class TriageModel:
 
     # ------------------------------------------------------------------ training
     def fit(self, bags: Sequence[Bag], labels: Sequence[str], groups: Sequence[str], patients: Sequence[str],
-            loso: bool = True) -> dict:
+            loso: bool = True, n_jobs: int = 1) -> dict:
+        """Cross-validate, calibrate, gate and train the final model. ``n_jobs`` > 1 runs the folds, the
+        leave-one-source-out runs and the final model in that many processes; the result is the same."""
         cfg = self.cfg
         labels, groups, patients = np.asarray(labels), np.asarray(groups), np.asarray(patients)
         encs = {b.encoder for b in bags}
@@ -204,10 +255,17 @@ class TriageModel:
         Z = pooled(X)
         oof = np.zeros((len(y), len(CLASSES)))
         oof_dist = np.zeros(len(y))
-        for f, (tr, te) in enumerate(_folds(y, P, cfg.folds, cfg.seed)):
-            m = _fit_one(cfg, [X[i] for i in tr], y[tr], P[tr], cfg.seed + f)
-            oof[te] = m.logits([X[i] for i in te])
+        folds = _folds(y, P, cfg.folds, cfg.seed)
+        loso_runs = self._loso_runs(y, G) if loso else []
+        tasks = ([("fold", tr, te, cfg.seed + f) for f, (tr, te) in enumerate(folds)]
+                 + [("loso", tr, te, cfg.seed + 200) for _, _, tr, te in loso_runs]
+                 + [("final", np.arange(len(y)), np.array([], int), cfg.seed + 100)])
+        results = _run_tasks(tasks, (cfg, X, y, P), n_jobs)
+        for f, (tr, te) in enumerate(folds):
+            oof[te] = results[f]
             oof_dist[te] = Novelty(quantile=cfg.novelty_quantile).fit(Z[tr], y[tr]).distance(Z[te])
+        loso_logits = results[len(folds):len(folds) + len(loso_runs)]
+        final_model = results[-1]
         oof[:, ~self.trained] = -1e9
         raw = _softmax(oof, axis=1)
         self.temperature = fit_temperature(oof, y)
@@ -236,8 +294,8 @@ class TriageModel:
         rep["oof_patients"], rep["cv"]["gate"]["first_error_rank"] = self._oof_patients(
             cal, y, rows, P, G, [bags[i].scan_id for i in np.flatnonzero(keep)], oof_dist > self.novelty.threshold, use)
         if loso:
-            rep["leave_one_source_out"] = self._loso(X, y, G, P)
-        self.mil = _fit_one(cfg, X, y, P, cfg.seed + 100)
+            rep["leave_one_source_out"] = self._loso_report(loso_runs, loso_logits, y)
+        self.mil = final_model
         h = hashlib.sha1(b"".join(self.mil.p[k].tobytes() for k in sorted(self.mil.p))).hexdigest()[:8]
         self.model_id, self.version = f"cns-triage-{h}", f"{__version__}+{h}"
         rep["unseen_classes"] = self._unseen([bags[i] for i in np.flatnonzero(~keep)], labels[~keep])
@@ -276,9 +334,10 @@ class TriageModel:
                         "probs": {c: round(float(cal[r][IDX[c]]), 4) for c in use}})
         return out, first
 
-    def _loso(self, X, y, G, P) -> dict:
+    @staticmethod
+    def _loso_runs(y, G) -> list:
         """For each source of a class that has another source too: train without it, test on it."""
-        out = {}
+        runs = []
         for g in np.unique(G):
             c = np.unique(y[G == g])
             if len(c) != 1 or len(np.unique(G[(y == c[0]) & (G != g)])) == 0:
@@ -286,11 +345,15 @@ class TriageModel:
             tr, te = np.flatnonzero(G != g), np.flatnonzero(G == g)
             if len(np.unique(y[tr])) < 2:
                 continue
-            m = _fit_one(self.cfg, [X[i] for i in tr], y[tr], P[tr], self.cfg.seed + 200)
-            lg = m.logits([X[i] for i in te])
+            runs.append((g, int(c[0]), tr, te))
+        return runs
+
+    def _loso_report(self, runs, logits, y) -> dict:
+        out = {}
+        for (g, c, tr, te), lg in zip(runs, logits):
+            lg = np.array(lg)
             lg[:, ~self.trained] = -1e9
-            out[str(g)] = {"class": CLASSES[int(c[0])], "n": int(len(te)),
-                           "accuracy": float((lg.argmax(1) == y[te]).mean())}
+            out[str(g)] = {"class": CLASSES[c], "n": int(len(te)), "accuracy": float((lg.argmax(1) == y[te]).mean())}
         return out
 
     # ------------------------------------------------------------------ inference

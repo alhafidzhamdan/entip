@@ -50,7 +50,8 @@ def _train(a) -> int:
                          f"({missing} missing, {len(empty)} with no tiles)")
     cfg = TriageConfig(epochs=a.epochs, folds=a.folds, max_error=a.max_error, seed=a.seed)
     m = TriageModel(cfg)
-    rep = m.fit(bags, labels, groups, patients, loso=not a.no_loso)
+    from .model import default_jobs
+    rep = m.fit(bags, labels, groups, patients, loso=not a.no_loso, n_jobs=a.jobs or default_jobs())
     rep["slides_missing_bags"] = missing
     rep["label_corrections"] = corrected
     rep["slides_empty_bags"] = empty
@@ -124,6 +125,8 @@ def add_parser(sub) -> None:
     p.add_argument("--train-tiles", type=int, default=1024, help="tiles kept per slide in memory for training")
     p.add_argument("--corrections", default=None, help="label corrections CSV (default: the one shipped with ENTIP)")
     p.add_argument("--no-corrections", action="store_true", help="train on the manifest's labels as they are")
+    p.add_argument("--jobs", type=int, default=None,
+                   help="processes for the cross-validation folds (default: the job's cores, NSLOTS, else 1)")
     p.add_argument("--db", default=None, help="db API base URL: register the model there (status draft)")
     p.set_defaults(fn=_train)
     p = ts.add_parser("predict", help="score one patient's bags; optionally write to the db")

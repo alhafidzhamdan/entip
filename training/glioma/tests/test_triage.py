@@ -409,3 +409,15 @@ def test_train_reports_corrections(tmp_path, capsys):
     rep = json.loads(capsys.readouterr().out)
     assert {c["patient"] for c in rep["label_corrections"]} == {victim}     # one entry per slide of that patient
     assert victim not in {r["patient"] for r in rep["oof_patients"]}
+
+
+def test_parallel_training_gives_the_same_model():
+    """Folds, leave-one-source-out runs and the final model in worker processes give the serial results."""
+    bags, labels, groups, patients = synthetic_cohort(seed=0)
+    cfg = TriageConfig(epochs=3, folds=3, max_error=0.1, min_accepted=10)
+    a, b = TriageModel(cfg), TriageModel(cfg)
+    ra = a.fit(bags, labels, groups, patients, loso=True, n_jobs=1)
+    rb = b.fit(bags, labels, groups, patients, loso=True, n_jobs=3)
+    assert ra["cv"] == rb["cv"] and ra["leave_one_source_out"] == rb["leave_one_source_out"]
+    assert [r["confidence"] for r in ra["oof_patients"]] == [r["confidence"] for r in rb["oof_patients"]]
+    assert a.model_id == b.model_id and a.temperature == b.temperature
