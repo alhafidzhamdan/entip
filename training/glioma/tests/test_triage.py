@@ -360,3 +360,13 @@ def test_train_skips_bags_with_no_tiles(tmp_path, capsys):
                  "--out", str(tmp_path / "model"), "--epochs", "2", "--folds", "3", "--no-loso"]) == 0
     out = capsys.readouterr()
     assert json.loads(out.out)["slides_empty_bags"] == ["s-empty"] and "no tiles" in out.err
+
+
+def test_report_lists_out_of_fold_calls_per_patient(trained):
+    _, rep, _, _ = trained
+    rows = rep["oof_patients"]
+    assert len(rows) == rep["n_patients"] and [r["rank"] for r in rows] == list(range(1, len(rows) + 1))
+    assert all(rows[i]["confidence"] >= rows[i + 1]["confidence"] for i in range(len(rows) - 1))
+    wrong = [r["rank"] for r in rows if not r["correct"]]
+    assert rep["cv"]["gate"]["first_error_rank"] == (wrong[0] if wrong else None)
+    assert set(rows[0]["probs"]) == set(rep["classes_trained"]) and rows[0]["slide"]

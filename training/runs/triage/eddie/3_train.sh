@@ -24,3 +24,4 @@ print(json.dumps({"classes_trained": r["classes_trained"], "slides_missing_bags"
                   "source_check": r["source_check"], "leave_one_source_out": r.get("leave_one_source_out")},
                  indent=2, default=float))
 EOF
+python "$TRIAL/mistakes.py" "report-$ENCODER.json"

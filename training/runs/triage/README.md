@@ -52,7 +52,13 @@ bash training/runs/triage/eddie/setup.sh                 # once, on a login node
 bash training/runs/triage/eddie/submit.sh                # the test run
 RUN=diverse bash training/runs/triage/eddie/submit.sh    # the diverse set
 qstat                                                    # watch them
+RUN=diverse bash training/runs/triage/eddie/retrain.sh   # re-run only the training job, on the existing bags
 ```
+
+The training report lists every patient's out-of-fold call (`oof_patients`, most confident first) and the
+confidence rank of the first wrong call (`cv.gate.first_error_rank`). `python3 mistakes.py report-h-optimus-0.json`
+prints the mistakes and the confusions; the train job runs it at the end. At the 5% limit the gate needs its 59
+most confident patients to be right, so a mistake ranked within the top 59 blocks it on its own.
 
 Settings are in `eddie/config.sh`, and each can be overridden from the environment. Defaults:
 

@@ -233,6 +233,8 @@ class TriageModel:
                "per_source_accuracy": {str(g): float((cal.argmax(1)[G == g] == y[G == g]).mean())
                                        for g in np.unique(G)},
                "source_check": source_check(X, labels[keep], G, P, seed=cfg.seed)}
+        rep["oof_patients"], rep["cv"]["gate"]["first_error_rank"] = self._oof_patients(
+            cal, y, rows, P, G, [bags[i].scan_id for i in np.flatnonzero(keep)], oof_dist > self.novelty.threshold, use)
         if loso:
             rep["leave_one_source_out"] = self._loso(X, y, G, P)
         self.mil = _fit_one(cfg, X, y, P, cfg.seed + 100)
@@ -256,6 +258,23 @@ class TriageModel:
                            "above_threshold": len(acc), "flagged_novel": int(sum(p["novel"] for p in ps)),
                            "accepted_wrongly": int(sum(not p["novel"] for p in acc))}
         return out
+
+    @staticmethod
+    def _oof_patients(cal, y, rows, P, G, slides, novel, use) -> tuple[list, Optional[int]]:
+        """One row per patient (their most abnormal slide, as the gate sees it), most confident first: the
+        out-of-fold call, its calibrated confidence, the truth, and the class probabilities. The rank of the
+        first wrong call shows why the gate accepts what it does: every cut below it carries that error."""
+        order = sorted(rows, key=lambda r: -float(cal[r].max()))
+        out, first = [], None
+        for rank, r in enumerate(order, start=1):
+            ok = bool(cal[r].argmax() == y[r])
+            if not ok and first is None:
+                first = rank
+            out.append({"rank": rank, "patient": str(P[r]), "slide": str(slides[r]), "source": str(G[r]),
+                        "label": CLASSES[int(y[r])], "call": CLASSES[int(cal[r].argmax())],
+                        "confidence": round(float(cal[r].max()), 4), "correct": ok, "novel": bool(novel[r]),
+                        "probs": {c: round(float(cal[r][IDX[c]]), 4) for c in use}})
+        return out, first
 
     def _loso(self, X, y, G, P) -> dict:
         """For each source of a class that has another source too: train without it, test on it."""
