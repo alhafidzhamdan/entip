@@ -1,13 +1,18 @@
 """Triage classes and the mapping from public slide metadata to them.
 
-Classes follow the step 6 contract (entip.glioma_step/1, finding ``tissue_class``)::
+Classes follow the step 6 contract (entip.glioma_step/1, finding ``tissue_class``), defined in WHO CNS5 terms
+(full definitions and display names in ``who_cns5.CLASS_CNS5``; each case's own diagnosis is a WHO CNS5 term from
+``who_cns5``)::
 
-    normal_brain       non-tumour, normal CNS parenchyma
-    reactive           non-tumour, gliosis / inflammation / other non-neoplastic change
-    glioma             glial and glioneuronal tumours (the input to steps 3-5)
-    other_primary_cns  primary CNS tumours that are not glial (meningioma, embryonal, germ cell, ...)
-    metastasis         carcinoma, melanoma etc. in the CNS
-    lymphoma           lymphoma in the CNS
+    normal_brain       non-neoplastic CNS tissue, normal
+    reactive           non-neoplastic CNS tissue, reactive (gliosis, inflammation, infarct, ...)
+    glioma             gliomas and glioneuronal tumours: WHO CNS5 chapter 1 without the neuronal tumours
+                       (the input to steps 3-5)
+    other_primary_cns  every other primary CNS tumour type in WHO CNS5, including neuronal tumours and the
+                       primary CNS lymphomas of the haematolymphoid chapter
+    metastasis         metastases to the CNS (WHO CNS5 chapter); in public training data, primary tumours of the
+                       commonest origins stand in for them
+    lymphoma           secondary (systemic) lymphoma involving the CNS
 
 The keyword lists below are a first pass for IDC ``admittingDiagnosis_CodeMeaning`` strings. They are a
 neuropathologist's call to finalise: edit ``GLIAL_TERMS`` / ``OTHER_PRIMARY_TERMS`` rather than the code.

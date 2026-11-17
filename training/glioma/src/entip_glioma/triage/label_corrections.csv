@@ -1,4 +1,4 @@
 patient_id,label,diagnosis,source,date,note
-PBCIAR,other_primary_cns,Medulloblastoma,"Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Carcinoma, NOS', which mapped it to metastasis"
-PBCWUR,other_primary_cns,Choroid plexus carcinoma,"Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Carcinoma, NOS', which mapped it to metastasis"
+PBCIAR,other_primary_cns,"Medulloblastoma, NOS, CNS WHO grade 4","Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Carcinoma, NOS', which mapped it to metastasis"
+PBCWUR,other_primary_cns,"Choroid plexus carcinoma, CNS WHO grade 3","Al Hamdan, from CCDI records",2026-11-16,"IDC lists the admitting diagnosis as 'Carcinoma, NOS', which mapped it to metastasis"
 PBCJIG,other_primary_cns,Meningeal melanoma,"Al Hamdan, from CCDI records; slide reviewed",2026-11-17,"Circumscribed meningeal melanocytic neoplasm (WHO CNS5), confirmed on the slide. IDC lists the admitting diagnosis as 'Malignant melanoma, NOS', which mapped it to metastasis"

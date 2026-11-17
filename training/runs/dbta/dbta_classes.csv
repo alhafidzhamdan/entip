@@ -1,128 +1,128 @@
-diagnosis,triage_class,note
-"Anaplastic astrocytoma, IDH-mutant",glioma,adult diffuse glioma
-"Anaplastic astrocytoma, IDH-wildtype",glioma,adult diffuse glioma
-Anaplastic ependymoma,glioma,ependymal; not in training
-Anaplastic ganglioglioma,glioma,glioneuronal; not in training
-"Anaplastic oligodendroglioma, IDH-mutant and 1p/19q codeleted",glioma,adult diffuse glioma
-Anaplastic pleomorphic xanthoastrocytoma,glioma,circumscribed astrocytic; not in training
-Angiocentric glioma,glioma,paediatric-type; not in training
-Astroblastoma,glioma,circumscribed; not in training
-Chordoid glioma of the third ventricle,glioma,circumscribed; not in training
-Desmoplastic infantile astrocytoma and ganglioglioma,glioma,glioneuronal; not in training
-"Diffuse astrocytoma, IDH-mutant",glioma,adult diffuse glioma
-"Diffuse astrocytoma, IDH-wildtype",glioma,adult diffuse glioma
-Diffuse leptomeningeal glioneuronal tumour,glioma,glioneuronal; not in training
-"Diffuse midline glioma, H3 K27M-mutant",glioma,paediatric-type diffuse; not in training
-Dysembryoplastic neuroepithelial tumour,glioma,glioneuronal; not in training
-Ependymoma,glioma,ependymal; not in training
-"Ependymoma, RELA fusion-positive",glioma,ependymal; not in training
-Ganglioglioma,glioma,glioneuronal; not in training
-"Gemistocytic astrocytoma, IDH-mutant",glioma,adult diffuse glioma
-Giant cell glioblastoma,glioma,adult diffuse glioma (GBM variant)
-"Glioblastoma, IDH-mutant",glioma,"adult diffuse glioma (CNS5: astrocytoma, IDH-mutant, grade 4)"
-"Glioblastoma, IDH-wildtype",glioma,adult diffuse glioma
-Gliosarcoma,glioma,adult diffuse glioma (GBM variant)
-Myxopapillary ependymoma,glioma,ependymal; not in training
-"Oligodendroglioma, IDH-mutant and 1p/19q codeleted",glioma,adult diffuse glioma
-Papillary ependymoma,glioma,ependymal; not in training
-Papillary glioneuronal tumour,glioma,glioneuronal; not in training
-Pilocytic astrocytoma,glioma,circumscribed astrocytic; not in training
-Pilomyxoid astrocytoma,glioma,circumscribed astrocytic; not in training
-Pleomorphic xanthoastrocytoma,glioma,circumscribed astrocytic; not in training
-Rosette-forming glioneuronal tumour,glioma,glioneuronal; not in training
-Subependymal giant cell astrocytoma,glioma,circumscribed astrocytic; not in training
-Subependymoma,glioma,ependymal; not in training
-Tanycytic ependymoma,glioma,ependymal; not in training
-Central neurocytoma,other_primary_cns,neuronal (not glial)
-Extraventricular neurocytoma,other_primary_cns,neuronal (not glial)
-Gangliocytoma,other_primary_cns,neuronal (not glial)
-Dysplastic cerebellar gangliocytoma,other_primary_cns,neuronal (not glial)
-Cerebellar liponeurocytoma,other_primary_cns,neuronal (not glial)
-Ganglioneuroma,other_primary_cns,neuronal (not glial)
-Atypical teratoid/rhabdoid tumour,other_primary_cns,embryonal
-CNS ganglioneuroblastoma,other_primary_cns,embryonal
-"Embryonal tumour with multilayered rosettes, C19MC-altered",other_primary_cns,embryonal
-"Medulloblastoma, SHH-activated and TP53-mutant",other_primary_cns,embryonal
-"Medulloblastoma, SHH-activated and TP53-wildtype",other_primary_cns,embryonal
-"Medulloblastoma, WNT-activated",other_primary_cns,embryonal
-"Medulloblastoma, non-WNT/non-SHH",other_primary_cns,embryonal
-Pineal parenchymal tumour of intermediate differentiation,other_primary_cns,pineal
-Pineoblastoma,other_primary_cns,pineal
-Pineocytoma,other_primary_cns,pineal
-Papillary tumour of the pineal region,other_primary_cns,pineal
-Choroid plexus papilloma,other_primary_cns,choroid plexus
-Atypical choroid plexus papilloma,other_primary_cns,choroid plexus
-Choroid plexus carcinoma,other_primary_cns,choroid plexus
-Anaplastic meningioma,other_primary_cns,meningioma
-Angiomatous meningioma,other_primary_cns,meningioma
-Atypical meningioma,other_primary_cns,meningioma
-Chordoid meningioma,other_primary_cns,meningioma
-Clear cell meningioma,other_primary_cns,meningioma
-Fibrous meningioma,other_primary_cns,meningioma
-Lymphoplasmacyte-rich meningioma,other_primary_cns,meningioma
-Meningothelial meningioma,other_primary_cns,meningioma
-Metaplastic meningioma,other_primary_cns,meningioma
-Microcystic meningioma,other_primary_cns,meningioma
-Papillary meningioma,other_primary_cns,meningioma
-Psammomatous meningioma,other_primary_cns,meningioma
-Rhabdoid meningioma,other_primary_cns,meningioma
-Secretory meningioma,other_primary_cns,meningioma
-Transitional meningioma,other_primary_cns,meningioma
-Schwannoma,other_primary_cns,nerve sheath
-Cellular schwannoma,other_primary_cns,nerve sheath
-Melanotic schwannoma,other_primary_cns,nerve sheath
-Neurofibroma,other_primary_cns,nerve sheath
-Plexiform neurofibroma,other_primary_cns,nerve sheath
-Perineurioma,other_primary_cns,nerve sheath
-Hybrid nerve sheath tumours,other_primary_cns,nerve sheath
-Malignant peripheral nerve sheath tumour,other_primary_cns,nerve sheath
-Epitheloid MPNST,other_primary_cns,nerve sheath
-Meningeal melanocytoma,other_primary_cns,primary melanocytic
-Meningeal melanoma,other_primary_cns,primary melanocytic
-Germinoma,other_primary_cns,germ cell
-Embryonal carcinoma,other_primary_cns,germ cell
-Choriocarcinoma,other_primary_cns,germ cell
-Mixed germ cell tumour,other_primary_cns,germ cell
-Mature teratoma,other_primary_cns,germ cell
-Immature teratoma,other_primary_cns,germ cell
-Teratoma with malignant transformation,other_primary_cns,germ cell
-Pituitary adenoma,other_primary_cns,sellar
-Adamantinomatous craniopharyngioma,other_primary_cns,sellar
-Papillary craniopharyngioma,other_primary_cns,sellar
-Granular cell tumour of the sellar region,other_primary_cns,sellar
-Pituicytoma,other_primary_cns,sellar
-Spindle cell oncocytoma,other_primary_cns,sellar
-Haemangioblastoma,other_primary_cns,"mesenchymal, non-meningothelial"
-Haemangiopericytoma,other_primary_cns,mesenchymal (CNS5: solitary fibrous tumour)
-Paraganglioma,other_primary_cns,neuroendocrine
-Olfactory neuroblastoma,other_primary_cns,sinonasal neuroectodermal; involves the skull base
-Angiosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Chondrosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Chordoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Ewing sarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Fibrosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Haemangioma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Inflammatory myofibroblastic tumour,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Leiomyoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Leiomyosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Lipoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Liposarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Osteochondroma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Osteoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Osteosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Rhabdomyosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Undifferentiated pleomorphic sarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
-Metastatic tumours,metastasis,real metastases in the CNS
-Diffuse large B-cell lymphoma of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
-"EBV-positive diffuse large B-cell lymphoma, NOS",lymphoma,"lymphoma: not in training, scored as an unseen class"
-Follicular lymphoma,lymphoma,"lymphoma: not in training, scored as an unseen class"
-Immunodeficiency-associated CNS lymphoma,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
-Intravascular large B-cell lymphoma,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
-Low-grade B-cell lymphomas of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
-MALT lymphoma of the dura,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
-T-cell and NK/T-cell lymphomas of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
-Langerhans cell histiocytosis,,histiocytic: no triage class; left out
-Erdheim-Chester disease,,histiocytic: no triage class; left out
-Juvenile xanthogranuloma,,histiocytic: no triage class; left out
-Crystal-storing histiocytosis,,histiocytic: no triage class; left out
-control,normal_brain,"non-tumour controls (control = 1): all set to normal brain; some may be reactive (only the free-text comment says)"
+diagnosis,who_cns5,triage_class,note
+"Anaplastic astrocytoma, IDH-mutant","Astrocytoma, IDH-mutant, CNS WHO grade 3",glioma,adult diffuse glioma
+"Anaplastic astrocytoma, IDH-wildtype","Diffuse glioma, IDH-wildtype, NOS (WHO 2016 grade 3)",glioma,adult diffuse glioma
+Anaplastic ependymoma,"Ependymoma, NOS, CNS WHO grade 3",glioma,ependymal; not in training
+Anaplastic ganglioglioma,"Glioneuronal tumour, NOS (WHO 2016 anaplastic ganglioglioma)",glioma,glioneuronal; not in training
+"Anaplastic oligodendroglioma, IDH-mutant and 1p/19q codeleted","Oligodendroglioma, IDH-mutant and 1p/19q-codeleted, CNS WHO grade 3",glioma,adult diffuse glioma
+Anaplastic pleomorphic xanthoastrocytoma,"Pleomorphic xanthoastrocytoma, CNS WHO grade 3",glioma,circumscribed astrocytic; not in training
+Angiocentric glioma,"Angiocentric glioma, CNS WHO grade 1",glioma,paediatric-type; not in training
+Astroblastoma,"Astroblastoma, NOS",glioma,circumscribed; not in training
+Chordoid glioma of the third ventricle,"Chordoid glioma, CNS WHO grade 2",glioma,circumscribed; not in training
+Desmoplastic infantile astrocytoma and ganglioglioma,"Desmoplastic infantile ganglioglioma / desmoplastic infantile astrocytoma, CNS WHO grade 1",glioma,glioneuronal; not in training
+"Diffuse astrocytoma, IDH-mutant","Astrocytoma, IDH-mutant, CNS WHO grade 2",glioma,adult diffuse glioma
+"Diffuse astrocytoma, IDH-wildtype","Diffuse glioma, IDH-wildtype, NOS (WHO 2016 grade 2)",glioma,adult diffuse glioma
+Diffuse leptomeningeal glioneuronal tumour,Diffuse leptomeningeal glioneuronal tumour,glioma,glioneuronal; not in training
+"Diffuse midline glioma, H3 K27M-mutant","Diffuse midline glioma, H3 K27-altered, CNS WHO grade 4",glioma,paediatric-type diffuse; not in training
+Dysembryoplastic neuroepithelial tumour,"Dysembryoplastic neuroepithelial tumour, CNS WHO grade 1",glioma,glioneuronal; not in training
+Ependymoma,"Ependymoma, NOS, CNS WHO grade 2",glioma,ependymal; not in training
+"Ependymoma, RELA fusion-positive","Supratentorial ependymoma, ZFTA fusion-positive",glioma,ependymal; not in training
+Ganglioglioma,"Ganglioglioma, CNS WHO grade 1",glioma,glioneuronal; not in training
+"Gemistocytic astrocytoma, IDH-mutant","Astrocytoma, IDH-mutant, CNS WHO grade 2",glioma,adult diffuse glioma
+Giant cell glioblastoma,"Glioblastoma, IDH-wildtype, CNS WHO grade 4 (giant cell pattern)",glioma,adult diffuse glioma (GBM variant)
+"Glioblastoma, IDH-mutant","Astrocytoma, IDH-mutant, CNS WHO grade 4",glioma,"adult diffuse glioma (CNS5: astrocytoma, IDH-mutant, grade 4)"
+"Glioblastoma, IDH-wildtype","Glioblastoma, IDH-wildtype, CNS WHO grade 4",glioma,adult diffuse glioma
+Gliosarcoma,"Glioblastoma, IDH-wildtype, CNS WHO grade 4 (gliosarcoma pattern)",glioma,adult diffuse glioma (GBM variant)
+Myxopapillary ependymoma,"Myxopapillary ependymoma, CNS WHO grade 2",glioma,ependymal; not in training
+"Oligodendroglioma, IDH-mutant and 1p/19q codeleted","Oligodendroglioma, IDH-mutant and 1p/19q-codeleted, CNS WHO grade 2",glioma,adult diffuse glioma
+Papillary ependymoma,"Ependymoma, NOS, CNS WHO grade 2 (papillary pattern)",glioma,ependymal; not in training
+Papillary glioneuronal tumour,"Papillary glioneuronal tumour, CNS WHO grade 1",glioma,glioneuronal; not in training
+Pilocytic astrocytoma,"Pilocytic astrocytoma, CNS WHO grade 1",glioma,circumscribed astrocytic; not in training
+Pilomyxoid astrocytoma,Pilocytic astrocytoma (pilomyxoid subtype),glioma,circumscribed astrocytic; not in training
+Pleomorphic xanthoastrocytoma,"Pleomorphic xanthoastrocytoma, CNS WHO grade 2",glioma,circumscribed astrocytic; not in training
+Rosette-forming glioneuronal tumour,"Rosette-forming glioneuronal tumour, CNS WHO grade 1",glioma,glioneuronal; not in training
+Subependymal giant cell astrocytoma,"Subependymal giant cell astrocytoma, CNS WHO grade 1",glioma,circumscribed astrocytic; not in training
+Subependymoma,"Subependymoma, CNS WHO grade 1",glioma,ependymal; not in training
+Tanycytic ependymoma,"Ependymoma, NOS, CNS WHO grade 2 (tanycytic pattern)",glioma,ependymal; not in training
+Central neurocytoma,"Central neurocytoma, CNS WHO grade 2",other_primary_cns,neuronal (not glial)
+Extraventricular neurocytoma,"Extraventricular neurocytoma, CNS WHO grade 2",other_primary_cns,neuronal (not glial)
+Gangliocytoma,"Gangliocytoma, CNS WHO grade 1",other_primary_cns,neuronal (not glial)
+Dysplastic cerebellar gangliocytoma,Dysplastic cerebellar gangliocytoma (Lhermitte-Duclos disease),other_primary_cns,neuronal (not glial)
+Cerebellar liponeurocytoma,"Cerebellar liponeurocytoma, CNS WHO grade 2",other_primary_cns,neuronal (not glial)
+Ganglioneuroma,Ganglioneuroma,other_primary_cns,neuronal (not glial)
+Atypical teratoid/rhabdoid tumour,"Atypical teratoid/rhabdoid tumour, CNS WHO grade 4",other_primary_cns,embryonal
+CNS ganglioneuroblastoma,"CNS embryonal tumour, NOS (WHO 2016 CNS ganglioneuroblastoma)",other_primary_cns,embryonal
+"Embryonal tumour with multilayered rosettes, C19MC-altered","Embryonal tumour with multilayered rosettes, CNS WHO grade 4",other_primary_cns,embryonal
+"Medulloblastoma, SHH-activated and TP53-mutant","Medulloblastoma, SHH-activated and TP53-mutant, CNS WHO grade 4",other_primary_cns,embryonal
+"Medulloblastoma, SHH-activated and TP53-wildtype","Medulloblastoma, SHH-activated and TP53-wildtype, CNS WHO grade 4",other_primary_cns,embryonal
+"Medulloblastoma, WNT-activated","Medulloblastoma, WNT-activated, CNS WHO grade 4",other_primary_cns,embryonal
+"Medulloblastoma, non-WNT/non-SHH","Medulloblastoma, non-WNT/non-SHH, CNS WHO grade 4",other_primary_cns,embryonal
+Pineal parenchymal tumour of intermediate differentiation,Pineal parenchymal tumour of intermediate differentiation,other_primary_cns,pineal
+Pineoblastoma,"Pineoblastoma, CNS WHO grade 4",other_primary_cns,pineal
+Pineocytoma,"Pineocytoma, CNS WHO grade 1",other_primary_cns,pineal
+Papillary tumour of the pineal region,Papillary tumour of the pineal region,other_primary_cns,pineal
+Choroid plexus papilloma,"Choroid plexus papilloma, CNS WHO grade 1",other_primary_cns,choroid plexus
+Atypical choroid plexus papilloma,"Atypical choroid plexus papilloma, CNS WHO grade 2",other_primary_cns,choroid plexus
+Choroid plexus carcinoma,"Choroid plexus carcinoma, CNS WHO grade 3",other_primary_cns,choroid plexus
+Anaplastic meningioma,"Meningioma, CNS WHO grade 3",other_primary_cns,meningioma
+Angiomatous meningioma,"Meningioma, CNS WHO grade 1 (angiomatous subtype)",other_primary_cns,meningioma
+Atypical meningioma,"Meningioma, CNS WHO grade 2",other_primary_cns,meningioma
+Chordoid meningioma,"Meningioma, CNS WHO grade 2 (chordoid subtype)",other_primary_cns,meningioma
+Clear cell meningioma,"Meningioma, CNS WHO grade 2 (clear cell subtype)",other_primary_cns,meningioma
+Fibrous meningioma,"Meningioma, CNS WHO grade 1 (fibrous subtype)",other_primary_cns,meningioma
+Lymphoplasmacyte-rich meningioma,"Meningioma, CNS WHO grade 1 (lymphoplasmacyte-rich subtype)",other_primary_cns,meningioma
+Meningothelial meningioma,"Meningioma, CNS WHO grade 1 (meningothelial subtype)",other_primary_cns,meningioma
+Metaplastic meningioma,"Meningioma, CNS WHO grade 1 (metaplastic subtype)",other_primary_cns,meningioma
+Microcystic meningioma,"Meningioma, CNS WHO grade 1 (microcystic subtype)",other_primary_cns,meningioma
+Papillary meningioma,"Meningioma, NOS (papillary subtype)",other_primary_cns,meningioma
+Psammomatous meningioma,"Meningioma, CNS WHO grade 1 (psammomatous subtype)",other_primary_cns,meningioma
+Rhabdoid meningioma,"Meningioma, NOS (rhabdoid subtype)",other_primary_cns,meningioma
+Secretory meningioma,"Meningioma, CNS WHO grade 1 (secretory subtype)",other_primary_cns,meningioma
+Transitional meningioma,"Meningioma, CNS WHO grade 1 (transitional subtype)",other_primary_cns,meningioma
+Schwannoma,"Schwannoma, CNS WHO grade 1",other_primary_cns,nerve sheath
+Cellular schwannoma,"Schwannoma, CNS WHO grade 1 (cellular subtype)",other_primary_cns,nerve sheath
+Melanotic schwannoma,Malignant melanotic nerve sheath tumour,other_primary_cns,nerve sheath
+Neurofibroma,"Neurofibroma, CNS WHO grade 1",other_primary_cns,nerve sheath
+Plexiform neurofibroma,"Neurofibroma, CNS WHO grade 1 (plexiform)",other_primary_cns,nerve sheath
+Perineurioma,"Perineurioma, CNS WHO grade 1",other_primary_cns,nerve sheath
+Hybrid nerve sheath tumours,Hybrid nerve sheath tumour,other_primary_cns,nerve sheath
+Malignant peripheral nerve sheath tumour,Malignant peripheral nerve sheath tumour,other_primary_cns,nerve sheath
+Epitheloid MPNST,Malignant peripheral nerve sheath tumour (epithelioid subtype),other_primary_cns,nerve sheath
+Meningeal melanocytoma,Meningeal melanocytoma,other_primary_cns,primary melanocytic
+Meningeal melanoma,Meningeal melanoma,other_primary_cns,primary melanocytic
+Germinoma,Germinoma,other_primary_cns,germ cell
+Embryonal carcinoma,Embryonal carcinoma,other_primary_cns,germ cell
+Choriocarcinoma,Choriocarcinoma,other_primary_cns,germ cell
+Mixed germ cell tumour,Mixed germ cell tumour,other_primary_cns,germ cell
+Mature teratoma,Mature teratoma,other_primary_cns,germ cell
+Immature teratoma,Immature teratoma,other_primary_cns,germ cell
+Teratoma with malignant transformation,Teratoma with somatic-type malignancy,other_primary_cns,germ cell
+Pituitary adenoma,Pituitary adenoma / PitNET,other_primary_cns,sellar
+Adamantinomatous craniopharyngioma,"Adamantinomatous craniopharyngioma, CNS WHO grade 1",other_primary_cns,sellar
+Papillary craniopharyngioma,"Papillary craniopharyngioma, CNS WHO grade 1",other_primary_cns,sellar
+Granular cell tumour of the sellar region,Granular cell tumour of the sellar region,other_primary_cns,sellar
+Pituicytoma,Pituicytoma,other_primary_cns,sellar
+Spindle cell oncocytoma,Spindle cell oncocytoma,other_primary_cns,sellar
+Haemangioblastoma,"Haemangioblastoma, CNS WHO grade 1",other_primary_cns,"mesenchymal, non-meningothelial"
+Haemangiopericytoma,Solitary fibrous tumour,other_primary_cns,mesenchymal (CNS5: solitary fibrous tumour)
+Paraganglioma,Paraganglioma,other_primary_cns,neuroendocrine
+Olfactory neuroblastoma,Olfactory neuroblastoma,other_primary_cns,sinonasal neuroectodermal; involves the skull base
+Angiosarcoma,Angiosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Chondrosarcoma,Chondrosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Chordoma,Chordoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Ewing sarcoma,Ewing sarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Fibrosarcoma,Fibrosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Haemangioma,Haemangioma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Inflammatory myofibroblastic tumour,Inflammatory myofibroblastic tumour,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Leiomyoma,Leiomyoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Leiomyosarcoma,Leiomyosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Lipoma,Lipoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Liposarcoma,Liposarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Osteochondroma,Osteochondroma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Osteoma,Osteoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Osteosarcoma,Osteosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Rhabdomyosarcoma,Rhabdomyosarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Undifferentiated pleomorphic sarcoma,Undifferentiated pleomorphic sarcoma,other_primary_cns,"mesenchymal tumour involving the CNS or skull: tumour, not glial"
+Metastatic tumours,Metastases to the CNS,metastasis,real metastases in the CNS
+Diffuse large B-cell lymphoma of the CNS,Primary diffuse large B-cell lymphoma of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+"EBV-positive diffuse large B-cell lymphoma, NOS","EBV-positive diffuse large B-cell lymphoma, NOS",lymphoma,"lymphoma: not in training, scored as an unseen class"
+Follicular lymphoma,Follicular lymphoma,lymphoma,"lymphoma: not in training, scored as an unseen class"
+Immunodeficiency-associated CNS lymphoma,Immunodeficiency-associated CNS lymphoma,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+Intravascular large B-cell lymphoma,Intravascular large B-cell lymphoma,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+Low-grade B-cell lymphomas of the CNS,Low-grade B-cell lymphoma of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+MALT lymphoma of the dura,MALT lymphoma of the dura,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+T-cell and NK/T-cell lymphomas of the CNS,T-cell and NK/T-cell lymphoma of the CNS,other_primary_cns,"primary CNS lymphoma (WHO CNS5 haematolymphoid chapter): other primary CNS, not trained"
+Langerhans cell histiocytosis,Langerhans cell histiocytosis,,histiocytic: no triage class; left out
+Erdheim-Chester disease,Erdheim-Chester disease,,histiocytic: no triage class; left out
+Juvenile xanthogranuloma,Juvenile xanthogranuloma,,histiocytic: no triage class; left out
+Crystal-storing histiocytosis,Crystal-storing histiocytosis,,histiocytic: no triage class; left out
+control,Non-neoplastic CNS tissue (control),normal_brain,non-tumour controls (control = 1): all set to normal brain; some may be reactive (only the free-text comment says)

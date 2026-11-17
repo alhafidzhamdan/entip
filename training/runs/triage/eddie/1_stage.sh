@@ -18,7 +18,7 @@ plan_list() { python -c "import json,sys; print(' '.join(json.load(open(sys.argv
 cp "$PLAN" plan.json                                  # keep the plan this run used next to its results
 # shellcheck disable=SC2046
 [ -s manifest.csv ] || entip-train triage manifest $(plan_list manifest_args) --out manifest.csv > manifest.json
-[ -s idh.tsv ] || python "$TRIAL/fetch_idh.py" idh.tsv
+grep -qs IDH_CODEL_SUBTYPE idh.tsv || python "$TRIAL/fetch_idh.py" idh.tsv    # refetch a table from before 1p/19q was added
 python "$TRIAL/pick_slides.py" manifest.csv trial.csv --plan "$PLAN" --idh idh.tsv | tee trial.txt
 python "$TRIAL/eddie/stage_slides.py" trial.csv slides/
 

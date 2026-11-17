@@ -8,6 +8,9 @@ Why it is worth it: a lab, scanner and population the model has never seen, and 
 not give us - 47 real metastases in the CNS, about 90 lymphomas (primary CNS lymphoma, counted as other primary CNS), and dozens of glioma and other CNS types beyond
 adult diffuse gliomas (ependymomas, pilocytic astrocytomas, glioneuronal tumours, meningiomas, schwannomas, ...).
 
+Each patient's `diagnosis` in the manifest is its WHO CNS5 term (the DBTA's own WHO 2016 term stays in
+`dbta_diagnosis`), so `per_diagnosis` in the report reads in CNS5 terms; see `docs/who-cns5.md`.
+
 ## Terms
 
 Research only, under the EBRAINS Data Use Agreement for pseudonymised human data: cite the dataset's DOI, no

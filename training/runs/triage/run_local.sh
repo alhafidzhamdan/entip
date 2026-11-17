@@ -19,7 +19,7 @@ plan_list() { python -c "import json,sys; print(' '.join(json.load(open(sys.argv
 # shellcheck disable=SC2046
 [ -s "$OUT/manifest.csv" ] || entip-train triage manifest $(plan_list manifest_args) --out "$OUT/manifest.csv" \
   > "$OUT/manifest.json"
-[ -s "$OUT/idh.tsv" ] || python fetch_idh.py "$OUT/idh.tsv"
+grep -qs IDH_CODEL_SUBTYPE "$OUT/idh.tsv" || python fetch_idh.py "$OUT/idh.tsv"
 
 # 2. the slides in the plan
 python pick_slides.py "$OUT/manifest.csv" "$OUT/trial.csv" --plan "$PLAN" --idh "$OUT/idh.tsv" | tee "$OUT/trial.txt"

@@ -5,10 +5,12 @@
 * ``--metadata``: the DBTA sample table (one row per slide: uuid, pat_id, diagnosis, ..., control, comment), from
   the dataset's EBRAINS page (Roetzer-Pejrimovsky et al. 2022, Scientific Data).
 * ``--slides``: the folder you downloaded the .ndpi files into (searched recursively; matched by uuid in the name).
-* ``dbta_classes.csv`` (next to this script) maps each DBTA diagnosis to a triage class, or to none (left out).
-  It is a judgement table: review it. The non-tumour controls are all set to normal_brain there.
+* ``dbta_classes.csv`` (next to this script) maps each DBTA diagnosis (WHO 2016) to its WHO CNS5 term and to a
+  triage class, or to none (left out). It is a judgement table: review it. The non-tumour controls are all set
+  to normal_brain there.
 
-Writes, in ``--out``: ``manifest.csv`` (SeriesInstanceUID = uuid, PatientID = pat_id, label, diagnosis, ...),
+Writes, in ``--out``: ``manifest.csv`` (SeriesInstanceUID = uuid, PatientID = pat_id, label, diagnosis = the WHO CNS5
+term, dbta_diagnosis = the DBTA's own WHO 2016 term, ...),
 ``left_out.csv`` (every slide not in the manifest and why) and ``slides/<uuid>.ndpi`` links to the files, so each
 bag is named by its uuid. The DBTA is research-only and pseudonymised personal data (EBRAINS Data Use Agreement):
 it is used here to test, never to train.
@@ -70,7 +72,8 @@ def main() -> int:
         if not link.exists():
             os.symlink(f.resolve(), link)
         kept.append({"SeriesInstanceUID": uid, "PatientID": f"DBTA-{r['pat_id'].strip()}", "label": c["triage_class"],
-                     "diagnosis": "control" if is_control else diag, "group": "dbta|Hamamatsu|ffpe",
+                     "diagnosis": c.get("who_cns5") or ("control" if is_control else diag),
+                     "dbta_diagnosis": "control" if is_control else diag, "group": "dbta|Hamamatsu|ffpe",
                      "collection_id": "dbta", "series_size_MB": round(f.stat().st_size / 1e6, 1),
                      "recurrence": r.get("recurrence", ""), "note": c["note"]})
     if not kept:

@@ -8,6 +8,9 @@ slides. **It is a test set only: no ENTIP model is ever trained on it** without 
 Why it is worth it: a population, lab, stain and scanner make the model has never seen, so it tests glioma recall
 outside US and European data. Alongside the DBTA it gives two external centres.
 
+Each patient's `diagnosis` is its WHO CNS5 term, with `who_cns5_basis` saying what it rests on; with IHC only
+and no 1p/19q, many are NOS (see `docs/who-cns5.md`).
+
 ## Terms
 
 India Data's Data User Agreement: research and other lawful use, attribution, India's Digital Personal Data

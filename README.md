@@ -24,5 +24,6 @@
 
 Data sources, model weights and their licences: [docs/data-sources.md](docs/data-sources.md).
 How the training and test sets compare with published classifiers: [docs/literature-comparison.md](docs/literature-comparison.md).
+How classes and diagnoses map to WHO CNS5 terms: [docs/who-cns5.md](docs/who-cns5.md).
 
 <sub>Research use only.</sub>

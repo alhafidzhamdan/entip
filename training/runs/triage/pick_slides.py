@@ -13,6 +13,10 @@ unstained smear and gave no tissue tiles), and a cap keeps the download in hand.
 IDH status (``--idh``) is a table with ``PATIENT_ID`` and ``IDH_STATUS`` (Mutant / WT), as written by
 ``fetch_idh.py`` from cBioPortal's TCGA pan-glioma study. A group with ``"idh"`` keeps only patients whose
 status is known and matches; the others are dropped and counted, never guessed.
+
+Every chosen slide gets ``diagnosis`` (its WHO CNS5 term) and ``who_cns5_basis`` (what that rests on), from
+``entip_glioma.triage.who_cns5``: IDH, 1p/19q and grade from the ``--idh`` table for TCGA and CPTAC gliomas, the
+source diagnosis (``dx``) otherwise, and confirmed label corrections first.
 """
 from __future__ import annotations
 
@@ -112,6 +116,10 @@ def main() -> None:
     if any(g.get("idh") for g in plan["groups"]) and not a.idh:
         raise SystemExit("this plan filters on IDH status: pass --idh (see fetch_idh.py)")
     chosen, notes = pick(rows, plan, read_idh(a.idh) if a.idh else None)
+    from entip_glioma.triage import who_cns5                  # WHO CNS5 diagnosis for every chosen slide
+    from entip_glioma.triage.manifest import read_corrections
+    chosen = who_cns5.annotate(chosen, who_cns5.read_molecular(a.idh) if a.idh else None, read_corrections())
+    fields += [k for k in ("diagnosis", "who_cns5_basis") if k not in fields]
     short = [n for n in notes if n["wanted"] != "all" and n["taken"] < n["wanted"] and not plan_group(plan, n).get("up_to")]
     with open(a.out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
