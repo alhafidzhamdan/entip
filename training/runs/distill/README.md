@@ -22,6 +22,10 @@ cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && git pull
 RUN=diverse GPU_REQUEST="-q gpu -l gpu=1 -l h200=true -pe sharedmem 4 -l h_rss=16G" bash training/runs/distill/eddie/submit.sh
 ```
 
+If training is cut short, `3_check.sh` stops (exit 100) instead of checking a half-trained student. Rerun the
+same `submit.sh` command: the tile job skips cached slides, training resumes from `last.pt`, and the check starts
+its student bags afresh whenever `student.pt` has changed.
+
 `submit.sh` refuses to start until the triage run has finished (its `report-h-optimus-0.json` exists), and caches
 the student's ImageNet start weights on the login node, since compute nodes have no internet. Outputs go to
 `$BASE/runs/distill-<RUN>/`: `tiles/`, `student/student.pt` (89 MB) and `report.json`, `evaluation.json`,

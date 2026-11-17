@@ -12,6 +12,18 @@ activate_env
 export HF_HUB_OFFLINE=1
 cd "$DWORK"
 S="$DWORK/student/student.pt"
+# Training writes student/report.json only when every epoch has run: without it the student is half-trained.
+if [ ! -s "$DWORK/student/report.json" ] || [ ! -s "$S" ]; then
+  echo "training did not finish (no $DWORK/student/report.json): see the distill_${RUN}_train log, then resubmit" \
+       "2_train.sh (it resumes from last.pt) and this job" >&2
+  exit 100
+fi
+# Bags and the triage model made by an earlier student are stale once the student changes: start them afresh.
+stamp="$(sha256sum "$S" | cut -c1-16)"
+if [ "$(cat bags-student/.student 2>/dev/null)" != "$stamp" ]; then
+  rm -rf bags-student model-student embed-student.jsonl report-student.json comparison.txt
+  mkdir -p bags-student && echo "$stamp" > bags-student/.student
+fi
 entip-glioma distill evaluate --tiles tiles --student "$S" --out evaluation.json
 
 todo=()
