@@ -40,12 +40,16 @@ def _dataset(tile_dir: Path, entries: list, mean, std, img_mean, img_std, augmen
     from torch.utils.data import Dataset
 
     class TileSet(Dataset):
-        """All tiles of the given slides, read from memory-mapped arrays (opened lazily in each worker)."""
+        """All tiles of the given slides, each row read straight from its .npy file.
+
+        No memory map is kept open: mapped pages a worker has read count towards the job's memory (h_rss on
+        Eddie), so maps held for a whole epoch grow towards the size of the tile cache and get the job killed.
+        Reading one row at its offset keeps memory flat however large the cache is."""
 
         def __init__(self):
             self.ids = [e["scan_id"] for e in entries]
             self.ends = np.cumsum([e["tiles"] for e in entries])
-            self._maps = {}
+            self._layout = {}
             self.mean, self.std = torch.as_tensor(mean), torch.as_tensor(std)
             self.img_mean = torch.tensor(img_mean).view(3, 1, 1)
             self.img_std = torch.tensor(img_std).view(3, 1, 1)
@@ -53,17 +57,29 @@ def _dataset(tile_dir: Path, entries: list, mean, std, img_mean, img_std, augmen
         def __len__(self):
             return int(self.ends[-1]) if len(self.ends) else 0
 
-        def _arrays(self, sid):
-            if sid not in self._maps:
-                self._maps[sid] = (np.load(tile_dir / f"{sid}.tiles.npy", mmap_mode="r"),
-                                   np.load(tile_dir / f"{sid}.teacher.npy", mmap_mode="r"))
-            return self._maps[sid]
+        def _row(self, path: Path, row: int) -> np.ndarray:
+            if path not in self._layout:     # header only: data offset, row shape and dtype
+                m = np.load(path, mmap_mode="r")
+                self._layout[path] = (m.offset, m.shape[1:], m.dtype)
+                del m
+            off, shape, dtype = self._layout[path]
+            n = int(np.prod(shape)) * dtype.itemsize
+            fd = os.open(path, os.O_RDONLY)
+            try:
+                buf = os.pread(fd, n, off + row * n)
+            finally:
+                os.close(fd)
+            if len(buf) != n:
+                raise IOError(f"{path}: short read at row {row}")
+            return np.frombuffer(buf, dtype=dtype).reshape(shape)
 
         def __getitem__(self, i):
             s = int(np.searchsorted(self.ends, i, side="right"))
             row = i - (int(self.ends[s - 1]) if s else 0)
-            tiles, teacher = self._arrays(self.ids[s])
-            x = torch.from_numpy(np.array(tiles[row])).permute(2, 0, 1).float() / 255.0
+            sid = self.ids[s]
+            tile = self._row(tile_dir / f"{sid}.tiles.npy", row)
+            teacher_row = self._row(tile_dir / f"{sid}.teacher.npy", row)
+            x = torch.from_numpy(tile.copy()).permute(2, 0, 1).float() / 255.0
             if augment:     # orientation means nothing in a section; mild stain variation between labs
                 if torch.rand(()) < 0.5:
                     x = x.flip(2)
@@ -71,7 +87,7 @@ def _dataset(tile_dir: Path, entries: list, mean, std, img_mean, img_std, augmen
                 x = ((x - 0.5) * (1 + 0.1 * (torch.rand(()) - 0.5)) + 0.5
                      + 0.03 * (torch.rand(3, 1, 1) - 0.5)).clamp(0, 1)
             x = (x - self.img_mean) / self.img_std
-            y = torch.from_numpy(np.array(teacher[row], np.float32))
+            y = torch.from_numpy(teacher_row.astype(np.float32))
             return x, (y - self.mean) / self.std, y
 
     return TileSet()
