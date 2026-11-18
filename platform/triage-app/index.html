@@ -105,14 +105,6 @@ dl.facts dd { margin: 0; }
 .zoom img { width: 100%; border-radius: 6px; border: 1px solid var(--line); }
 .zoom .cap { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .small { font-size: 12.5px; color: var(--muted); }
-.mpp { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
-.mpp label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.mpp input { width: 110px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
-  color: var(--ink); font: inherit; }
-.mpp p { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
-.warn-box { margin-top: 12px; padding: 9px 12px; border-radius: 6px; background: var(--warn-bg); color: var(--warn);
-  font-size: 13px; }
-.warn-box p { margin: 0; } .warn-box p + p { margin-top: 4px; }
 @media (max-width: 1100px) { .top, .view { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--line); } main { padding: 16px; } }
 </style>
@@ -127,14 +119,7 @@ dl.facts dd { margin: 0; }
   <aside>
     <section>
       <h2>Slide</h2>
-      <input type="text" id="path" placeholder="/path/to/slide.svs, a DICOM folder or an image" spellcheck="false">
-      <div class="mpp" id="mppbox" hidden>
-        <label for="mpp">Pixel size, µm per pixel</label>
-        <input type="number" id="mpp" min="0.05" max="10" step="0.01" placeholder="e.g. 0.5">
-        <p>An image file does not record it. Scanner at 40×: about 0.25; at 20×: about 0.5. For a camera on a
-          microscope, measure it with a stage micrometer. Tiles are cut at 112 µm, so this sets the magnification
-          the model sees.</p>
-      </div>
+      <input type="text" id="path" placeholder="/path/to/slide.svs or a DICOM folder" spellcheck="false">
       <div class="row">
         <button class="primary" id="go" disabled>Triage</button>
         <button id="up" title="Up one folder">Up</button>
@@ -150,7 +135,7 @@ dl.facts dd { margin: 0; }
     <div class="card hello">
       <h3>Pick a slide to triage</h3>
       <p>Choose a whole-slide image on the left (a file such as .svs, .ndpi or .tiff, or a DICOM series folder) and
-        press <b>Triage</b>. A PNG or JPEG works too, with its pixel size in µm per pixel. The app finds the tissue, embeds each tissue tile with the distilled student, and
+        press <b>Triage</b>. The app finds the tissue, embeds each tissue tile with the distilled student, and
         the triage model gives a call in WHO CNS5 terms. It is either a confident call, or the case goes to the
         pathologist to classify, with the reasons, and a map of where the model looked.</p>
       <p class="small">Nothing leaves this computer: the app listens on 127.0.0.1 only.</p>
@@ -186,9 +171,9 @@ async function browse(dir) {
     const box = $("#browser");
     box.innerHTML = `<div class="dir">${esc(b.dir)}</div>` + (b.entries.length ? b.entries.map(e =>
       `<div class="item" data-path="${esc(e.path)}" data-kind="${e.kind}">
-         <span class="ic">${e.kind === "dir" ? "▸" : e.kind === "dicom" ? "◫" : e.kind === "image" ? "◩" : "▣"}</span>
+         <span class="ic">${e.kind === "dir" ? "▸" : e.kind === "dicom" ? "◫" : "▣"}</span>
          <span class="nm">${esc(e.name)}</span>
-         <span class="sz">${e.mb != null ? e.mb + " MB" : e.kind === "dicom" ? "DICOM" : ""}</span></div>`).join("")
+         <span class="sz">${e.kind === "slide" ? e.mb + " MB" : e.kind === "dicom" ? "DICOM" : ""}</span></div>`).join("")
       : `<div class="empty">No slides or folders here.</div>`);
     box.querySelectorAll(".item").forEach(el => {
       el.onclick = () => {
@@ -202,13 +187,7 @@ async function browse(dir) {
   } catch (e) { $("#browser").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
-const isImage = p => /\.(png|jpe?g)$/i.test(p.trim());
-function setPath(p) {
-  $("#path").value = p;
-  $("#mppbox").hidden = !isImage(p);
-  $("#go").disabled = !p.trim();
-}
-try { const m = localStorage.getItem("entip-triage-mpp"); if (m) $("#mpp").value = m; } catch (e) {}
+function setPath(p) { $("#path").value = p; $("#go").disabled = !p.trim(); }
 $("#path").oninput = e => setPath(e.target.value);
 $("#path").onkeydown = e => { if (e.key === "Enter" && e.target.value.trim()) triage(); };
 $("#up").onclick = () => cwd && cwd.parent && browse(cwd.parent);
@@ -217,15 +196,8 @@ $("#go").onclick = () => triage();
 async function triage() {
   const path = $("#path").value.trim();
   if (!path) return;
-  const body = {path};
-  if (isImage(path)) {
-    body.mpp = parseFloat($("#mpp").value);
-    if (!(body.mpp > 0)) { $("#mpp").focus(); $("#mppbox").style.outline = "2px solid var(--warn)"; return; }
-    $("#mppbox").style.outline = "";
-    try { localStorage.setItem("entip-triage-mpp", String(body.mpp)); } catch (e) {}
-  }
   try {
-    const j = await api("/api/triage", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    const j = await api("/api/triage", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({path})});
     follow(j.id);
     recent();
   } catch (e) { $("#main").innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; }
@@ -287,7 +259,6 @@ function render(r) {
         <div class="thr" style="left:calc(${(100 * d.threshold).toFixed(1)}% - 1px)" title="gate threshold"></div></div>
       <div class="gauge-l"><span>calibrated confidence <b>${d.confidence.toFixed(3)}</b></span><span>threshold ${d.threshold.toFixed(3)}</span></div>
       <ul class="reasons">${d.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
-      ${(r.warnings || []).length ? `<div class="warn-box">${r.warnings.map(w => `<p>${esc(w)}</p>`).join("")}</div>` : ""}
     </div>`;
   } else {
     html += `<div class="card"><div class="label">${esc(r.slide.name)}</div><div class="call">No call</div>
@@ -301,7 +272,7 @@ function render(r) {
       <dt>Novelty</dt><dd>${d ? (d.novel ? `<b style="color:var(--warn)">unlike the training slides</b>` : "within the training range") +
         (d.distance != null ? ` (distance ${d.distance} vs ${d.novelty_threshold})` : "") : "–"}</dd>
       <dt>Adequacy</dt><dd>${esc(r.adequacy.call)} · ${r.adequacy.area_mm2} mm² of tissue tiles</dd>
-      <dt>${r.slide.kind === "image" ? "Image" : "Slide"}</dt><dd>${r.slide.width_mm} × ${r.slide.height_mm} mm · ${r.slide.mpp} µm/px · ${r.tiles.toLocaleString()} tiles of ${r.tile_um} µm</dd>
+      <dt>Slide</dt><dd>${r.slide.width_mm} × ${r.slide.height_mm} mm · ${r.slide.mpp} µm/px · ${r.tiles.toLocaleString()} tiles of ${r.tile_um} µm</dd>
       <dt>Time</dt><dd>${r.seconds.total} s (embedding ${r.seconds.embed} s)</dd>
     </dl></div></div>`;
 
