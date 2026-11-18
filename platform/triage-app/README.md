@@ -46,6 +46,13 @@ and the student bag), and listed under **Recent**, including after a restart.
 Open <http://127.0.0.1:8765>. The models are read from `entip-models/`; `--student` and `--model` point elsewhere. `--slides` is the folder the slide browser opens in; you can also paste any path.
 Slide files OpenSlide reads (.svs, .ndpi, .tiff, .mrxs, .scn and others) and DICOM series folders both work.
 
+**PNG and JPEG images** work too, for example an exported region or a photograph through the microscope.
+An image file does not record its pixel size, so the app asks for it in µm per pixel: about 0.25 for a
+scanner at 40×, about 0.5 at 20×; for a microscope camera, measure it with a stage micrometer. Tiles are cut
+at 112 µm, so a wrong pixel size shows the model the wrong magnification. The result says the pixel size was
+entered by hand. The model was trained on whole slides, so a small field (under 100 tiles, about 1.3 mm²) gets
+a warning that it is less reliable.
+
 The app checks that the triage model was trained on bags from this exact student, and refuses to start if not.
 Tile size and the tissue cut-off (`--tile-um 112`, `--min-tissue 0.5`) must match the training bags; the
 defaults do.

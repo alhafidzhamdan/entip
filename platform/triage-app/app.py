@@ -4,7 +4,8 @@
 
 By default the models are read from ``entip-models/`` next to this file (ignored by git).
 
-Then open http://127.0.0.1:8765. Pick a slide (a file such as .svs/.ndpi/.tiff, or a DICOM series folder); the
+Then open http://127.0.0.1:8765. Pick a slide (a file such as .svs/.ndpi/.tiff, a DICOM series folder, or a PNG or
+JPEG image with its pixel size in µm, which an image file does not record); the
 app finds the tissue, embeds every tissue tile with the student (``student.pt``, about 22M parameters; Apple
 GPU, CUDA or CPU), runs the triage model trained on student bags (``model-student/``), and shows:
 
@@ -38,9 +39,36 @@ from urllib.parse import parse_qs, urlparse
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
+IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 SLIDE_EXT = {".svs", ".tif", ".tiff", ".ndpi", ".mrxs", ".scn", ".vms", ".vmu", ".bif", ".svslide", ".isyntax"}
 TOP = 16
 THUMB = 1200
+
+
+def open_image(path: str, mpp: float):
+    """A PNG or JPEG as a slide: the whole image in memory, at the pixel size the user gives (an image file
+    does not record it). Tiles are resized smoothly, as for whole-slide images."""
+    from PIL import Image
+    from entip_train.slides import ArrayReader, _resize
+
+    class ImageReader(ArrayReader):
+        width_um = property(lambda r: r.rgb.shape[1] * r.mpp)
+        height_um = property(lambda r: r.rgb.shape[0] * r.mpp)
+
+        def read_um(self, x_um, y_um, size_um, out_px):
+            return _resize(super().read_um(x_um, y_um, size_um, max(1, int(round(size_um / self.mpp)))), out_px)
+
+    Image.MAX_IMAGE_PIXELS = 4_000_000_000             # large stitched images are expected
+    im = Image.open(path)
+    if im.mode in ("RGBA", "LA", "P"):
+        im = im.convert("RGBA")
+        bg = Image.new("RGBA", im.size, (255, 255, 255, 255))
+        im = Image.alpha_composite(bg, im)
+    return ImageReader(np.asarray(im.convert("RGB")), mpp)
+
+
+def is_image(path) -> bool:
+    return Path(path).suffix.lower() in IMAGE_EXT
 
 
 class Counting:
@@ -133,13 +161,22 @@ class Engine:
                 "classes": [{"label": c, "name": who_cns5.class_name(c)} for c, t in zip(CLASSES, m.trained) if t],
                 "slides_dir": str(Path(self.a.slides).expanduser()) if self.a.slides else str(Path.home())}
 
-    def submit(self, path: str) -> dict:
+    def submit(self, path: str, mpp=None) -> dict:
         p = Path(path).expanduser()
         if not p.exists():
             raise ValueError(f"no such file or folder: {p}")
+        if is_image(p):
+            try:
+                mpp = float(mpp)
+            except (TypeError, ValueError):
+                raise ValueError("a PNG or JPEG does not record its pixel size: enter µm per pixel") from None
+            if not 0.05 <= mpp <= 10:
+                raise ValueError(f"{mpp} µm per pixel is outside 0.05-10; check the value")
+        else:
+            mpp = None
         jid = datetime.now().strftime("%Y%m%d-%H%M%S-") + re.sub(r"[^A-Za-z0-9._-]+", "_", p.stem)[:60]
         job = {"id": jid, "state": "queued", "stage": "waiting", "slide": p.name, "path": str(p),
-               "started": time.time(), "done": 0, "total": None}
+               "started": time.time(), "done": 0, "total": None, "mpp": mpp}
         self.jobs[jid] = job
         self.q.put(jid)
         return job
@@ -165,8 +202,9 @@ class Engine:
         out = self.out / job["id"]
         out.mkdir(parents=True, exist_ok=True)
 
-        job["stage"] = "opening the slide"
-        rd = slides.open_slide(job["path"])
+        image = job.get("mpp") is not None
+        job["stage"] = "opening the image" if image else "opening the slide"
+        rd = open_image(job["path"], job["mpp"]) if image else slides.open_slide(job["path"])
         job["stage"] = "finding tissue"
         xy, _ = tile_grid(rd, rd.width_um, rd.height_um, a.tile_um, a.min_tissue)
         job["total"] = len(xy)
@@ -178,7 +216,8 @@ class Engine:
         t = time.perf_counter()
         opener = functools.partial(slides.open_slide, job["path"])
         bag = extract_bag(rd, job["id"], rd.width_um, rd.height_um, Counting(self.encoder, job), tile_um=a.tile_um,
-                          min_tissue=a.min_tissue, workers=a.workers, opener=opener if a.workers > 1 else None)
+                          min_tissue=a.min_tissue, workers=1 if image else a.workers,
+                          opener=None if image or a.workers <= 1 else opener)
         secs["embed"] = round(time.perf_counter() - t, 1)
         bag.save(out / "bag.npz")
 
@@ -190,10 +229,19 @@ class Engine:
         job["stage"] = "drawing the attention map"
         top = draw(rd, bag, att, out)
         tc, ad = recs.get("tissue_class"), recs["adequacy"]
+        warnings = []
+        if image:
+            warnings.append(f"Image file: pixel size {job['mpp']} µm/px entered by hand. Tiles are cut at "
+                            f"{a.tile_um:g} µm, so a wrong pixel size shows the model the wrong magnification.")
+        if len(bag) < 100:
+            warnings.append(f"Only {len(bag)} tissue tiles ({len(bag) * (a.tile_um / 1000) ** 2:.1f} mm²): the model was "
+                            "trained on whole slides, so a small field is less reliable.")
         res = {"id": job["id"], "finished": time.time(),
+               "warnings": warnings,
                "slide": {"name": job["slide"], "path": job["path"], "reader": type(rd).__name__,
-                         "mpp": round(float(rd.mpp), 4), "width_mm": round(rd.width_um / 1000, 1),
-                         "height_mm": round(rd.height_um / 1000, 1)},
+                         "kind": "image" if image else "slide",
+                         "mpp": round(float(rd.mpp), 4), "width_mm": round(rd.width_um / 1000, 2),
+                         "height_mm": round(rd.height_um / 1000, 2)},
                "tiles": len(bag), "tile_um": bag.tile_um, "seconds": {**secs, "total": round(time.perf_counter() - t0, 1)},
                "model": {"model_id": self.model.model_id, "encoder": self.model.encoder},
                "adequacy": {"call": ad["call"], "status": ad["status"], "reasons": ad["reasons"],
@@ -268,8 +316,9 @@ def handler(engine: Engine):
                     if c.is_dir():
                         dicom = any(x.suffix.lower() == ".dcm" for _, x in zip(range(40), c.iterdir()))
                         entries.append({"name": c.name, "path": str(c), "kind": "dicom" if dicom else "dir"})
-                    elif c.suffix.lower() in SLIDE_EXT or c.suffix.lower() == ".dcm":
-                        entries.append({"name": c.name, "path": str(c), "kind": "slide",
+                    elif c.suffix.lower() in SLIDE_EXT | IMAGE_EXT or c.suffix.lower() == ".dcm":
+                        entries.append({"name": c.name, "path": str(c),
+                                        "kind": "image" if is_image(c) else "slide",
                                         "mb": round(c.stat().st_size / 1e6, 1)})
             except PermissionError:
                 return self._json({"error": f"cannot read {p}"}, 400)
@@ -280,7 +329,7 @@ def handler(engine: Engine):
                 return self._send(404, b"not found", "text/plain")
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
-                return self._json(engine.submit(str(body.get("path") or "")))
+                return self._json(engine.submit(str(body.get("path") or ""), body.get("mpp")))
             except ValueError as e:
                 return self._json({"error": str(e)}, 400)
 
