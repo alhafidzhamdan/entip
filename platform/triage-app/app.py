@@ -1,6 +1,8 @@
 """ENTIP triage app: triage a new whole-slide image with the distilled student, on your own machine.
 
-    python platform/triage-app/app.py --student student.pt --model model-student [--slides ~/slides] [--port 8765]
+    python platform/triage-app/app.py [--student student.pt --model model-student] [--slides ~/slides] [--port 8765]
+
+By default the models are read from ``entip-models/`` next to this file (ignored by git).
 
 Then open http://127.0.0.1:8765. Pick a slide (a file such as .svs/.ndpi/.tiff, or a DICOM series folder); the
 app finds the tissue, embeds every tissue tile with the student (``student.pt``, about 22M parameters; Apple
@@ -287,8 +289,10 @@ def handler(engine: Engine):
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--student", required=True, help="the distilled student, student.pt")
-    ap.add_argument("--model", required=True, help="the triage model trained on that student's bags (model-student/)")
+    ap.add_argument("--student", default=str(HERE / "entip-models" / "student.pt"),
+                    help="the distilled student (default: entip-models/student.pt next to this app)")
+    ap.add_argument("--model", default=str(HERE / "entip-models" / "model-student"),
+                    help="the triage model trained on that student's bags (default: entip-models/model-student)")
     ap.add_argument("--slides", default=None, help="folder the slide browser opens in (default: your home folder)")
     ap.add_argument("--out", default="~/entip-triage", help="results, one folder per slide")
     ap.add_argument("--port", type=int, default=8765)
@@ -296,6 +300,9 @@ def main(argv=None) -> int:
     ap.add_argument("--min-tissue", type=float, default=0.5, help="must match the training bags (default 0.5)")
     ap.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1), help="processes reading tiles")
     a = ap.parse_args(argv)
+    for f, what in ((a.student, "student"), (Path(a.model) / "triage.json", "triage model")):
+        if not Path(f).exists():
+            raise SystemExit(f"no {what} at {f}: copy it from Eddie (see README.md) or pass --student / --model")
     engine = Engine(a)
     i = engine.info()
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), handler(engine))

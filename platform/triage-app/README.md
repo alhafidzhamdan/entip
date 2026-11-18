@@ -21,10 +21,11 @@ and the student bag), and listed under **Recent**, including after a restart.
 
 ## Set up (once)
 
-1. **Copy the models from Eddie** (under 100 MB for the student; the triage model is small):
+1. **Copy the models from Eddie** into `platform/triage-app/entip-models/` (ignored by git), from the repository
+   root (`/Users/alhafidzhamdan/Claude/Projects/entip`):
 
    ```bash
-   mkdir -p ~/entip-models && scp mhamdan@eddie.ecdf.ed.ac.uk:/exports/igmm/eddie/Glioblastoma-WGS/entip/runs/distill-diverse/student/student.pt ~/entip-models/ && scp -r mhamdan@eddie.ecdf.ed.ac.uk:/exports/igmm/eddie/Glioblastoma-WGS/entip/runs/distill-diverse/model-student ~/entip-models/
+   M=platform/triage-app/entip-models && mkdir -p $M && scp mhamdan@eddie.ecdf.ed.ac.uk:/exports/igmm/eddie/Glioblastoma-WGS/entip/runs/distill-diverse/student/student.pt $M/ && scp -r mhamdan@eddie.ecdf.ed.ac.uk:/exports/igmm/eddie/Glioblastoma-WGS/entip/runs/distill-diverse/model-student $M/
    ```
 
 2. **A Python environment** (Python 3.10 or later), from the repository root:
@@ -39,10 +40,10 @@ and the student bag), and listed under **Recent**, including after a restart.
 ## Run
 
 ```bash
-~/entip-venv/bin/python platform/triage-app/app.py --student ~/entip-models/student.pt --model ~/entip-models/model-student --slides ~/Downloads
+~/entip-venv/bin/python platform/triage-app/app.py --slides ~/Downloads
 ```
 
-Open <http://127.0.0.1:8765>. `--slides` is the folder the slide browser opens in; you can also paste any path.
+Open <http://127.0.0.1:8765>. The models are read from `entip-models/`; `--student` and `--model` point elsewhere. `--slides` is the folder the slide browser opens in; you can also paste any path.
 Slide files OpenSlide reads (.svs, .ndpi, .tiff, .mrxs, .scn and others) and DICOM series folders both work.
 
 The app checks that the triage model was trained on bags from this exact student, and refuses to start if not.
