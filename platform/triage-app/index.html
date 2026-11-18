@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ENTIP triage</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1f22; --muted: #6a6f76; --line: #e2e0db; --soft: #efede8;
+  --accent: #2d5f8b; --ok: #1f7a4d; --ok-bg: #e3f2ea; --warn: #9a5b00; --warn-bg: #fbefd9;
+  --bad: #a3312b; --bad-bg: #f8e4e2; --bar: #2d5f8b; --heat: #eb5a14;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171a; --panel: #1d2024; --ink: #e8e6e1; --muted: #9aa0a7; --line: #30343a; --soft: #262a2f;
+    --accent: #7fb0dc; --ok: #6fd19e; --ok-bg: #1d3328; --warn: #f0b860; --warn-bg: #3a2e18;
+    --bad: #ef8a83; --bad-bg: #3b2220; --bar: #7fb0dc;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding: 14px 20px;
+  border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 17px; font-weight: 600; margin: 0; }
+header .model { color: var(--muted); font-size: 12.5px; }
+header .ruo { margin-left: auto; font-size: 12px; color: var(--warn); background: var(--warn-bg);
+  padding: 3px 8px; border-radius: 4px; }
+.layout { display: grid; grid-template-columns: 320px 1fr; gap: 0; min-height: calc(100vh - 52px); }
+aside { border-right: 1px solid var(--line); background: var(--panel); padding: 16px; overflow: auto; }
+main { padding: 20px 24px 40px; min-width: 0; }
+h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+  margin: 0 0 8px; }
+aside section + section { margin-top: 22px; }
+input[type=text] { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; }
+button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--soft); color: var(--ink); padding: 6px 12px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 8px; margin-top: 8px; }
+.browser { margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; max-height: 300px; overflow: auto; }
+.browser .dir { font-size: 12px; color: var(--muted); padding: 6px 9px; border-bottom: 1px solid var(--line);
+  word-break: break-all; background: var(--soft); }
+.item { display: flex; gap: 8px; align-items: center; padding: 5px 9px; cursor: pointer; font-size: 13px;
+  border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+.item:hover { background: var(--soft); }
+.item.sel { background: var(--soft); outline: 2px solid var(--accent); outline-offset: -2px; }
+.item .ic { width: 16px; text-align: center; color: var(--muted); flex: none; }
+.item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .sz { color: var(--muted); font-size: 11.5px; flex: none; }
+.recent .item { flex-direction: column; align-items: flex-start; gap: 0; }
+.recent .sub { font-size: 11.5px; color: var(--muted); }
+.empty { color: var(--muted); padding: 10px 9px; font-size: 13px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.card + .card { margin-top: 16px; }
+.hello { max-width: 640px; color: var(--muted); }
+.hello h3 { color: var(--ink); font-size: 16px; margin: 0 0 6px; }
+.progress { max-width: 640px; }
+.track { height: 8px; background: var(--soft); border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
+.fill { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+.indet .fill { width: 30%; animation: slide 1.2s infinite ease-in-out; }
+@keyframes slide { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+.err { color: var(--bad); background: var(--bad-bg); padding: 10px 12px; border-radius: 6px; }
+.top { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.call { font-size: 22px; font-weight: 600; margin: 4px 0 2px; }
+.label { color: var(--muted); font-size: 12.5px; font-family: ui-monospace, Menlo, monospace; }
+.pill { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.pill.ok { color: var(--ok); background: var(--ok-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.gauge { position: relative; height: 10px; background: var(--soft); border-radius: 5px; margin: 16px 0 4px; }
+.gauge .fill2 { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--bar); }
+.gauge .thr { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--ink); }
+.gauge-l { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+ul.reasons { margin: 12px 0 0; padding-left: 18px; }
+ul.reasons li { margin: 2px 0; }
+.probs { display: grid; grid-template-columns: 1fr 120px 52px; gap: 6px 10px; align-items: center; font-size: 13px; }
+.probs .b { height: 8px; background: var(--soft); border-radius: 4px; overflow: hidden; }
+.probs .b i { display: block; height: 100%; background: var(--bar); }
+.probs .v { text-align: right; font-variant-numeric: tabular-nums; }
+.probs .is { font-weight: 600; }
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 14px 0 0; font-size: 13px; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; }
+.viewer-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.viewer-head label { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.viewer-head .note { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.view { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 16px; align-items: start; }
+.slide { position: relative; width: 100%; aspect-ratio: 1; background: #fff; border-radius: 6px;
+  overflow: hidden; border: 1px solid var(--line); }
+.slide img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.slide .box { position: absolute; border: 2px solid #1b4fd6; cursor: pointer; }
+.slide .box span { position: absolute; left: 100%; top: -2px; margin-left: 2px; font: 600 10px/1 sans-serif;
+  color: #1b4fd6; background: rgba(255,255,255,.85); padding: 1px 2px; border-radius: 2px; }
+.slide .box.hl { border-color: #d61b6a; box-shadow: 0 0 0 3px rgba(214,27,106,.35); z-index: 2; }
+.slide .box.hl span { color: #d61b6a; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tile { position: relative; cursor: pointer; border-radius: 4px; overflow: hidden; border: 2px solid transparent; }
+.tile img { display: block; width: 100%; aspect-ratio: 1; }
+.tile .cap { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10.5px; color: #fff; padding: 2px 4px;
+  background: linear-gradient(transparent, rgba(0,0,0,.65)); }
+.tile.hl { border-color: #d61b6a; }
+.zoom { margin-top: 10px; }
+.zoom img { width: 100%; border-radius: 6px; border: 1px solid var(--line); }
+.zoom .cap { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.small { font-size: 12.5px; color: var(--muted); }
+@media (max-width: 1100px) { .top, .view { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .layout { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--line); } main { padding: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>ENTIP triage</h1>
+  <span class="model" id="model">loading model…</span>
+  <span class="ruo">Research use only · not for diagnosis</span>
+</header>
+<div class="layout">
+  <aside>
+    <section>
+      <h2>Slide</h2>
+      <input type="text" id="path" placeholder="/path/to/slide.svs or a DICOM folder" spellcheck="false">
+      <div class="row">
+        <button class="primary" id="go" disabled>Triage</button>
+        <button id="up" title="Up one folder">Up</button>
+      </div>
+      <div class="browser" id="browser"></div>
+    </section>
+    <section>
+      <h2>Recent</h2>
+      <div class="browser recent" id="recent"></div>
+    </section>
+  </aside>
+  <main id="main">
+    <div class="card hello">
+      <h3>Pick a slide to triage</h3>
+      <p>Choose a whole-slide image on the left (a file such as .svs, .ndpi or .tiff, or a DICOM series folder) and
+        press <b>Triage</b>. The app finds the tissue, embeds each tissue tile with the distilled student, and
+        the triage model gives a call in WHO CNS5 terms. It is either a confident call, or the case goes to the
+        pathologist to classify, with the reasons, and a map of where the model looked.</p>
+      <p class="small">Nothing leaves this computer: the app listens on 127.0.0.1 only.</p>
+    </div>
+  </main>
+</div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pct = (v, d = 0) => v == null ? "–" : (100 * v).toFixed(d) + "%";
+let info = null, cwd = null, polling = null, shown = null;
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+async function start() {
+  info = await api("/api/info");
+  const g = info.never_accepts ? "gate never accepts" :
+    `gate threshold ${info.threshold.toFixed(3)}` + (info.max_error != null ? ` (≤${pct(info.max_error)} error, 95% confidence, out-of-fold)` : "");
+  $("#model").textContent = `${info.model_id} · ${info.encoder} · ${info.device} · ${g}`;
+  browse(info.slides_dir);
+  recent();
+}
+
+async function browse(dir) {
+  try {
+    const b = await api("/api/browse?dir=" + encodeURIComponent(dir));
+    cwd = b;
+    const box = $("#browser");
+    box.innerHTML = `<div class="dir">${esc(b.dir)}</div>` + (b.entries.length ? b.entries.map(e =>
+      `<div class="item" data-path="${esc(e.path)}" data-kind="${e.kind}">
+         <span class="ic">${e.kind === "dir" ? "▸" : e.kind === "dicom" ? "◫" : "▣"}</span>
+         <span class="nm">${esc(e.name)}</span>
+         <span class="sz">${e.kind === "slide" ? e.mb + " MB" : e.kind === "dicom" ? "DICOM" : ""}</span></div>`).join("")
+      : `<div class="empty">No slides or folders here.</div>`);
+    box.querySelectorAll(".item").forEach(el => {
+      el.onclick = () => {
+        if (el.dataset.kind === "dir") return browse(el.dataset.path);
+        box.querySelectorAll(".item").forEach(x => x.classList.remove("sel"));
+        el.classList.add("sel");
+        setPath(el.dataset.path);
+      };
+      el.ondblclick = () => { if (el.dataset.kind !== "dir") triage(); };
+    });
+  } catch (e) { $("#browser").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
+function setPath(p) { $("#path").value = p; $("#go").disabled = !p.trim(); }
+$("#path").oninput = e => setPath(e.target.value);
+$("#path").onkeydown = e => { if (e.key === "Enter" && e.target.value.trim()) triage(); };
+$("#up").onclick = () => cwd && cwd.parent && browse(cwd.parent);
+$("#go").onclick = () => triage();
+
+async function triage() {
+  const path = $("#path").value.trim();
+  if (!path) return;
+  try {
+    const j = await api("/api/triage", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({path})});
+    follow(j.id);
+    recent();
+  } catch (e) { $("#main").innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; }
+}
+
+async function recent() {
+  const jobs = await api("/api/jobs");
+  const box = $("#recent");
+  box.innerHTML = jobs.length ? jobs.map(j => `<div class="item${j.id === shown ? " sel" : ""}" data-id="${esc(j.id)}">
+      <span class="nm">${esc(j.slide)}</span>
+      <span class="sub">${j.state === "done" ? esc(j.call || "no call") + (j.status ? " · " + (j.status === "confident" ? "confident" : "to classify") : "")
+        : j.state === "error" ? "failed" : j.state + "…"} · ${new Date(1000 * j.started).toLocaleString("en-GB", {dateStyle: "short", timeStyle: "short"})}</span></div>`).join("")
+    : `<div class="empty">No slides triaged yet.</div>`;
+  box.querySelectorAll(".item").forEach(el => el.onclick = () => follow(el.dataset.id));
+}
+
+function follow(id) {
+  clearInterval(polling);
+  shown = id;
+  const tick = async () => {
+    const j = await api("/api/jobs/" + encodeURIComponent(id));
+    if (j.state === "done") { clearInterval(polling); render(j.result); recent(); }
+    else if (j.state === "error") { clearInterval(polling); fail(j); recent(); }
+    else progress(j);
+  };
+  tick();
+  polling = setInterval(tick, 1000);
+}
+
+function progress(j) {
+  const known = j.total && j.stage.startsWith("embedding");
+  const f = known ? Math.min(1, j.done / j.total) : null;
+  $("#main").innerHTML = `<div class="card progress">
+    <div class="label">${esc(j.slide)}</div>
+    <div class="call" style="font-size:17px">${j.state === "queued" ? "Waiting for the slide before it" : esc(j.stage[0].toUpperCase() + j.stage.slice(1))}…</div>
+    <div class="track ${known ? "" : "indet"}"><div class="fill" style="width:${known ? (100 * f).toFixed(1) + "%" : ""}"></div></div>
+    <div class="small">${[known ? `${j.done.toLocaleString()} of ${j.total.toLocaleString()} tissue tiles` : j.total ? `${j.total.toLocaleString()} tissue tiles` : "",
+      j.elapsed != null ? `${Math.round(j.elapsed)} s` : ""].filter(Boolean).join(" · ")}</div></div>`;
+}
+
+function fail(j) {
+  $("#main").innerHTML = `<div class="card"><div class="label">${esc(j.slide)}</div>
+    <div class="err" style="margin-top:8px">${esc(j.error)}</div>
+    <p class="small">Check the slide opens in QuPath or OpenSlide, and see the terminal for the full error.</p></div>`;
+}
+
+function render(r) {
+  const d = r.decision, base = `/runs/${encodeURIComponent(r.id)}/`;
+  const conf = d && d.status === "confident";
+  const a = r.attention;
+  let html = `<div class="top">`;
+  if (d) {
+    html += `<div class="card">
+      <div class="label">${esc(r.slide.name)}</div>
+      <div style="margin-top:10px"><span class="pill ${conf ? "ok" : "warn"}">${conf ? "Confident call" : "Pathologist to classify"}</span></div>
+      <div class="call">${esc(d.name)}</div>
+      <div class="label">${esc(d.call)}</div>
+      <div class="gauge"><div class="fill2" style="width:${(100 * d.confidence).toFixed(1)}%"></div>
+        <div class="thr" style="left:calc(${(100 * d.threshold).toFixed(1)}% - 1px)" title="gate threshold"></div></div>
+      <div class="gauge-l"><span>calibrated confidence <b>${d.confidence.toFixed(3)}</b></span><span>threshold ${d.threshold.toFixed(3)}</span></div>
+      <ul class="reasons">${d.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    </div>`;
+  } else {
+    html += `<div class="card"><div class="label">${esc(r.slide.name)}</div><div class="call">No call</div>
+      <p class="small">No tissue tiles to classify.</p></div>`;
+  }
+  html += `<div class="card"><h2>Class probabilities</h2><div class="probs">` +
+    (d ? d.probabilities.map(p => `<span class="${p.label === d.call ? "is" : ""}">${esc(p.name)}</span>
+      <span class="b"><i style="width:${(100 * p.p).toFixed(1)}%"></i></span><span class="v">${pct(p.p, 1)}</span>`).join("") : "") +
+    `</div><dl class="facts">
+      ${d && d.p_tumour != null ? `<dt>Tumour (any)</dt><dd>${pct(d.p_tumour, 1)}${d.p_glial != null ? ` · glial ${pct(d.p_glial, 1)}` : ""}</dd>` : ""}
+      <dt>Novelty</dt><dd>${d ? (d.novel ? `<b style="color:var(--warn)">unlike the training slides</b>` : "within the training range") +
+        (d.distance != null ? ` (distance ${d.distance} vs ${d.novelty_threshold})` : "") : "–"}</dd>
+      <dt>Adequacy</dt><dd>${esc(r.adequacy.call)} · ${r.adequacy.area_mm2} mm² of tissue tiles</dd>
+      <dt>Slide</dt><dd>${r.slide.width_mm} × ${r.slide.height_mm} mm · ${r.slide.mpp} µm/px · ${r.tiles.toLocaleString()} tiles of ${r.tile_um} µm</dd>
+      <dt>Time</dt><dd>${r.seconds.total} s (embedding ${r.seconds.embed} s)</dd>
+    </dl></div></div>`;
+
+  html += `<div class="card"><div class="viewer-head"><h2 style="margin:0">Where the model looked</h2>
+      <label><input type="checkbox" id="heat" checked> heat map</label>
+      <label>opacity <input type="range" id="op" min="0" max="100" value="75"></label>
+      <label><input type="checkbox" id="boxes" checked> top ${r.top.length} tiles</label>
+      <span class="note">top 1% of ${a.tiles.toLocaleString()} tiles carry <b>${pct(a.top1pct_share, 1)}</b> of attention (even spread: 1%)</span></div>
+    <div class="view">
+      <div class="slide" id="slide"><img src="${base}thumb.jpg" alt="slide thumbnail"><img id="heatimg" src="${base}heat.png" alt="" style="opacity:.75">
+        ${r.top.map(t => `<div class="box" data-r="${t.rank}" style="left:${100 * t.box[0]}%;top:${100 * t.box[1]}%;width:max(6px,${100 * t.box[2]}%);height:max(6px,${100 * t.box[2]}%)"><span>${t.rank}</span></div>`).join("")}
+      </div>
+      <div>
+        <div class="tiles">${r.top.map(t => `<div class="tile" data-r="${t.rank}"><img src="${base}${t.img}" alt="tile ${t.rank}">
+          <div class="cap">#${t.rank} · ${t.x_even}× even</div></div>`).join("")}</div>
+        <div class="zoom" id="zoom"></div>
+        <p class="small">${a.top1pct_share < 0.05 ? "Attention is spread thinly: the call rests on a broad average over the tissue, so the top tiles are only lightly preferred over the rest. " : ""}
+          Weights are shown as multiples of an even share (1 / ${a.tiles.toLocaleString()}).</p>
+      </div>
+    </div></div>`;
+  $("#main").innerHTML = html;
+
+  $("#heat").onchange = e => $("#heatimg").style.display = e.target.checked ? "" : "none";
+  $("#op").oninput = e => $("#heatimg").style.opacity = e.target.value / 100;
+  $("#boxes").onchange = e => document.querySelectorAll(".slide .box").forEach(b => b.style.display = e.target.checked ? "" : "none");
+  const pick = n => {
+    document.querySelectorAll("[data-r]").forEach(el => el.classList.toggle("hl", el.dataset.r === String(n)));
+    const t = r.top[n - 1];
+    $("#zoom").innerHTML = `<img src="${base}${t.img}" alt="tile ${n}"><div class="cap">Tile #${n}: weight ${t.weight.toExponential(2)} (${t.x_even}× even) at
+      x ${Math.round(t.x_um).toLocaleString()} µm, y ${Math.round(t.y_um).toLocaleString()} µm</div>`;
+  };
+  document.querySelectorAll("[data-r]").forEach(el => el.onclick = () => pick(+el.dataset.r));
+  if (r.top.length) pick(1);
+}
+
+start().catch(e => $("#model").textContent = "could not load the model: " + e.message);
+</script>
+</body>
+</html>

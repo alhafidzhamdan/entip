@@ -21,6 +21,7 @@
 3. **Spatial multi-omics** (`platform/spatial/`): spatial genomics registered to H&E.
 4. **Clinician GUI** (`platform/gui/`): viewer and review for clinicians.
 5. **Central database** (`platform/db/`): one row per patient, linked to slides, assays and model outputs.
+6. **Triage app** (`platform/triage-app/`): triage a new slide on a laptop with the distilled student.
 
 Data sources, model weights and their licences: [docs/data-sources.md](docs/data-sources.md).
 How the training and test sets compare with published classifiers: [docs/literature-comparison.md](docs/literature-comparison.md).
