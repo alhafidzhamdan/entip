@@ -4,7 +4,7 @@
 
 By default the models are read from ``entip-models/`` next to this file (ignored by git).
 
-Then open http://127.0.0.1:8765. Pick a slide (a file such as .svs/.ndpi/.tiff, or a DICOM series folder); the
+Then open http://127.0.0.1:8765. Pick a slide (an .svs file or a DICOM series folder); the
 app finds the tissue, embeds every tissue tile with the student (``student.pt``, about 22M parameters; Apple
 GPU, CUDA or CPU), runs the triage model trained on student bags (``model-student/``), and shows:
 
@@ -38,7 +38,7 @@ from urllib.parse import parse_qs, urlparse
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-SLIDE_EXT = {".svs", ".tif", ".tiff", ".ndpi", ".mrxs", ".scn", ".vms", ".vmu", ".bif", ".svslide", ".isyntax"}
+SLIDE_EXT = {".svs"}                                  # plus DICOM series folders (or a .dcm file in one)
 TOP = 16
 THUMB = 1200
 
@@ -137,6 +137,9 @@ class Engine:
         p = Path(path).expanduser()
         if not p.exists():
             raise ValueError(f"no such file or folder: {p}")
+        dicom = p.suffix.lower() == ".dcm" or (p.is_dir() and any(x.suffix.lower() == ".dcm" for x in p.iterdir()))
+        if not (dicom or (p.is_file() and p.suffix.lower() in SLIDE_EXT)):
+            raise ValueError(f"{p.name}: choose an .svs file or a DICOM series folder")
         jid = datetime.now().strftime("%Y%m%d-%H%M%S-") + re.sub(r"[^A-Za-z0-9._-]+", "_", p.stem)[:60]
         job = {"id": jid, "state": "queued", "stage": "waiting", "slide": p.name, "path": str(p),
                "started": time.time(), "done": 0, "total": None}

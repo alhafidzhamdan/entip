@@ -44,7 +44,7 @@ and the student bag), and listed under **Recent**, including after a restart.
 ```
 
 Open <http://127.0.0.1:8765>. The models are read from `entip-models/`; `--student` and `--model` point elsewhere. `--slides` is the folder the slide browser opens in; you can also paste any path.
-Slide files OpenSlide reads (.svs, .ndpi, .tiff, .mrxs, .scn and others) and DICOM series folders both work.
+It takes **.svs files and DICOM series folders** only.
 
 The app checks that the triage model was trained on bags from this exact student, and refuses to start if not.
 Tile size and the tissue cut-off (`--tile-um 112`, `--min-tissue 0.5`) must match the training bags; the
