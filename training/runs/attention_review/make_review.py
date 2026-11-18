@@ -19,7 +19,9 @@ Writes, in ``--out``:
 * ``review.html``: the rating page. Open it in a browser (it reads ``tiles/`` next to it), rate each tile, and
   press "Download scores": it saves ``scores-<rater>.csv``. Ratings are kept in the browser between sessions.
 * ``tiles/<code>.jpg``: the images.
-* ``key.csv``: which tiles were attended and which were controls, with the model's calls. **Keep it from raters.**
+* ``key.csv``: which tiles were attended and which were controls, with the model's calls and how concentrated the
+  slide's attention is (``concentration()``: top-1% share, effective tiles, attended and control weights against
+  an even share). **Keep it from raters.**
 
 Analyse with ``analyse.py key.csv scores-*.csv``.
 """
@@ -80,6 +82,26 @@ def sample(rows: list, per_class: int, seed: int) -> list:
         rng.shuffle(rs)
         chosen |= {r["patient"] for r in rs[:per_class]}
     return [r for r in rows if r["patient"] in chosen]
+
+
+def concentration(att: np.ndarray, top: np.ndarray, ctrl) -> dict:
+    """How focused one slide's attention is (weights sum to 1 over ``n`` tiles; an even spread gives each 1/n).
+
+    * ``top1pct_share``: the share of attention on the top 1% of tiles (0.01 if even, 1 if all on a few);
+    * ``effective_tiles``: 1 / sum(w^2), the number of equally weighted tiles that would give the same spread;
+      ``effective_fraction`` is that over n (1 if even);
+    * ``top_vs_even`` / ``control_vs_even``: the mean weight of the rated attended / control tiles, in multiples
+      of an even share. Attended tiles at 4x even, with controls at 0.8x, are only lightly preferred: a small
+      attended-control difference in the ratings then says the model averages broadly, not that it looks wrong.
+    """
+    n = len(att)
+    w = att / att.sum()
+    k = max(1, int(np.ceil(0.01 * n)))
+    eff = 1.0 / float(np.sum(w ** 2))
+    return {"tiles_on_slide": n, "top1pct_share": round(float(np.sort(w)[::-1][:k].sum()), 4),
+            "effective_tiles": round(eff, 1), "effective_fraction": round(eff / n, 4),
+            "top_vs_even": round(float(w[top].mean() * n), 2),
+            "control_vs_even": round(float(w[list(ctrl)].mean() * n), 2) if len(ctrl) else ""}
 
 
 def crop(rd, x_um: float, y_um: float, tile_um: float, px: int = 576):
@@ -144,6 +166,7 @@ def main() -> int:
         top = rank[:a.top]
         pool = rank[max(a.top, int(np.ceil(0.1 * len(att)))):]
         ctrl = rng.choice(pool, size=min(a.controls, len(pool)), replace=False) if len(pool) else []
+        conc = concentration(att, top, ctrl)
         rd = open_slide(str(find_slide(Path(a.slides), srow[a.id_col])))
         case = f"C{ci:03d}"
         dx = srow.get("diagnosis") or who_cns5.class_name(r["label"])
@@ -162,9 +185,11 @@ def main() -> int:
                         "reference_call": r["call"], "reference_confidence": r["confidence"],
                         "reference_correct": r["correct"], "reference_origin": r["reference_call"],
                         "model_call": CLASSES[int(np.argmax(g["probs"]))],
-                        "model_confidence": round(float(np.max(g["probs"])), 4)})
+                        "model_confidence": round(float(np.max(g["probs"])), 4), **conc})
         cases.append({"case": case, "diagnosis": dx, "tiles": codes})
-        print(f"{case}  {r['patient']:<16} {len(codes)} tiles", file=sys.stderr)
+        print(f"{case}  {r['patient']:<16} {len(codes)} tiles; top 1% of {conc['tiles_on_slide']} tiles carry "
+              f"{conc['top1pct_share']:.0%} of attention, attended tiles {conc['top_vs_even']}x an even share",
+              file=sys.stderr)
 
     with (out / "key.csv").open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(key[0]))

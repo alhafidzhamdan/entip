@@ -30,6 +30,13 @@ missed the diagnostic tissue, which are the calls to distrust.
     be in use, on another lab's slides.
 - **Raters:** at least two neuropathologists, rating independently; report agreement (Cohen's kappa).
 
+**How focused attention is.** Attention can be spread thinly: on TCGA-02-0025 the top 16 of 14,470 tiles carry
+about 1% of it, each at 4-8x an even share. Then the "attended" tiles are only lightly preferred over the rest of
+the tumour, and a small attended-control difference says the model averages over broad areas, not that it looks in
+the wrong place. So `key.csv` records, for each case's slide, the share of attention on the top 1% of tiles (1% if
+even), the effective number of tiles (1/sum(w^2)), and the rated attended and control tiles' weights against an
+even share; `analyse.py` reports the difference separately for focused and diffuse cases (split at the median).
+
 **Analysis caveat.** Tiles from the same case are not independent, so the tile-level intervals are somewhat too
 narrow. For claims, lean on the case-level view: the share of cases where attention hit the target, and the list
 of misses.
@@ -64,7 +71,8 @@ For each rater and pooled:
 - diagnostic and on-target shares for attended against control tiles, with exact 95% intervals;
 - the same by class, and by whether the model's call was right;
 - the artefact share;
-- the cases where attention missed;
+- the cases where attention missed, with how focused their attention was;
+- attention concentration per case, and the attended-control difference in focused against diffuse cases;
 - with two or more raters, kappa on the four scores and on diagnostic or not.
 
 ## Data

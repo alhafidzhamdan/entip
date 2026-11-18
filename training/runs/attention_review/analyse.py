@@ -10,6 +10,12 @@ For each rater and pooled over raters:
 * **cases where attention missed**: fewer than half of a case's attended tiles rated D or T (for a tumour case)
   or D (for a non-neoplastic case), with the model's call - the cases to look at first.
 
+**Attention concentration** (when ``key.csv`` has it, from make_review.py after 2026-11-18): for each case, how
+much attention the top 1% of tiles carry and how the rated tiles' weights compare with an even share, beside the
+case's attended and control on-target shares; and the attended-control difference in focused cases (top-1% share
+at or above the median) against diffuse ones. A small difference in diffuse cases means the model averages over
+broad areas, not that it looks in the wrong place.
+
 With two or more raters: Cohen's kappa for each pair, on the four scores and on diagnostic (D) or not.
 Tiles left unrated, or rated A (artefact / not assessable), are counted as not diagnostic; the A share is
 reported separately.
@@ -22,6 +28,7 @@ import json
 import sys
 from collections import Counter, defaultdict
 from itertools import combinations
+from statistics import median
 
 from scipy.stats import beta
 
@@ -52,6 +59,48 @@ def kappa(a: list, b: list) -> float | None:
     return round((po - pe) / (1 - pe), 3) if pe < 1 else None
 
 
+CONC = ("top1pct_share", "effective_tiles", "effective_fraction", "top_vs_even", "control_vs_even")
+
+
+def num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def concentration(key: dict, on) -> dict | None:
+    """Per case: attention concentration beside the on-target shares; focused against diffuse cases."""
+    by = defaultdict(list)
+    for t in key.values():
+        by[t["case_code"]].append(t)
+    if not any(num(ts[0].get("top1pct_share")) is not None for ts in by.values()):
+        return None
+    rows = []
+    for c, ts in sorted(by.items()):
+        att = [t for t in ts if t["set"] == "attended"]
+        ctl = [t for t in ts if t["set"] == "control"]
+        t0 = ts[0]
+        rows.append({"case": c, "patient": t0["patient"], "diagnosis": t0["diagnosis"],
+                     **{k: num(t0.get(k)) for k in CONC},
+                     "attended_on_target": round(sum(map(on, att)) / len(att), 2) if att else None,
+                     "control_on_target": round(sum(map(on, ctl)) / len(ctl), 2) if ctl else None,
+                     "_att": att, "_ctl": ctl})
+    rows.sort(key=lambda r: -(r["top1pct_share"] or 0))
+    cut = median(r["top1pct_share"] for r in rows if r["top1pct_share"] is not None)
+    groups = {}
+    for name, keep in (("focused", lambda r: r["top1pct_share"] >= cut), ("diffuse", lambda r: r["top1pct_share"] < cut)):
+        rs = [r for r in rows if r["top1pct_share"] is not None and keep(r)]
+        a = share([t for r in rs for t in r["_att"]], on)
+        b = share([t for r in rs for t in r["_ctl"]], on)
+        groups[name] = {"cases": len(rs), "attended": a, "control": b,
+                        "difference": round(a["share"] - b["share"], 3)
+                        if a["share"] is not None and b["share"] is not None else None}
+    for r in rows:
+        del r["_att"], r["_ctl"]
+    return {"median_top1pct_share": cut, **groups, "cases": rows}
+
+
 def summarise(key: dict, sc: dict) -> dict:
     """``sc``: {tile_code: score}. Tumour cases count D or T as on target; non-neoplastic cases D only."""
     att = [t for t in key.values() if t["set"] == "attended"]
@@ -79,8 +128,10 @@ def summarise(key: dict, sc: dict) -> dict:
             missed.append({"case": c, "patient": t0["patient"], "diagnosis": t0["diagnosis"], "on_target": round(f, 2),
                            "model_call": t0["model_call"], "reference_call": t0["reference_call"],
                            "reference_correct": t0["reference_correct"],
+                           "top1pct_share": num(t0.get("top1pct_share")),
                            "scores": dict(Counter(sc.get(t["tile_code"]) for t in ts))})
     out["cases_where_attention_missed"] = missed
+    out["concentration"] = concentration(key, on)
     return out
 
 
@@ -97,11 +148,28 @@ def show(name: str, s: dict) -> None:
     print(f"  artefact (A): attended {f(s['artefact']['attended'])}; control {f(s['artefact']['control'])}")
     print("  attended on target, by class: " + "; ".join(f"{c} {f(d)}" for c, d in s["by_class"].items()))
     print("  attended on target, by reference call: " + "; ".join(f"{c} {f(d)}" for c, d in s["by_reference_call"].items()))
+    c = s.get("concentration")
+    if c:
+        print("  'effective': 1/sum(w^2) as a share of the slide's tiles (100% = even spread)")
+        print(f"  attention concentration: median {c['median_top1pct_share']:.1%} of attention on the top 1% of tiles "
+              f"(an even spread gives 1%)")
+        for g in ("focused", "diffuse"):
+            d = c[g]
+            diff = f", difference {d['difference']:+.0%}" if d["difference"] is not None else ""
+            print(f"    {g:<8} ({d['cases']} cases): attended on target {f(d['attended'])}; "
+                  f"control {f(d['control'])}{diff}")
+        print("    case  top 1%  effective  weight vs even (att / ctl)  on target (att / ctl)")
+        for r in c["cases"]:
+            pct = lambda v: f"{v:.0%}" if v is not None else "-"
+            wt = f"{r['top_vs_even'] or 0:.1f}x / {r['control_vs_even'] or 0:.1f}x"
+            print(f"    {r['case']}  {pct(r['top1pct_share']):>6}  {pct(r['effective_fraction']):>9}  {wt:>26}  "
+                  f"{pct(r['attended_on_target']):>9} / {pct(r['control_on_target'])}")
     if s["cases_where_attention_missed"]:
         print("  cases where attention missed (under half the attended tiles on target):")
         for m in s["cases_where_attention_missed"]:
             print(f"    {m['case']} {m['patient']:<16} {m['diagnosis']}: {m['on_target']:.0%} on target, "
-                  f"model called {m['model_call']}, reference call {m['reference_call']} "
+                  + (f"top 1% carry {m['top1pct_share']:.0%} of attention, " if m.get("top1pct_share") is not None else "")
+              + f"model called {m['model_call']}, reference call {m['reference_call']} "
                   f"({'right' if m['reference_correct'] == 'True' else 'wrong'}), scores {m['scores']}")
 
 
