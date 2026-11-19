@@ -1,7 +1,7 @@
 # Step 3b: necrosis
 
 [← step 3](step3-high-grade.md) · code `training/glioma/src/entip_glioma/highgrade/` (`--feature necrosis`)
-· labels `training/runs/highgrade_labels/`
+· training `training/runs/highgrade_necrosis/`
 
 ## What it decides
 
@@ -24,12 +24,15 @@ tissue around it** decide most cases.
 
 ## How
 
-| | Now | Planned |
-|---|---|---|
-| Unit | 112 µm tile | The same tile, with its neighbourhood |
-| Head | Linear head on the tile's H-optimus-0 embedding | The same head on the tile's embedding plus the mean embeddings of its 3 × 3 and 5 × 5 neighbourhoods (no re-embedding) |
-| Labels | Tile labels (`n` on the labelling page) and QuPath Necrosis / Neither outlines | Mostly outlines: quick for large areas, and they give the area and the edge |
-| Slide score | Best focus of connected positive tiles | The same |
+[Training module](../../training/runs/highgrade_necrosis/README.md):
+
+- **Labels:** QuPath outlines first (`Necrosis`, `Neither`). They are quick for large areas and give the edge. The
+  page covers single tiles: look-alikes, and the tiles the head is unsure of.
+- **Head:** the tile's H-optimus-0 embedding plus the mean embeddings of its 3 × 3 and 5 × 5 neighbourhoods, with
+  no re-embedding.
+- **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no necrosis by their
+  grade, checked by audit picks.
+- **Slide score:** the best focus of connected positive tiles.
 
 Tiles from one large outline are near-copies of each other. Cross-validation groups by slide, so this does not
 inflate the metrics, but a slide with large outlines adds less than its tile count suggests.
@@ -37,6 +40,4 @@ inflate the metrics, but a slide with large outlines adds less than its tile cou
 ## Status and open items
 
 - Synthetic only.
-- Round 1 tile labels are ready to run on Eddie; QuPath outlines can be added to the same export.
-- Not built yet: neighbourhood context in the head.
-- Positives in an IDH-mutant background: pick the IDH-mutant "secondary glioblastomas" in TCGA-GBM on purpose.
+- The training module is built and tested on synthetic slides; round 1 is ready to run on Eddie.

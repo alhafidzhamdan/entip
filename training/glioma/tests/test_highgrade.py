@@ -256,3 +256,55 @@ def test_post_to_live_db(detectors):
     with urllib.request.urlopen(f"{url}/actions?verb=glioma_step&limit=5000") as r:
         events = json.loads(r.read())
     assert any(e["action_id"] == res[-1]["action_id"] for e in events)
+
+
+# ---------------------------------------------------------------- sub-step training additions
+
+def test_context_features_are_neighbourhood_means(train_set):
+    from entip_glioma.highgrade.bags import context_features, grid
+    _, b = train_set[0]
+    X = context_features(b, (1,))
+    assert X.shape == (len(b), 2 * b.features.shape[1])
+    rc = grid(b)
+    at = {tuple(v): i for i, v in enumerate(rc)}
+    i = len(b) // 2
+    nb = [at[(rc[i][0] + dr, rc[i][1] + dc)] for dr in (-1, 0, 1) for dc in (-1, 0, 1)
+          if (rc[i][0] + dr, rc[i][1] + dc) in at]
+    assert np.allclose(X[i, b.features.shape[1]:], b.features[nb].mean(0), atol=1e-5)
+    assert context_features(b, ()) is b.features
+
+
+def test_context_head_trains_and_round_trips(train_set, tmp_path):
+    labels = [tile_labels(b, s.necrosis_polys, s.tumour_polys) for s, b in train_set]
+    det = RegionDetector(RegionConfig("necrosis", context=(1, 2))).fit([b for _, b in train_set], labels)
+    s, b = train_set[0]
+    p = det.tile_p(b)
+    y = tile_labels(b, s.necrosis_polys, s.tumour_polys)
+    assert p[y == 1].mean() > p[y == 0].mean() + 0.3
+    det2 = RegionDetector.load(det.save(tmp_path / "n.joblib"))
+    assert np.allclose(det2.tile_p(b), p)
+
+
+def test_train_cli_takes_negative_bags(train_set, tmp_path):
+    import argparse
+    from entip_glioma.highgrade.cli import highgrade_train
+    (s, b), (_, neg) = train_set[0], train_set[3]
+    b.save(tmp_path / "a.npz")
+    neg.save(tmp_path / "neg.npz")
+    (tmp_path / "a.json").write_text(json.dumps({"positives": s.mvp_polys, "negatives": []}))
+    args = argparse.Namespace(bag=[str(tmp_path / "a.npz")], labels=[str(tmp_path / "a.json")],
+                              negative_bag=[str(tmp_path / "neg.npz")], negatives_per_bag=30, context=[1],
+                              seed=0, feature="microvascular_proliferation", threshold=0.8, training_data="t",
+                              out=str(tmp_path / "m.joblib"))
+    assert highgrade_train(args) == 0
+    det = RegionDetector.load(tmp_path / "m.joblib")
+    assert det.metrics["negative_bags"] == 1 and det.metrics["n_neg"] == 30
+    assert det.cfg.context == (1,)
+
+
+def test_mitosis_calibration_changes_the_count_probability():
+    cands = [{"id": f"c{i}", "x_um": 0, "y_um": 0, "p": 0.6, "call": "mitosis"} for i in range(3)]
+    raw = MitosisCounter(MitosisConfig()).assess(cands, ["S"], 10.0)
+    low = MitosisCounter(MitosisConfig(calibration=(1.0, -2.0))).assess(cands, ["S"], 10.0)
+    assert low.p_present < raw.p_present
+    assert low.calibration["calibrated"] and not raw.calibration["calibrated"]

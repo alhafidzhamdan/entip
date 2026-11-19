@@ -155,6 +155,12 @@ entip-train highgrade --study-id SYN-0001 --bag s1.npz --head necrosis.joblib --
     --mitoed-cells SCN-0001-A1-01=cells.csv --db http://127.0.0.1:8705
 ```
 
+`highgrade-train` also takes `--negative-bag` (a slide with none of the feature: `--negatives-per-bag` random tiles
+become negatives), `--context 1 2` (each tile's 3 x 3 and 5 x 5 neighbourhood mean embeddings added to its own) and
+`--feature vessel` (a helper head that finds vessels for MVP labelling; it makes no record). `highgrade
+--mitosis-calibration` remaps MitoEd's p with a sigmoid fitted on glioma labels. The training modules for each
+sub-step are `training/runs/highgrade_mvp/`, `highgrade_necrosis/` and `highgrade_mitosis/`.
+
 Labels for `highgrade-train` are `{"positives": [polygon, ...], "negatives": [...]}` in µm in the scan frame;
 `held_out.json` is a list of `{"bags": [paths], "present": 0 | 1}`. Bags come from the step-1 module
 (`entip_glioma.wsi.bags.extract_bag`: tissue mask, 224 px tiles at 0.5 µm/px, H-optimus-0).

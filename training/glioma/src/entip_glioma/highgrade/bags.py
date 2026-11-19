@@ -34,3 +34,29 @@ def tissue_area_mm2(bag: Bag) -> float:
     """Tissue area from the tiles kept by the tissue mask, weighted by each tile's tissue fraction."""
     frac = bag.tissue_frac if len(bag.tissue_frac) == len(bag) else np.ones(len(bag))
     return float(frac.sum() * tile_area_mm2(bag))
+
+
+def context_features(bag: Bag, radii=()) -> np.ndarray:
+    """Each tile's embedding followed by the mean embedding of its (2r + 1) x (2r + 1) neighbourhood for each
+    radius r in ``radii`` (tiles present only, the tile itself included). ``()`` returns the embeddings as they
+    are. Gives a head the tissue around a tile without re-embedding the slide."""
+    radii = sorted({int(r) for r in radii or ()})
+    if not radii or len(bag) == 0:
+        return bag.features
+    rc = grid(bag)
+    rc = rc - rc.min(0)
+    R = radii[-1]
+    idx = np.full(tuple(rc.max(0) + 1 + 2 * R), -1, np.int64)
+    idx[rc[:, 0] + R, rc[:, 1] + R] = np.arange(len(bag))
+    F = np.asarray(bag.features, np.float32)
+    out = [F]
+    for r in radii:
+        s, n = np.zeros_like(F), np.zeros(len(F), np.float32)
+        for dr in range(-r, r + 1):
+            for dc in range(-r, r + 1):
+                j = idx[rc[:, 0] + R + dr, rc[:, 1] + R + dc]
+                ok = j >= 0
+                s[ok] += F[j[ok]]
+                n[ok] += 1
+        out.append(s / n[:, None])
+    return np.concatenate(out, 1)

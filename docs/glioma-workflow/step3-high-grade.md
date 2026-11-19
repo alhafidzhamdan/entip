@@ -40,7 +40,11 @@ Each finding gives one `entip.glioma_step/1` record: `present`, `absent` or `ind
 - **Assistive first.** The output shows the top candidate foci for each finding. A pathologist confirming a short,
   sensitive list is easier to validate than an autonomous call.
 - **Labels are our own.** BraTS-Path (CC BY-NC) and Ivy GAP (Allen non-commercial) never train or pick tiles for
-  these heads. Labels are made in-house on CC BY slides (TCGA, CPTAC via IDC): `training/runs/highgrade_labels/`.
+  these heads. Labels are made in-house on CC BY slides (TCGA, CPTAC via IDC), by one training module per
+  sub-step (`training/runs/highgrade_mvp/`, `highgrade_necrosis/`, `highgrade_mitosis/`, sharing
+  `highgrade_common/`).
+- **Free negatives.** Under the grading TCGA used, grade 3 astrocytic and grade 2 gliomas had no necrosis or MVP, so
+  their slides give negatives for 3a and 3b without labelling. Audit picks and the export check them.
 
 ```bash
 entip-train highgrade-demo
@@ -52,5 +56,5 @@ entip-train highgrade --study-id SYN-0001 --bag s1.npz --head necrosis.joblib --
 
 ## Status
 
-Synthetic only: no head has been trained on real tissue. Round 1 of the tile labels (necrosis and MVP) is ready to
-run on Eddie.
+Synthetic only: no head has been trained on real tissue. The three training modules run end to end on synthetic
+slides and are ready for round 1 on Eddie.

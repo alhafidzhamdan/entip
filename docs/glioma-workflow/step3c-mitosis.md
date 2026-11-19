@@ -1,6 +1,7 @@
 # Step 3c: mitotic activity
 
 [← step 3](step3-high-grade.md) · code `training/glioma/src/entip_glioma/highgrade/` (`--mitoed-cells`)
+· training `training/runs/highgrade_mitosis/`
 
 ## What it decides
 
@@ -26,7 +27,8 @@ problem: tile embeddings at 112 µm are the wrong tool.
 | Candidates | MitoEd's candidate list per scan (`mitoed predict` CSV) | A candidate detector without non-commercial training data |
 | Which count | Only candidates MitoEd calls `mitosis` or `uncertain` (or p ≥ 0.2 for tables without a call), so thousands of low-p mimics cannot add up | The same rule, retuned on glioma |
 | Specimen count | P(at least *k* true mitoses), pooling scans of different blocks | The same |
-| Labels | None on glioma yet | Points on mitotic figures and on look-alikes in QuPath, on CC BY glioma slides |
+| Labels | Candidates sampled at random within bands of p, labelled one cell at a time ([training module](../../training/runs/highgrade_mitosis/README.md)) | The same |
+| Calibration | MitoEd's p recalibrated on glioma labels (`--mitosis-calibration`) | The same, for the new detector |
 
 The same mitosis on two levels of one block is counted twice, so pool scans of different blocks only.
 
@@ -35,4 +37,5 @@ The same mitosis on two levels of one block is counted twice, so pool scans of d
 - Synthetic only.
 - MitoEd has not been run on CNS tumours: its training data (MIDOG++) has no brain.
 - MitoEd's segmenter (Cellpose-SAM) was trained on CC BY-NC data, so a commercial count needs another one.
-- Not built yet: point labels for mitoses, a glioma check of MitoEd.
+- Built: the labelling and recalibration module, tested on synthetic candidates. Not done: running MitoEd on the
+  glioma slides.

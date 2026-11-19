@@ -1,7 +1,7 @@
 # Step 3a: microvascular proliferation (MVP)
 
 [← step 3](step3-high-grade.md) · code `training/glioma/src/entip_glioma/highgrade/` (`--feature microvascular_proliferation`)
-· labels `training/runs/highgrade_labels/`
+· training `training/runs/highgrade_mvp/`
 
 ## What it decides
 
@@ -21,22 +21,27 @@ head.
 
 ## How
 
-| | Now | Planned |
-|---|---|---|
-| Candidates | Every 112 µm tissue tile | Vessels |
-| Head | Linear head on the tile's H-optimus-0 embedding (0.5 µm/px) | Each vessel judged against ordinary vessels; at 0.25 µm/px if that proves better |
-| Labels | Tile labels (`m` on the labelling page) and QuPath MVP / Neither outlines | Also points on vessels in QuPath: MVP or ordinary vessel |
-| Slide score | Best focus of connected positive tiles | The same, from vessel scores |
+The labelling effort goes into telling MVP from ordinary vessels, and nothing else
+([training module](../../training/runs/highgrade_mvp/README.md)):
 
-Points on vessels make the negatives the right ones (ordinary vessels rather than any tissue), take one click
-each, and let labeller agreement be measured vessel by vessel.
+- **Labels per tile:** MVP, vessel without MVP, no vessel, or not assessable. On the page that is one key per tile;
+  in QuPath it is a point on each vessel.
+- **Two heads from the same labels:** a vessel head, used only to find vessels to label, and the MVP head.
+- **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no MVP by their grade.
+  They are MVP negatives at no cost, in a lower-grade background.
+- **Active learning from round 2:**
+  - vessels the MVP head is least sure of, and those it is surest are MVP;
+  - random vessels;
+  - audit tiles on the free-negative slides.
+- **Lower-grade positives:** slides lean on grade 3 oligodendrogliomas and grade 4 IDH-mutant astrocytomas, so
+  the head learns MVP, not "glioblastoma".
+- **Slide score:** the best focus of connected positive tiles, as before.
 
-Before re-embedding anything at 0.25 µm/px, compare a head at 0.5 µm/px with one at 0.25 µm/px on the labelled
-vessels only.
+Still to test: whether embeddings at 0.25 µm/px of the labelled vessels beat 0.5 µm/px, before re-embedding any
+slide.
 
 ## Status and open items
 
 - Synthetic only.
-- Round 1 tile labels are ready to run on Eddie.
-- Not built yet: point labels for vessels, vessel candidates, the 0.25 µm/px comparison.
-- Positives in an IDH-mutant background: pick the IDH-mutant "secondary glioblastomas" in TCGA-GBM on purpose.
+- The training module is built and tested on synthetic slides; round 1 is ready to run on Eddie.
+- Not built yet: the 0.25 µm/px comparison.

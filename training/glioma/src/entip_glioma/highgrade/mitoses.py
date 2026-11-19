@@ -23,8 +23,9 @@ Thousands of those would add up to a spurious count, so a candidate counts only 
 Limits. Candidates are assumed independent and distinct: the same mitosis seen on two serial sections is
 counted twice. Pool scans of different blocks, not levels of one block.
 
-The specimen-level probability is a rule on top of MitoEd's per-candidate p. It has not been calibrated or
-checked on held-out specimens, and the record's ``calibration`` block says so.
+The specimen-level probability is a rule on top of MitoEd's per-candidate p. ``calibration`` remaps that p with a
+sigmoid fitted on pathologist-labelled glioma candidates (``training/runs/highgrade_mitosis/``); the specimen
+count itself has not been checked on held-out specimens, and the record's ``calibration`` block says so.
 
 Guards (force ``uncertain``): the mitosis model is not validated on CNS tumours (the default: MitoEd is
 trained on MIDOG++, whose released data has no CNS tumours; the MIDOG 2022 test set with astrocytoma and
@@ -50,6 +51,7 @@ class MitosisConfig:
     threshold: float = 0.8
     max_evidence: int = 10
     validated: bool = False
+    calibration: Optional[tuple] = None   # (a, b): p -> sigmoid(a * logit(p) + b), fitted on glioma candidate labels
 
 
 def p_at_least(p: Sequence[float], k: int) -> float:
@@ -88,7 +90,7 @@ class MitosisCounter:
         cfg = self.cfg
         n_all = len(candidates)
         candidates = self.counted(candidates)
-        p = np.asarray([c["p"] for c in candidates], float)
+        p = self.calibrated(np.asarray([c["p"] for c in candidates], float))
         guards: List[str] = []
         if not cfg.validated:
             guards.append("mitosis model not yet validated on CNS tumours")
@@ -110,7 +112,16 @@ class MitosisCounter:
                  "criterion": "cIMPACT-NOW 5: >= 2 in whole specimen (1 in very small biopsy); not validated"}
         return FeatureResult("mitotic_activity", list(scan_ids), call, p_present, conf, cfg.threshold, status,
                              self.model_id, self.version, self.licence, value, evidence, order_test, reasons,
-                             {"method": "rule", "calibrated": False, "validated": False, "n_heldout": 0})
+                             {"method": "platt on glioma candidate labels" if cfg.calibration else "rule",
+                              "calibrated": cfg.calibration is not None, "validated": False, "n_heldout": 0})
+
+    def calibrated(self, p: np.ndarray) -> np.ndarray:
+        """MitoEd's p remapped by ``cfg.calibration`` when set (step 3c labels), else as it is."""
+        if self.cfg.calibration is None or len(p) == 0:
+            return p
+        a, b = self.cfg.calibration
+        q = np.clip(p, 1e-4, 1 - 1e-4)
+        return 1 / (1 + np.exp(-(a * np.log(q / (1 - q)) + b)))
 
     def counted(self, candidates: Sequence[dict]) -> List[dict]:
         """Candidates that enter the count (and the database): not MitoEd mimics, not below the floor."""

@@ -24,6 +24,9 @@ Guards that force ``uncertain`` (never a silent absent):
 * ``validated`` is False: a person has not signed the model off on held-out pathologist-labelled slides. This
   is the default, so every call stays ``uncertain`` until someone does.
 
+``context`` (for example ``(1, 2)``) adds the mean embedding of each tile's 3 x 3 and 5 x 5 neighbourhood to its
+own, so a head sees the tissue around a tile (the edge of a necrosis) without re-embedding the slide.
+
 Tile calibration folds are grouped by slide when at least three slides carry both classes between them, so
 tiles of one slide never sit on both sides of a fold.
 """
@@ -39,7 +42,7 @@ import numpy as np
 from entip_train.ontology import point_in_polygon
 from ..wsi.bags import Bag
 from ..wsi.calibrate import selective_threshold
-from .bags import centres_um, grid, tile_area_mm2, tile_ids, tissue_area_mm2
+from .bags import centres_um, context_features, grid, tile_area_mm2, tile_ids, tissue_area_mm2
 from .contract import FeatureResult, decide
 
 ENCODER_LICENCE = {"h-optimus-0": "Apache-2.0", "handcrafted": "MIT"}
@@ -60,6 +63,7 @@ class RegionConfig:
     min_accepted: int = 20
     validated: bool = False
     training_data: str = ""        # name and licence of the labels the head was trained on
+    context: tuple = ()            # neighbourhood radii in tiles added to each tile's embedding (bags.context_features)
     seed: int = 0
 
 
@@ -143,7 +147,7 @@ class RegionDetector:
         sizes = {b.tile_um for b in bags}
         if len(vers) != 1 or len(sizes) != 1:
             raise ValueError(f"bags mix encoders {vers} or tile sizes {sizes}")
-        X = np.concatenate([b.features[np.asarray(y) >= 0] for b, y in zip(bags, labels)])
+        X = np.concatenate([self._X(b)[np.asarray(y) >= 0] for b, y in zip(bags, labels)])
         y = np.concatenate([np.asarray(y)[np.asarray(y) >= 0] for y in labels])
         if len(np.unique(y)) < 2:
             raise ValueError("need positive and negative tiles")
@@ -176,6 +180,7 @@ class RegionDetector:
 
     def _stamp(self) -> None:
         key = repr((self.cfg.feature, self.cfg.tile_threshold, self.cfg.top_k, self.cfg.min_tiles, self.cfg.C,
+                    tuple(getattr(self.cfg, "context", ())),
                     self.encoder_version, self.n_labels, float(self.mu.sum()), self.slide_cal, self.threshold))
         self._id = f"hg-{self.cfg.feature}-{hashlib.sha1(key.encode()).hexdigest()[:10]}"
 
@@ -213,13 +218,22 @@ class RegionDetector:
     def model_id(self) -> str:
         return self._id
 
+    def _X(self, bag: Bag) -> np.ndarray:
+        return context_features(bag, getattr(self.cfg, "context", ()))
+
     def tile_p(self, bag: Bag) -> np.ndarray:
+        return self._tile_p(bag)[0]
+
+    def _tile_p(self, bag: Bag):
         if self.clf is None:
             raise RuntimeError("detector is not trained")
         if bag.encoder != self.encoder_version or bag.tile_um != self.tile_um:
             raise ValueError(f"bag {bag.scan_id} uses {bag.encoder} at {bag.tile_um} µm; this head was "
                              f"trained on {self.encoder_version} at {self.tile_um} µm")
-        return self.clf.predict_proba(bag.features)[:, 1] if len(bag) else np.zeros(0)
+        if not len(bag):
+            return np.zeros(0), np.zeros((0, 0))
+        X = self._X(bag)
+        return self.clf.predict_proba(X)[:, 1], X
 
     # ------------------------------------------------------------------ inference
     def _score(self, bags: Sequence[Bag]):
@@ -228,10 +242,10 @@ class RegionDetector:
         per_scan, comps = {}, []
         n_tiles, n_ood = 0, 0
         for bag in bags:
-            p = self.tile_p(bag)
+            p, X = self._tile_p(bag)
             per_scan[bag.scan_id] = p
             n_tiles += len(bag)
-            n_ood += int((self._dist(bag.features) > self.ood_threshold).sum()) if len(bag) else 0
+            n_ood += int((self._dist(X) > self.ood_threshold).sum()) if len(bag) else 0
             ids, cen, rc = tile_ids(bag), centres_um(bag), grid(bag)
             for k, idx in enumerate(_components(rc, p >= cfg.tile_threshold)):
                 if len(idx) < cfg.min_tiles:

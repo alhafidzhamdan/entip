@@ -45,7 +45,11 @@ def highgrade_demo(args) -> int:
 
 
 def highgrade_train(args) -> int:
-    """Fit one region head from tile bags and polygon labels ({"positives": [...], "negatives": [...]}, µm)."""
+    """Fit one region head from tile bags and polygon labels ({"positives": [...], "negatives": [...]}, µm).
+
+    ``--negative-bag``: slides known to have none of the feature (for example from their grade); a random
+    ``--negatives-per-bag`` of their tiles are negatives, with no labelling."""
+    import numpy as np
     from .regions import RegionConfig, RegionDetector, tile_labels
     from ..wsi.bags import Bag
     if len(args.bag) != len(args.labels):
@@ -55,8 +59,18 @@ def highgrade_train(args) -> int:
     for b, p in zip(bags, args.labels):
         d = json.loads(Path(p).read_text())
         labels.append(tile_labels(b, d.get("positives", []), d.get("negatives", [])))
-    det = RegionDetector(RegionConfig(args.feature, threshold=args.threshold, training_data=args.training_data))
-    det.fit(bags, labels).save(args.out)
+    rng = np.random.default_rng(args.seed)
+    for p in args.negative_bag:
+        b = Bag.load(p)
+        y = np.full(len(b), -1, int)
+        y[rng.choice(len(b), size=min(args.negatives_per_bag, len(b)), replace=False)] = 0
+        bags.append(b)
+        labels.append(y)
+    det = RegionDetector(RegionConfig(args.feature, threshold=args.threshold, training_data=args.training_data,
+                                      context=tuple(args.context), seed=args.seed))
+    det.fit(bags, labels)
+    det.metrics["negative_bags"] = len(args.negative_bag)
+    det.save(args.out)
     print(json.dumps(det.model_record(), indent=2, default=float))
     return 0
 
@@ -83,12 +97,17 @@ def highgrade(args) -> int:
     bags = [Bag.load(p) for p in args.bag]
     dets = [RegionDetector.load(p) for p in args.head]
     cands = None
+    cal = None
+    if args.mitosis_calibration:
+        d = json.loads(Path(args.mitosis_calibration).read_text())
+        cal = (float(d["a"]), float(d["b"]))
     if args.mitoed_cells:
         cands = []
         for item in args.mitoed_cells:
             sid, _, path = item.partition("=")
             cands += read_mitoed_cells(path, sid)
-    counter = MitosisCounter(MitosisConfig(min_count=args.min_mitoses, small_biopsy_mm2=args.small_biopsy_mm2),
+    counter = MitosisCounter(MitosisConfig(min_count=args.min_mitoses, small_biopsy_mm2=args.small_biopsy_mm2,
+                                           calibration=cal),
                              model_id=args.mitoed_model, version=args.mitoed_version)
     a = assess_specimen(args.study_id, bags, dets, counter if cands is not None else None, cands)
     out = json.dumps(a.records(), indent=2, default=float)
@@ -116,10 +135,17 @@ def add_parser(sub) -> None:
     h.add_argument("--db", help="post the actions to this db API, e.g. http://127.0.0.1:8705")
     h.set_defaults(fn=highgrade_demo)
 
-    t = sub.add_parser("highgrade-train", help="fit a necrosis or MVP head from tile bags and polygon labels")
-    t.add_argument("--feature", required=True, choices=["necrosis", "microvascular_proliferation"])
+    t = sub.add_parser("highgrade-train", help="fit a necrosis, MVP or vessel head from tile bags and labels")
+    t.add_argument("--feature", required=True, choices=["necrosis", "microvascular_proliferation", "vessel"],
+                   help="vessel: a helper head that finds vessels for MVP labelling; it makes no record")
     t.add_argument("--bag", action="append", required=True, help="tile bag .npz (repeat)")
     t.add_argument("--labels", action="append", required=True, help="polygon labels .json per bag (repeat)")
+    t.add_argument("--negative-bag", action="append", default=[],
+                   help="bag of a slide with none of the feature: random tiles become negatives (repeat)")
+    t.add_argument("--negatives-per-bag", type=int, default=200)
+    t.add_argument("--context", type=int, nargs="*", default=[],
+                   help="neighbourhood radii in tiles added to each embedding, e.g. 1 2 for 3x3 and 5x5")
+    t.add_argument("--seed", type=int, default=0)
     t.add_argument("--threshold", type=float, default=0.8)
     t.add_argument("--training-data", default="", help="name and licence of the labels")
     t.add_argument("--out", required=True)
@@ -139,6 +165,7 @@ def add_parser(sub) -> None:
     g.add_argument("--mitoed-model", default="mitoed")
     g.add_argument("--mitoed-version", default="")
     g.add_argument("--min-mitoses", type=int, default=2)
+    g.add_argument("--mitosis-calibration", help="JSON {a, b} from highgrade_mitosis/export.py (glioma labels)")
     g.add_argument("--small-biopsy-mm2", type=float, default=None)
     g.add_argument("--out")
     g.add_argument("--actions")
