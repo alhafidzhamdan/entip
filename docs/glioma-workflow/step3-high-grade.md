@@ -36,5 +36,8 @@ entip-train highgrade --study-id SYN-0001 --bag s1.npz --head necrosis.joblib --
 
 - Synthetic only. No head trained on real tissue.
 - No open, NHS-usable region labels for necrosis or MVP in brain: BraTS-Path is CC BY-NC and Ivy GAP is under
-  Allen non-commercial terms. Edinburgh pathologist outlines are the likely source.
+  Allen non-commercial terms. So we make our own: a pathologist labels candidate tiles from the CC BY TCGA and
+  CPTAC gliomas as necrosis, MVP, neither or not assessable (`training/runs/highgrade_labels/`), and the labels
+  go straight into `highgrade-train`. Later rounds pick the tiles the heads are least sure of.
+- MitoEd's segmenter (Cellpose-SAM) was trained on CC BY-NC data, so a commercial mitosis count needs another one.
 - MitoEd has not been run on CNS tumours (its training data, MIDOG++, has no brain).
