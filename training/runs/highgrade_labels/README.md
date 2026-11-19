@@ -5,6 +5,9 @@ public region labels (Ivy GAP, BraTS-Path) are non-commercial, so a head trained
 This study makes our own labels on openly licensed slides (TCGA and CPTAC via IDC, CC BY): a pathologist
 labels candidate tiles, and the labels go straight into `entip-train highgrade-train`.
 
+These labels serve step 3a (MVP, [docs](../../../docs/glioma-workflow/step3a-mvp.md)) and step 3b (necrosis,
+[docs](../../../docs/glioma-workflow/step3b-necrosis.md)).
+
 | Key | Label | Meaning |
 |---|---|---|
 | `n` | Necrosis | Tumour necrosis in the outlined tile, palisading or not (not haemorrhage, crush or cautery artefact) |

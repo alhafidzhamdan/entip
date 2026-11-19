@@ -12,7 +12,10 @@ instead of being used. Research use only; nothing has been run on real patients.
 |---|---|---|---|
 | 1 | Pre-training: turn each slide into frozen H-optimus-0 tile embeddings | [step1-pretraining.md](step1-pretraining.md) | `training/glioma/src/entip_glioma/embed/` + shared `wsi/bags.py` |
 | 2 | Is it tumour, and is the tumour glial? Is there enough tissue? | [step2-triage.md](step2-triage.md) | `training/glioma/src/entip_glioma/triage/` + shared `wsi/` |
-| 3 | Necrosis, microvascular proliferation, mitotic activity | [step3-high-grade.md](step3-high-grade.md) | `training/glioma/src/entip_glioma/highgrade/` |
+| 3 | High-grade features, in three sub-steps (shared rules) | [step3-high-grade.md](step3-high-grade.md) | `training/glioma/src/entip_glioma/highgrade/` |
+| 3a | Microvascular proliferation | [step3a-mvp.md](step3a-mvp.md) | `highgrade/`, labels `training/runs/highgrade_labels/` |
+| 3b | Necrosis | [step3b-necrosis.md](step3b-necrosis.md) | `highgrade/`, labels `training/runs/highgrade_labels/` |
+| 3c | Mitotic activity | [step3c-mitosis.md](step3c-mitosis.md) | `highgrade/` with MitoEd candidates |
 | 4 | Panel markers (IDH, 1p/19q, ATRX, TP53, CDKN2A, EGFR, +7/-10, TERT, H3, MGMT) | [step4-panel.md](step4-panel.md) | `training/glioma/src/entip_glioma/panel/` |
 | 5 | Methylation class | [step5-methylation.md](step5-methylation.md) | `training/glioma/src/entip_glioma/methylation/` |
 | 6 | Integrated diagnosis and report | [step6-integrated-diagnosis.md](step6-integrated-diagnosis.md) | `training/dx/` |
