@@ -68,6 +68,13 @@ python training/runs/highgrade_common/grade_mil.py --manifest $W/trial.csv --bag
 - Picking only, never a label: it cannot tell MVP from necrosis, and a slide is only a sample of its case.
 - It can also pick up other grade 4 clues, such as cellularity; the labeller calls those negative.
 - `grade-mil.json` gives the out-of-fold AUC, grouped by patient. Near 0.5 means it learnt nothing: pick without it.
+
+**Does it find MVP and necrosis on its own?** Before labelling anything, add `--view --slides $W/slides`.
+`view.html` shows, for up to 15 slides of each grade, the slide with its 12 highest-scoring tiles boxed and
+numbered, those tiles as 3 × 3 fields, and 4 random tiles for comparison. Each slide is scored by the fold model
+that did not train on it. It works if the top tiles on grade 4 slides are mostly MVP and necrosis and those on
+grade 3 slides are not. This is a look, not a measurement; a measured answer needs labels. `view-key.csv` maps the
+codes to slides.
 - TCGA has few grade 4 IDH-mutant astrocytomas (about 22 patients with slides in the stage-A set, against about
   100 grade 3). `--positive astro4 gbm` adds glioblastomas, at the cost of IDH-wildtype features unrelated to MVP
   or necrosis.
