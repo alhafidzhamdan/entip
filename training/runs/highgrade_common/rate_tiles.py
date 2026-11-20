@@ -74,19 +74,32 @@ def build(a) -> int:
     data = [{"id": it["item"],
              "src": "data:image/jpeg;base64," + base64.b64encode(it["src"].read_bytes()).decode("ascii")}
             for it in items]
-    (out / "tile-review.html").write_text(page(a.title, page_id, data, a.field_um), encoding="utf-8")
+    (out / "tile-review.html").write_text(page(a.title, page_id, data, a.field_um, a.endpoint), encoding="utf-8")
     mb = (out / "tile-review.html").stat().st_size / 1e6
     print(json.dumps({"tiles": len(items), "slides": len(rows), "page_id": page_id, "html_mb": round(mb, 1),
+                      "ratings_go_to": a.endpoint or "the rater's browser (download as CSV)",
                       "send": str(out / "tile-review.html"), "keep": str(out / "tile-review-key.csv")}, indent=2))
     return 0
 
 
-def page(title: str, page_id: str, data: list, field_um: float) -> str:
+def page(title: str, page_id: str, data: list, field_um: float, endpoint: str | None = None) -> str:
     keys = "".join(f'<button type="button" class="rate" data-v="{v}" title="{html.escape(d)}">'
                    f'<kbd>{k}</kbd><span>{html.escape(n)}</span></button>' for v, k, n, d in RATINGS)
     legend = "".join(f"<dt><kbd>{k}</kbd> {html.escape(n)}</dt><dd>{html.escape(d)}</dd>" for v, k, n, d in RATINGS)
-    cfg = json.dumps({"page": page_id, "ratings": [[v, k, n] for v, k, n, _ in RATINGS]})
-    return TEMPLATE.replace("%TITLE%", html.escape(title)).replace("%KEYS%", keys).replace("%LEGEND%", legend) \
+    cfg = json.dumps({"page": page_id, "endpoint": endpoint or "", "ratings": [[v, k, n] for v, k, n, _ in RATINGS]})
+    if endpoint:
+        keep = ("Each rating is sent to the study team as you make it, so you can close the page at any time and "
+                "come back to it in the same browser.")
+        privacy = ("The page shows no diagnosis, grade or model output. It sends only your initials and ratings. "
+                   "Research use only.")
+        thanks = "Thank you. Your ratings have been sent; you can close this page, or go back and change any tile."
+    else:
+        keep = ("Ratings are kept in this browser as you go. To finish on another computer, download them and load "
+                "the file there.")
+        privacy = "The page shows no diagnosis, grade or model output, and sends nothing anywhere. Research use only."
+        thanks = "Thank you. Download your ratings and send the file back. You can still go back and change any tile."
+    return TEMPLATE.replace("%KEEP%", keep).replace("%PRIVACY%", privacy).replace("%THANKS%", thanks) \
+        .replace("%TITLE%", html.escape(title)).replace("%KEYS%", keys).replace("%LEGEND%", legend) \
         .replace("%FIELD%", f"{field_um:.0f}").replace("%TILE%", f"{field_um / 3:.0f}") \
         .replace("%CFG%", cfg).replace("%DATA%", json.dumps(data, separators=(",", ":")))
 
@@ -173,9 +186,8 @@ resize:vertical}
     <button class="btn primary" id="go" disabled>Start</button>
     <label class="btn" for="import" title="Continue from a ratings CSV saved earlier">Load saved ratings…</label>
     <input type="file" id="import" accept=".csv,text/csv" class="hidden"></div>
-    <p class="muted" id="resume" style="margin:10px 0 0">Ratings are kept in this browser as you go. To finish on
-    another computer, download them and load the file there.</p></div>
-  <p class="muted">The page shows no diagnosis, grade or model output, and sends nothing anywhere. Research use only.</p>
+    <p class="muted" id="resume" style="margin:10px 0 0">%KEEP%</p></div>
+  <p class="muted">%PRIVACY%</p>
 </section>
 
 <section id="review" class="hidden">
@@ -187,6 +199,7 @@ resize:vertical}
   <aside id="side">
     <div class="row" style="justify-content:space-between"><span id="itemid"></span>
       <span class="muted" id="state"></span></div>
+    <p class="muted hidden" id="sync" style="margin:0"></p>
     <div class="rates">%KEYS%</div>
     <textarea id="note" placeholder="Comment (optional) c"></textarea>
     <p class="muted hidden" id="needtext" style="margin:-6px 0 0">Type what you see, then press Enter.</p>
@@ -202,8 +215,8 @@ resize:vertical}
 
 <section id="done" class="hidden">
   <h1>All tiles rated</h1>
-  <p class="muted">Thank you. Download your ratings and send the file back. You can still go back and change any
-  tile.</p>
+  <p class="muted">%THANKS%</p>
+  <p class="muted" id="sync2"></p>
   <div class="tally" id="tally"></div>
   <div class="row" style="justify-content:center">
     <button class="btn primary" id="dl2">Download ratings</button><button class="btn" id="back">Review again</button></div>
@@ -263,7 +276,41 @@ function show(k) {
 
 function entry() { const d = DATA[i]; return R[d.id] = R[d.id] || {}; }
 function saveNote() { if (!DATA[i] || $("#review").classList.contains("hidden")) return;
-  const v = $("#note").value.trim(), e = entry(); if (v || e.note) { e.note = v; store.save(); } }
+  const v = $("#note").value.trim(), e = entry();
+  if (v !== (e.note || "")) { e.note = v; store.save(); sync.push(DATA[i].id); } }
+
+// Online saving: each change joins a queue kept in this browser, sent in order, and kept until it has gone.
+const sync = {
+  q: [], busy: false, timer: null,
+  qkey: () => `tile-review-queue:${CFG.page}`,
+  client() { let c = ""; try { c = localStorage.getItem("tile-review-client") || ""; } catch (e) {}
+    if (!c) { c = Math.random().toString(36).slice(2, 10); try { localStorage.setItem("tile-review-client", c); } catch (e) {} }
+    return c; },
+  init() { if (!CFG.endpoint) return; try { this.q = JSON.parse(localStorage.getItem(this.qkey()) || "[]"); } catch (e) {}
+    $("#sync").classList.remove("hidden"); this.show(); this.flush(); },
+  keep() { try { localStorage.setItem(this.qkey(), JSON.stringify(this.q)); } catch (e) {} },
+  push(id) { if (!CFG.endpoint || !rater) return; const r = R[id] || {};
+    this.q = this.q.filter(x => !(x.item === id && x.rater === rater));
+    this.q.push({rater, page_id: CFG.page, item: id, rating: r.rating || "", note: r.note || "",
+                 seconds: r.seconds ?? "", rated_at: r.at || new Date().toISOString(), client: this.client()});
+    this.keep(); this.show(); this.flush(); },
+  async flush() {
+    if (!CFG.endpoint || this.busy || !this.q.length) return;
+    this.busy = true; const batch = this.q.slice(0, 200); this.show();
+    try {
+      await fetch(CFG.endpoint, {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"},
+                                 body: JSON.stringify({rows: batch})});
+      this.q = this.q.filter(x => !batch.includes(x)); this.keep(); this.failed = false;
+    } catch (e) { this.failed = true; clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 15000); }
+    this.busy = false; this.show();
+    if (this.q.length && !this.failed) this.flush();
+  },
+  show() { if (!CFG.endpoint) return; const n = this.q.length;
+    const t = !n ? "All ratings sent." : this.failed ? `Offline: ${n} waiting, sent when you are back online.`
+                                           : `Sending ${n}…`;
+    $("#sync").textContent = t; $("#sync2").textContent = t; }
+};
+window.addEventListener("online", () => sync.flush());
 
 function needText(on) {
   $("#note").classList.toggle("need", on); $("#needtext").classList.toggle("hidden", !on);
@@ -272,7 +319,7 @@ function needText(on) {
 function rate(v) {
   const e = entry();
   e.rating = v; e.seconds = Math.round((performance.now() - shownAt) / 100) / 10; e.at = new Date().toISOString();
-  saveNote(); store.save();
+  saveNote(); store.save(); sync.push(DATA[i].id);
   document.querySelectorAll(".rate").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   if (v === "other" && !done(e)) { needText(true); $("#state").textContent = "needs text"; $("#note").focus(); return; }
   advance();
@@ -360,6 +407,7 @@ document.addEventListener("keydown", e => {
   else if (k === "c") { e.preventDefault(); $("#note").focus(); }
 });
 window.addEventListener("beforeunload", saveNote);
+sync.init();
 </script></body></html>
 """
 
@@ -394,7 +442,7 @@ def read_ratings(files, key: dict) -> dict:
     for f in files:
         for r in csv.DictReader(open(f)):
             if r.get("page_id") and r["page_id"] not in pages:
-                raise SystemExit(f"{f}: ratings are for page {r['page_id']}, not this key ({', '.join(pages)})")
+                continue  # another review page's ratings (a shared sheet)
             if r["item"] not in key or not r.get("rating"):
                 continue
             rater = (r.get("rater") or Path(f).stem.replace("ratings-", "")).upper()
@@ -418,7 +466,20 @@ def tally(rows: list) -> dict:
 
 def summary(a) -> int:
     key = {r["item"]: r for r in csv.DictReader(open(a.key))}
-    raw = read_ratings(a.ratings, key)
+    files = list(a.ratings)
+    if a.sheet:
+        import tempfile
+        import urllib.request
+        with urllib.request.urlopen(a.sheet, timeout=60) as resp:
+            text = resp.read().decode("utf-8")
+        if not text.startswith("received_at,"):
+            raise SystemExit(f"the sheet URL did not return ratings (got {text[:60]!r}); check ?key=")
+        tmp = Path(tempfile.mkdtemp()) / "sheet.csv"
+        tmp.write_text(text)
+        files.append(tmp)
+    if not files:
+        raise SystemExit("give ratings files or --sheet")
+    raw = read_ratings(files, key)
     if not raw:
         raise SystemExit("no ratings matched the key")
     groups = [("grade4 top", "astro4", "top"), ("grade4 random", "astro4", "random"),
@@ -481,10 +542,13 @@ def main() -> int:
     b.add_argument("--seed", type=int, default=0, help="shuffle order; the same seed gives the same page")
     b.add_argument("--title", default="Tile review: MVP and necrosis")
     b.add_argument("--field-um", type=float, default=336.0, help="width of each field (3 tiles of 112 µm)")
+    b.add_argument("--endpoint", help="Google Apps Script web app URL (tile_review_sheet.gs): ratings are sent there "
+                                      "as they are made")
     b.set_defaults(fn=build)
     s = sub.add_parser("summary", help="join ratings-<initials>.csv files with the key")
     s.add_argument("--key", required=True)
-    s.add_argument("ratings", nargs="+")
+    s.add_argument("ratings", nargs="*", help="ratings-<initials>.csv files, or a CSV downloaded from the Sheet")
+    s.add_argument("--sheet", help="the Apps Script URL with ?key=<READ_KEY>: read every rating straight from the Sheet")
     s.add_argument("--out", help="also write the summary JSON here")
     s.set_defaults(fn=summary)
     a = ap.parse_args()

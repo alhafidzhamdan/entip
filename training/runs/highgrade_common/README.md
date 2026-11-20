@@ -98,6 +98,21 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
   necrosis, MVP, necrosis). Shares count only tiles rated MVP, necrosis, both or neither; artefact, other and can't assess
   are counted apart, and every typed text is listed with its tile. The grade model finds MVP and necrosis if grade 4 top tiles score well above grade 4
   random tiles and grade 3 top tiles.
+- **Collecting ratings online** (no CSV files to send back): ratings go to a Google Sheet you own, through
+  [`tile_review_sheet.gs`](tile_review_sheet.gs). Reviewers need no account. Set up once:
+  1. In Google Sheets, make a blank sheet (e.g. "Tile review ratings"). Open **Extensions > Apps Script**, replace
+     the code with `tile_review_sheet.gs`, and set `READ_KEY` to a long random string (keep it to yourself).
+  2. **Deploy > New deployment > Web app**: execute as **Me**, who has access **Anyone**. Authorise it, and copy
+     the web app URL (it ends in `/exec`).
+  3. Build the page with that URL: `rate_tiles.py build --view grade-mil --out grade-mil/review --endpoint
+     <URL>`. Each rating, and each change to it, is sent as it is made and added as a row to the sheet's `ratings`
+     tab; a rating that cannot be sent waits in the browser and goes when the reviewer is back online.
+  4. Read every rating straight from the sheet: `rate_tiles.py summary --key grade-mil/review/tile-review-key.csv
+     --sheet "<URL>?key=<READ_KEY>"`. The latest row per reviewer and tile counts. A CSV downloaded from the
+     sheet works as a ratings file too.
+  - Rate one tile yourself first and check the row appears: the page cannot see Google's reply, so a wrong URL
+    fails silently. Anyone with the page can add rows to the sheet; only the key reads them back.
+  - Reviewers are told by their initials, so two people with the same initials are merged: give each a code.
 - The fields are 336 µm across at the embedding's magnification (about 0.9 µm per pixel), enough for necrosis but
   coarse for MVP. The ratings are not training labels: the view key has no tile coordinates.
 - TCGA has few grade 4 IDH-mutant astrocytomas (about 22 patients with slides in the stage-A set, against about
