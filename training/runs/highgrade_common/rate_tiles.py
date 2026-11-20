@@ -1,0 +1,475 @@
+"""A blinded, one-tile-at-a-time review page for pathologists, and the summary of their ratings.
+
+``build`` turns a grade model view folder (``grade_mil.py --view``: ``view-key.csv`` and ``tiles/``) into one
+self-contained file, ``tile-review.html``, that any pathologist can open offline in a browser. The tiles are
+shuffled across slides and renamed, so the page shows no grade, slide, score, or whether a tile was a top tile or
+a random one. The answer key stays in ``tile-review-key.csv``: keep it, and send only the HTML.
+
+``summary`` joins the downloaded ``ratings-<initials>.csv`` files with the key: how often the grade model's top
+tiles show MVP or necrosis, against random tiles and against grade 3 slides, and how well the raters agree.
+
+    python rate_tiles.py build --view grade-mil --out grade-mil/review
+    python rate_tiles.py summary --key grade-mil/review/tile-review-key.csv ratings-AH.csv ratings-XY.csv
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import csv
+import hashlib
+import html
+import json
+import math
+import random
+import sys
+from collections import Counter, defaultdict
+from itertools import combinations
+from pathlib import Path
+
+RATINGS = [  # value, key, name, definition shown to the rater
+    ("mvp", "m", "MVP", "Microvascular proliferation: multilayered, mitotically active vessel walls, often glomeruloid; "
+                        "not just thick-walled, hyalinised or many vessels"),
+    ("necrosis", "n", "Necrosis", "Tumour necrosis, palisading or not: eosinophilic granular debris with nuclear dust; "
+                                  "not haemorrhage, cautery, crush or fibrin"),
+    ("both", "b", "Both", "MVP and necrosis in the outlined tile"),
+    ("neither", "0", "Neither", "No MVP and no necrosis in the outlined tile"),
+    ("unassessable", "x", "Can't assess", "Out of focus, folded, too little tissue, or otherwise not judgeable"),
+]
+FEATURE = {"mvp": (1, 0), "necrosis": (0, 1), "both": (1, 1), "neither": (0, 0)}
+
+
+# ------------------------------------------------------------------------------------------------ build
+
+def build(a) -> int:
+    view = Path(a.view)
+    rows = list(csv.DictReader(open(view / "view-key.csv")))
+    if not rows:
+        raise SystemExit(f"{view / 'view-key.csv'} has no slides")
+    items = []
+    for r in rows:
+        for kind, n_max in (("top", a.top), ("random", a.random)):
+            have = int(r[kind])
+            for rank in range(1, min(have, n_max if n_max is not None else have) + 1):
+                src = view / "tiles" / f"{r['code']}-{kind}{rank}.jpg"
+                if not src.exists():
+                    raise SystemExit(f"missing tile image {src}")
+                items.append({"code": r["code"], "slide": r["slide"], "patient": r["patient"],
+                              "category": r["category"], "kind": kind, "rank": rank, "p": r["p"], "src": src})
+    random.Random(a.seed).shuffle(items)
+    width = len(str(len(items)))
+    for i, it in enumerate(items, start=1):
+        it["item"] = f"T{i:0{width}d}"
+    page_id = hashlib.sha1("|".join(f"{it['item']}={it['src'].name}" for it in items).encode()).hexdigest()[:12]
+
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    with open(out / "tile-review-key.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["item", "code", "slide", "patient", "category", "kind", "rank", "p", "image", "page_id"])
+        for it in items:
+            w.writerow([it["item"], it["code"], it["slide"], it["patient"], it["category"], it["kind"], it["rank"],
+                        it["p"], it["src"].name, page_id])
+    data = [{"id": it["item"],
+             "src": "data:image/jpeg;base64," + base64.b64encode(it["src"].read_bytes()).decode("ascii")}
+            for it in items]
+    (out / "tile-review.html").write_text(page(a.title, page_id, data, a.field_um), encoding="utf-8")
+    mb = (out / "tile-review.html").stat().st_size / 1e6
+    print(json.dumps({"tiles": len(items), "slides": len(rows), "page_id": page_id, "html_mb": round(mb, 1),
+                      "send": str(out / "tile-review.html"), "keep": str(out / "tile-review-key.csv")}, indent=2))
+    return 0
+
+
+def page(title: str, page_id: str, data: list, field_um: float) -> str:
+    keys = "".join(f'<button type="button" class="rate" data-v="{v}" title="{html.escape(d)}">'
+                   f'<kbd>{k}</kbd><span>{html.escape(n)}</span></button>' for v, k, n, d in RATINGS)
+    legend = "".join(f"<dt><kbd>{k}</kbd> {html.escape(n)}</dt><dd>{html.escape(d)}</dd>" for v, k, n, d in RATINGS)
+    cfg = json.dumps({"page": page_id, "ratings": [[v, k, n] for v, k, n, _ in RATINGS]})
+    return TEMPLATE.replace("%TITLE%", html.escape(title)).replace("%KEYS%", keys).replace("%LEGEND%", legend) \
+        .replace("%FIELD%", f"{field_um:.0f}").replace("%TILE%", f"{field_um / 3:.0f}") \
+        .replace("%CFG%", cfg).replace("%DATA%", json.dumps(data, separators=(",", ":")))
+
+
+TEMPLATE = r"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%TITLE%</title>
+<style>
+:root{--bg:#f6f5f1;--panel:#fff;--fg:#1d1d1b;--muted:#6b6a64;--line:#dddbd2;--accent:#3b5bdb;--accent-fg:#fff;
+--mvp:#c2255c;--necrosis:#e8590c;--both:#7048e8;--neither:#2b8a3e;--unassessable:#868e96;--focus:#3b5bdb}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#21211f;--fg:#ecebe6;--muted:#a9a79f;--line:#3a3a37;
+--accent:#748ffc;--accent-fg:#111}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input{font:inherit;color:inherit}
+kbd{font:12px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
+padding:0 5px;background:var(--bg)}
+.hidden{display:none!important}
+/* start */
+#start{max-width:760px;margin:0 auto;padding:40px 16px}
+#start h1{font-size:26px;font-weight:600;margin:0 0 6px}
+#start .lede{color:var(--muted);margin:0 0 24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:0 0 16px}
+.card h2{font-size:15px;font-weight:600;margin:0 0 8px}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0}
+dt{font-weight:600;white-space:nowrap} dd{margin:0;color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input[type=text]{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;width:120px;
+text-transform:uppercase}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+.btn:disabled{opacity:.5;cursor:default}
+.muted{color:var(--muted);font-size:13px}
+/* review */
+#review{display:grid;grid-template-columns:minmax(0,1fr) 320px;height:100vh}
+#stage{display:flex;flex-direction:column;min-width:0;padding:14px 16px}
+#top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+#top .who{font-weight:600}
+#bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+#bar i{display:block;height:100%;background:var(--accent);width:0}
+#count{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;white-space:nowrap}
+#imgwrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;position:relative;overflow:hidden}
+#img{width:min(100%,calc(100vh - 80px));height:auto;aspect-ratio:1;object-fit:contain;border-radius:6px;cursor:zoom-in;
+box-shadow:0 1px 3px rgba(0,0,0,.15);background:#fff}
+#img.zoom{object-fit:none;object-position:center;transform:scale(2.2);cursor:zoom-out}
+#side{background:var(--panel);border-left:1px solid var(--line);padding:16px;display:flex;flex-direction:column;
+gap:14px;overflow:auto}
+#itemid{font:600 13px ui-monospace,Menlo,monospace;color:var(--muted)}
+.rates{display:grid;gap:8px}
+.rate{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--bg);border-radius:10px;
+padding:10px 12px;cursor:pointer;text-align:left}
+.rate:hover{border-color:var(--muted)}
+.rate.on{color:#fff;border-color:transparent}
+.rate.on kbd{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff}
+.rate[data-v=mvp].on{background:var(--mvp)} .rate[data-v=necrosis].on{background:var(--necrosis)}
+.rate[data-v=both].on{background:var(--both)} .rate[data-v=neither].on{background:var(--neither)}
+.rate[data-v=unassessable].on{background:var(--unassessable)}
+.check{display:flex;align-items:center;gap:8px;cursor:pointer}
+textarea{width:100%;min-height:60px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;
+resize:vertical}
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.help{font-size:12px;color:var(--muted);line-height:1.7}
+.spacer{flex:1}
+/* done */
+#done{max-width:620px;margin:0 auto;padding:60px 16px;text-align:center}
+#done h1{font-size:24px;font-weight:600}
+.tally{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0 26px}
+.tally span{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;font-size:13px}
+@media (max-width:820px){#review{grid-template-columns:1fr;height:auto}#imgwrap{min-height:60vh}
+#side{border-left:0;border-top:1px solid var(--line)}}
+</style></head><body>
+
+<section id="start">
+  <h1>%TITLE%</h1>
+  <p class="lede">You will see <b id="ntiles"></b> fields from IDH-mutant astrocytomas, one at a time, in random order.
+  Judge only the <b>outlined tile in the centre</b>; the ring around it is context.</p>
+  <div class="card"><h2>What to call</h2><dl>%LEGEND%</dl>
+  <p class="muted" style="margin:12px 0 0">Optional: press <kbd>a</kbd> to flag an artefact (fold, pen, blur, edge),
+  and add a comment. Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
+  <kbd>z</kbd>, to zoom.</p></div>
+  <div class="card"><h2>Your initials</h2>
+    <div class="row"><input type="text" id="initials" maxlength="6" autocomplete="off" placeholder="e.g. AH">
+    <button class="btn primary" id="go" disabled>Start</button>
+    <label class="btn" for="import" title="Continue from a ratings CSV saved earlier">Load saved ratings…</label>
+    <input type="file" id="import" accept=".csv,text/csv" class="hidden"></div>
+    <p class="muted" id="resume" style="margin:10px 0 0">Ratings are kept in this browser as you go. To finish on
+    another computer, download them and load the file there.</p></div>
+  <p class="muted">The page shows no diagnosis, grade or model output, and sends nothing anywhere. Research use only.</p>
+</section>
+
+<section id="review" class="hidden">
+  <div id="stage">
+    <div id="top"><span class="who" id="who"></span><div id="bar"><i></i></div><span id="count"></span></div>
+    <div id="imgwrap"><img id="img" alt="tile field"></div>
+    <p class="muted" style="margin:8px 0 0;text-align:center">%FIELD% µm field · judge the outlined %TILE% µm tile</p>
+  </div>
+  <aside id="side">
+    <div class="row" style="justify-content:space-between"><span id="itemid"></span>
+      <span class="muted" id="state"></span></div>
+    <div class="rates">%KEYS%</div>
+    <label class="check"><input type="checkbox" id="artefact"> Artefact <kbd>a</kbd></label>
+    <textarea id="note" placeholder="Comment (optional)"></textarea>
+    <div class="nav"><button class="btn" id="prev">← Back</button><button class="btn" id="next">Next →</button></div>
+    <button class="btn" id="unrated">Next unrated <kbd>u</kbd></button>
+    <div class="spacer"></div>
+    <button class="btn primary" id="dl">Download ratings</button>
+    <div class="help"><kbd>m</kbd> <kbd>n</kbd> <kbd>b</kbd> <kbd>0</kbd> <kbd>x</kbd> rate and move on ·
+    <kbd>←</kbd> <kbd>→</kbd> move · <kbd>z</kbd> zoom · <kbd>Esc</kbd> leave the comment box</div>
+  </aside>
+</section>
+
+<section id="done" class="hidden">
+  <h1>All tiles rated</h1>
+  <p class="muted">Thank you. Download your ratings and send the file back. You can still go back and change any
+  tile.</p>
+  <div class="tally" id="tally"></div>
+  <div class="row" style="justify-content:center">
+    <button class="btn primary" id="dl2">Download ratings</button><button class="btn" id="back">Review again</button></div>
+</section>
+
+<script>
+const CFG = %CFG%;
+const DATA = %DATA%;
+const $ = s => document.querySelector(s);
+const NAMES = Object.fromEntries(CFG.ratings.map(([v,k,n]) => [v,n]));
+const KEYMAP = Object.fromEntries(CFG.ratings.map(([v,k]) => [k,v]));
+let rater = "", R = {}, i = 0, shownAt = 0;
+
+const store = {
+  key: () => `tile-review:${CFG.page}:${rater}`,
+  load() { try { return JSON.parse(localStorage.getItem(this.key()) || "{}"); } catch (e) { return {}; } },
+  save() { try { localStorage.setItem(this.key(), JSON.stringify(R)); } catch (e) {} }
+};
+const nRated = () => DATA.filter(d => R[d.id] && R[d.id].rating).length;
+
+$("#ntiles").textContent = DATA.length;
+$("#initials").addEventListener("input", e => {
+  rater = e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  $("#go").disabled = !rater;
+  if (rater) { const n = Object.values(store.load()).filter(r => r.rating).length;
+    $("#go").textContent = n ? `Continue (${n} rated)` : "Start"; }
+});
+$("#initials").addEventListener("keydown", e => { if (e.key === "Enter" && rater) start(); });
+$("#go").onclick = () => start();
+
+function start() {
+  R = Object.assign(store.load(), R);
+  $("#start").classList.add("hidden"); $("#done").classList.add("hidden"); $("#review").classList.remove("hidden");
+  $("#who").textContent = rater;
+  const first = DATA.findIndex(d => !(R[d.id] && R[d.id].rating));
+  show(first < 0 ? 0 : first);
+}
+
+function show(k) {
+  saveNote();
+  i = Math.max(0, Math.min(DATA.length - 1, k));
+  const d = DATA[i], r = R[d.id] || {};
+  const img = $("#img"); img.classList.remove("zoom"); img.src = d.src;
+  if (DATA[i + 1]) new Image().src = DATA[i + 1].src;
+  $("#itemid").textContent = d.id;
+  document.querySelectorAll(".rate").forEach(b => b.classList.toggle("on", b.dataset.v === r.rating));
+  $("#artefact").checked = !!r.artefact;
+  $("#note").value = r.note || "";
+  $("#state").textContent = r.rating ? "rated" : "";
+  const n = nRated();
+  $("#count").textContent = `${i + 1} of ${DATA.length} · ${n} rated`;
+  $("#bar i").style.width = (100 * n / DATA.length) + "%";
+  $("#prev").disabled = i === 0; $("#next").disabled = i === DATA.length - 1;
+  shownAt = performance.now();
+}
+
+function entry() { const d = DATA[i]; return R[d.id] = R[d.id] || {}; }
+function saveNote() { if (!DATA[i] || $("#review").classList.contains("hidden")) return;
+  const v = $("#note").value.trim(), e = entry(); if (v || e.note) { e.note = v; store.save(); } }
+
+function rate(v) {
+  const e = entry();
+  e.rating = v; e.seconds = Math.round((performance.now() - shownAt) / 100) / 10; e.at = new Date().toISOString();
+  saveNote(); store.save();
+  if (nRated() === DATA.length) { show(i); return finish(); }
+  const nxt = DATA.findIndex((d, k) => k > i && !(R[d.id] && R[d.id].rating));
+  show(nxt >= 0 ? nxt : i + 1);
+}
+function toggleArtefact() { const e = entry(); e.artefact = !e.artefact; $("#artefact").checked = e.artefact; store.save(); }
+function nextUnrated() { let k = DATA.findIndex((d, j) => j > i && !(R[d.id] && R[d.id].rating));
+  if (k < 0) k = DATA.findIndex(d => !(R[d.id] && R[d.id].rating)); if (k >= 0) show(k); else finish(); }
+
+function finish() {
+  saveNote();
+  $("#review").classList.add("hidden"); $("#done").classList.remove("hidden");
+  const c = {}; DATA.forEach(d => { const v = (R[d.id] || {}).rating; if (v) c[v] = (c[v] || 0) + 1; });
+  $("#tally").innerHTML = CFG.ratings.map(([v,,n]) => `<span>${n}: ${c[v] || 0}</span>`).join("");
+}
+
+function csvCell(s) { s = String(s ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function download() {
+  saveNote();
+  const head = ["rater","page_id","item","rating","artefact","note","seconds","rated_at"];
+  const lines = [head.join(",")];
+  DATA.forEach(d => { const r = R[d.id]; if (!r || (!r.rating && !r.note && !r.artefact)) return;
+    lines.push([rater, CFG.page, d.id, r.rating || "", r.artefact ? 1 : 0, r.note || "", r.seconds ?? "", r.at || ""]
+      .map(csvCell).join(",")); });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], {type: "text/csv"}));
+  a.download = `ratings-${rater}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function parseCSV(t) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let k = 0; k < t.length; k++) { const ch = t[k];
+    if (q) { if (ch === '"') { if (t[k + 1] === '"') { f += '"'; k++; } else q = false; } else f += ch; }
+    else if (ch === '"') q = true; else if (ch === ",") { row.push(f); f = ""; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && t[k + 1] === "\n") k++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += ch; }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+$("#import").addEventListener("change", async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const rows = parseCSV(await file.text()); const h = rows.shift() || [];
+  const col = n => h.indexOf(n);
+  if (col("item") < 0 || col("rating") < 0) { alert("This is not a ratings file from this page."); return; }
+  const other = rows.find(r => r[col("page_id")] && r[col("page_id")] !== CFG.page);
+  if (other) { alert("These ratings belong to a different set of tiles."); return; }
+  const ids = new Set(DATA.map(d => d.id)); let n = 0;
+  rows.forEach(r => { const id = r[col("item")]; if (!ids.has(id)) return;
+    R[id] = {rating: r[col("rating")] || undefined, artefact: r[col("artefact")] === "1", note: r[col("note")] || "",
+             seconds: r[col("seconds")] ? +r[col("seconds")] : undefined, at: r[col("rated_at")] || undefined}; n++;
+    if (!rater && r[col("rater")]) rater = r[col("rater")]; });
+  if (rater) { $("#initials").value = rater; $("#go").disabled = false; }
+  $("#resume").textContent = `Loaded ${n} ratings${rater ? " for " + rater : ""}. Press Continue.`;
+  $("#go").textContent = "Continue";
+  if (rater) store.save();
+});
+
+document.querySelectorAll(".rate").forEach(b => b.onclick = () => rate(b.dataset.v));
+$("#artefact").onchange = e => { entry().artefact = e.target.checked; store.save(); };
+$("#prev").onclick = () => show(i - 1); $("#next").onclick = () => show(i + 1);
+$("#unrated").onclick = nextUnrated;
+$("#dl").onclick = download; $("#dl2").onclick = download;
+$("#back").onclick = () => { $("#done").classList.add("hidden"); $("#review").classList.remove("hidden"); show(0); };
+$("#img").onclick = () => $("#img").classList.toggle("zoom");
+$("#note").addEventListener("blur", saveNote);
+
+document.addEventListener("keydown", e => {
+  if ($("#review").classList.contains("hidden")) return;
+  if (e.target.tagName === "TEXTAREA") { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (KEYMAP[k]) { e.preventDefault(); rate(KEYMAP[k]); }
+  else if (k === "o") { e.preventDefault(); rate("neither"); }
+  else if (k === "a") { e.preventDefault(); toggleArtefact(); }
+  else if (k === "z") { e.preventDefault(); $("#img").classList.toggle("zoom"); }
+  else if (k === "u") { e.preventDefault(); nextUnrated(); }
+  else if (e.key === "ArrowRight" || k === "j") { e.preventDefault(); show(i + 1); }
+  else if (e.key === "ArrowLeft" || k === "k") { e.preventDefault(); show(i - 1); }
+  else if (k === "c") { e.preventDefault(); $("#note").focus(); }
+});
+window.addEventListener("beforeunload", saveNote);
+</script></body></html>
+"""
+
+
+# ---------------------------------------------------------------------------------------------- summary
+
+def wilson(k: int, n: int, z: float = 1.96):
+    if n == 0:
+        return None
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return [round(max(0.0, c - h), 3), round(min(1.0, c + h), 3)]
+
+
+def cohen(a: list, b: list):
+    """Cohen's kappa for any number of categories."""
+    n = len(a)
+    if n == 0:
+        return None
+    po = sum(x == y for x, y in zip(a, b)) / n
+    ca, cb = Counter(a), Counter(b)
+    pe = sum(ca[c] * cb[c] for c in set(a) | set(b)) / (n * n)
+    return None if pe >= 1 else round((po - pe) / (1 - pe), 3)
+
+
+def read_ratings(files, key: dict) -> dict:
+    """``{rater: {item: row}}``; refuses ratings made on a different page."""
+    pages = {r["page_id"] for r in key.values()}
+    out = {}
+    for f in files:
+        for r in csv.DictReader(open(f)):
+            if r.get("page_id") and r["page_id"] not in pages:
+                raise SystemExit(f"{f}: ratings are for page {r['page_id']}, not this key ({', '.join(pages)})")
+            if r["item"] not in key or not r.get("rating"):
+                continue
+            rater = (r.get("rater") or Path(f).stem.replace("ratings-", "")).upper()
+            out.setdefault(rater, {})[r["item"]] = r
+    return out
+
+
+def tally(rows: list) -> dict:
+    """Proportions of MVP, necrosis and either among assessable tiles, with 95% Wilson intervals."""
+    ok = [r for r in rows if r["rating"] in FEATURE]
+    n = len(ok)
+    mvp = sum(FEATURE[r["rating"]][0] for r in ok)
+    nec = sum(FEATURE[r["rating"]][1] for r in ok)
+    either = sum(max(FEATURE[r["rating"]]) for r in ok)
+    art = sum(r.get("artefact") == "1" for r in rows)
+    f = lambda k: None if n == 0 else round(k / n, 3)  # noqa: E731
+    return {"rated": len(rows), "assessable": n, "mvp": f(mvp), "necrosis": f(nec), "either": f(either),
+            "either_95ci": wilson(either, n), "unassessable": len(rows) - n, "artefact_flags": art}
+
+
+def summary(a) -> int:
+    key = {r["item"]: r for r in csv.DictReader(open(a.key))}
+    raw = read_ratings(a.ratings, key)
+    if not raw:
+        raise SystemExit("no ratings matched the key")
+    groups = [("grade4 top", "astro4", "top"), ("grade4 random", "astro4", "random"),
+              ("grade3 top", "astro3", "top"), ("grade3 random", "astro3", "random")]
+    bands = [("top 1-3", 1, 3), ("top 4-6", 4, 6), ("top 7-12", 7, 12)]
+    out = {"tiles": len(key), "raters": {}, "agreement": {}}
+    for rater, got in sorted(raw.items()):
+        rows = [dict(key[i], **r) for i, r in got.items()]
+        res = {"rated": len(rows), "of": len(key)}
+        for name, cat, kind in groups:
+            res[name] = tally([r for r in rows if r["category"] == cat and r["kind"] == kind])
+        for cat in ("astro4", "astro3"):
+            for name, lo, hi in bands:
+                res[f"{'grade4' if cat == 'astro4' else 'grade3'} {name}"] = tally(
+                    [r for r in rows if r["category"] == cat and r["kind"] == "top" and lo <= int(r["rank"]) <= hi])
+        # Slide level: does any top tile on the slide show MVP or necrosis?
+        per = defaultdict(list)
+        for r in rows:
+            if r["kind"] == "top" and r["rating"] in FEATURE:
+                per[(r["category"], r["code"])].append(max(FEATURE[r["rating"]]))
+        for cat, name in (("astro4", "grade4"), ("astro3", "grade3")):
+            hits = [any(v) for (c, _), v in per.items() if c == cat]
+            res[f"{name} slides with MVP or necrosis in a top tile"] = (
+                {"slides": len(hits), "with": sum(hits), "share": round(sum(hits) / len(hits), 3)} if hits else None)
+        secs = sorted(float(r["seconds"]) for r in rows if r.get("seconds"))
+        res["median_seconds_per_tile"] = secs[len(secs) // 2] if secs else None
+        out["raters"][rater] = res
+    for r1, r2 in combinations(sorted(raw), 2):
+        both = [i for i in raw[r1] if i in raw[r2]]
+        a5 = [raw[r1][i]["rating"] for i in both]
+        b5 = [raw[r2][i]["rating"] for i in both]
+        ok = [i for i in both if raw[r1][i]["rating"] in FEATURE and raw[r2][i]["rating"] in FEATURE]
+        e1 = [max(FEATURE[raw[r1][i]["rating"]]) for i in ok]
+        e2 = [max(FEATURE[raw[r2][i]["rating"]]) for i in ok]
+        out["agreement"][f"{r1} vs {r2}"] = {
+            "tiles_both_rated": len(both), "kappa_all_five": cohen(a5, b5),
+            "kappa_mvp_or_necrosis": cohen(e1, e2),
+            "kappa_mvp": cohen([FEATURE[raw[r1][i]["rating"]][0] for i in ok],
+                               [FEATURE[raw[r2][i]["rating"]][0] for i in ok]),
+            "kappa_necrosis": cohen([FEATURE[raw[r1][i]["rating"]][1] for i in ok],
+                                    [FEATURE[raw[r2][i]["rating"]][1] for i in ok])}
+    text = json.dumps(out, indent=2)
+    if a.out:
+        Path(a.out).write_text(text + "\n")
+    print(text)
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    b = sub.add_parser("build", help="make tile-review.html (send) and tile-review-key.csv (keep)")
+    b.add_argument("--view", required=True, help="a grade_mil.py --view output folder (view-key.csv, tiles/)")
+    b.add_argument("--out", required=True)
+    b.add_argument("--top", type=int, default=None, help="top tiles per slide to include (default: all)")
+    b.add_argument("--random", type=int, default=None, help="random tiles per slide to include (default: all)")
+    b.add_argument("--seed", type=int, default=0, help="shuffle order; the same seed gives the same page")
+    b.add_argument("--title", default="Tile review: MVP and necrosis")
+    b.add_argument("--field-um", type=float, default=336.0, help="width of each field (3 tiles of 112 µm)")
+    b.set_defaults(fn=build)
+    s = sub.add_parser("summary", help="join ratings-<initials>.csv files with the key")
+    s.add_argument("--key", required=True)
+    s.add_argument("ratings", nargs="+")
+    s.add_argument("--out", help="also write the summary JSON here")
+    s.set_defaults(fn=summary)
+    a = ap.parse_args()
+    return a.fn(a)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
