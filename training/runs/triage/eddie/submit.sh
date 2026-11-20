@@ -2,7 +2,7 @@
 # Submit the three jobs on Eddie, each waiting for the one before:
 #   bash training/runs/triage/eddie/submit.sh                 # test run (plans/test-run.json)
 #   RUN=diverse bash training/runs/triage/eddie/submit.sh     # plans/diverse.json
-#   SKIP_TRAIN=1 RUN=astro-grade bash ...                    # stage and embed only
+#   SKIP_TRAIN=1 RUN=diverse-astro4 WORK=.../triage-diverse bash ...   # stage and embed only
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="${REPO:-$(cd "$HERE/../../../.." && pwd)}"

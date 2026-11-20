@@ -1,0 +1,83 @@
+{
+  "description": "The diverse set (plans/diverse.json, unchanged and picked first, so the same 250 slides) plus every grade 4 IDH-mutant astrocytoma (TCGA histological grade, IDH and 1p/19q from cBioPortal) with all their slides, for the step 3 grade picking model. Run in the diverse folder with SKIP_TRAIN=1: only the new slides are downloaded and embedded, and the triage model is left as it is.",
+  "manifest_args": [
+    "--prep",
+    "ffpe",
+    "paxgene_paraffin",
+    "--non-cns"
+  ],
+  "pick": {
+    "order": "random",
+    "seed": 0,
+    "min_mb": 100,
+    "max_mb": 2000
+  },
+  "groups": [
+    {
+      "name": "gbm_idh_wildtype",
+      "label": "glioma",
+      "collections": [
+        "tcga_gbm"
+      ],
+      "idh": "wildtype",
+      "n": 50
+    },
+    {
+      "name": "lgg_idh_mutant",
+      "label": "glioma",
+      "collections": [
+        "tcga_lgg"
+      ],
+      "idh": "mutant",
+      "n": 50
+    },
+    {
+      "name": "other_primary_cns",
+      "label": "other_primary_cns",
+      "collections": [
+        "ccdi_mci"
+      ],
+      "n": 50
+    },
+    {
+      "name": "non_cns_metastasis",
+      "label": "metastasis",
+      "collections": [
+        "ccdi_mci",
+        "hcmi_cmdc",
+        "tcga_luad",
+        "tcga_lusc",
+        "tcga_brca",
+        "tcga_skcm",
+        "tcga_kirc",
+        "tcga_coad",
+        "tcga_read"
+      ],
+      "n": 50
+    },
+    {
+      "name": "normal_brain",
+      "label": "normal_brain",
+      "collections": [
+        "gtex"
+      ],
+      "n": 50
+    },
+    {
+      "name": "astro_grade4",
+      "label": "glioma",
+      "collections": [
+        "tcga_gbm",
+        "tcga_lgg",
+        "cptac_gbm"
+      ],
+      "idh": "mutant",
+      "categories": [
+        "astro4"
+      ],
+      "n": null,
+      "all_slides": true
+    }
+  ],
+  "train_args": []
+}
