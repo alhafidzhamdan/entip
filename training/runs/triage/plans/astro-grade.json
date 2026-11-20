@@ -1,0 +1,10 @@
+{
+  "description": "Step 3 picking model: IDH-mutant astrocytomas, grade 4 against grade 3 (TCGA histological grade, IDH and 1p/19q from cBioPortal). Every grade 4 patient with all their slides; 50 grade 3 patients, one slide each. FFPE and CPTAC (fixative not recorded). Slides of at least 100 MB. Stage and embed only (SKIP_TRAIN=1): no triage model is trained.",
+  "manifest_args": ["--prep", "ffpe", "unknown"],
+  "pick": {"order": "random", "seed": 0, "min_mb": 100},
+  "groups": [
+    {"name": "astro_grade4", "label": "glioma", "collections": ["tcga_gbm", "tcga_lgg", "cptac_gbm"], "idh": "mutant", "categories": ["astro4"], "n": null, "all_slides": true},
+    {"name": "astro_grade3", "label": "glioma", "collections": ["tcga_gbm", "tcga_lgg", "cptac_gbm"], "idh": "mutant", "categories": ["astro3"], "n": 50, "up_to": true}
+  ],
+  "train_args": []
+}

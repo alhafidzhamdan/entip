@@ -14,6 +14,10 @@ IDH status (``--idh``) is a table with ``PATIENT_ID`` and ``IDH_STATUS`` (Mutant
 ``fetch_idh.py`` from cBioPortal's TCGA pan-glioma study. A group with ``"idh"`` keeps only patients whose
 status is known and matches; the others are dropped and counted, never guessed.
 
+A group with ``"categories"`` (for example ``["astro4"]``) keeps only gliomas in those step 3 slide categories
+(``highgrade_common/common.py``: grade and type from the WHO CNS5 diagnosis below), for a run that only needs some
+grades.
+
 Every chosen slide gets ``diagnosis`` (its WHO CNS5 term) and ``who_cns5_basis`` (what that rests on), from
 ``entip_glioma.triage.who_cns5``: IDH, 1p/19q and grade from the ``--idh`` table for TCGA and CPTAC gliomas, the
 source diagnosis (``dx``) otherwise, and confirmed label corrections first.
@@ -40,7 +44,7 @@ def read_idh(path: str) -> dict:
     return out
 
 
-def pick(rows: list, plan: dict, idh: dict | None = None) -> tuple[list, list]:
+def pick(rows: list, plan: dict, idh: dict | None = None, category=None) -> tuple[list, list]:
     """Rows chosen by ``plan`` and one note per group: how many were wanted, eligible and taken."""
     p = plan.get("pick", {})
     lo, hi = float(p.get("min_mb", 0)), float(p.get("max_mb", float("inf")))
@@ -62,6 +66,9 @@ def pick(rows: list, plan: dict, idh: dict | None = None) -> tuple[list, list]:
                 if status != g["idh"]:
                     dropped["idh_unknown" if status in (None, "conflict") else "idh_other"] += 1
                     continue
+            if g.get("categories") and category(r) not in g["categories"]:
+                dropped["category_other"] += 1
+                continue
             by_col[r["collection_id"]].append(r)
         for c in by_col:
             if order == "smallest":
@@ -115,9 +122,24 @@ def main() -> None:
     fields = list(rows[0].keys()) if rows else []
     if any(g.get("idh") for g in plan["groups"]) and not a.idh:
         raise SystemExit("this plan filters on IDH status: pass --idh (see fetch_idh.py)")
-    chosen, notes = pick(rows, plan, read_idh(a.idh) if a.idh else None)
     from entip_glioma.triage import who_cns5                  # WHO CNS5 diagnosis for every chosen slide
     from entip_glioma.triage.manifest import read_corrections
+    category = None
+    if any(g.get("categories") for g in plan["groups"]):
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "highgrade_common"))
+        from common import category as step3_category
+        if not a.idh:
+            raise SystemExit("this plan filters on slide category: pass --idh (grade and 1p/19q come from it)")
+        mol, corr = who_cns5.read_molecular(a.idh), read_corrections()
+        cache = {}
+
+        def category(r):
+            if r["SeriesInstanceUID"] not in cache:
+                cache[r["SeriesInstanceUID"]] = step3_category(who_cns5.annotate([dict(r)], mol, corr)[0])
+            return cache[r["SeriesInstanceUID"]]
+    chosen, notes = pick(rows, plan, read_idh(a.idh) if a.idh else None, category)
     chosen = who_cns5.annotate(chosen, who_cns5.read_molecular(a.idh) if a.idh else None, read_corrections())
     fields += [k for k in ("diagnosis", "who_cns5_basis") if k not in fields]
     short = [n for n in notes if n["wanted"] != "all" and n["taken"] < n["wanted"] and not plan_group(plan, n).get("up_to")]
