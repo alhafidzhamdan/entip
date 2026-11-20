@@ -20,6 +20,7 @@ What they share:
 - `labelpage.py`: the labelling page. One key per label, `j` / `k` to move, labels kept in the browser and
   downloaded as `labels-<initials>.csv`. It shows no diagnosis, model output or reason for picking.
 - `free_negatives.py`: picks the free-negative tiles and writes the page to check them.
+- `grade_mil.py`: a grade 4 vs grade 3 attention model, used only to pick tiles (see below).
 - `outlines.py`: QuPath GeoJSON (outlines and points) to tile hits, and the check image.
 
 ## Free negatives
@@ -51,6 +52,25 @@ Two exceptions:
 
 The categories need the manifest's `diagnosis`, `who_cns5_basis` and `dx` columns. `pick_slides.py` writes them;
 for an older manifest, add them with `training/runs/triage/add_who_cns5.py`.
+
+## Grade 4 vs grade 3, for picking
+
+The same grading works the other way. An IDH-mutant astrocytoma was graded 4 for MVP or necrosis, and 3 for
+neither, with mitoses allowed in both. So the slide-level contrast `astro4` against `astro3` is close to "MVP or
+necrosis somewhere in the case" against "neither". `grade_mil.py` trains an attention model on that contrast, with
+no tile labels. The tiles that push a slide most towards grade 4 are good candidates to label (`pick.py
+--grade-model grade-mil/grade-mil.npz`, source `grade`).
+
+```bash
+python training/runs/highgrade_common/grade_mil.py --manifest $W/trial.csv --bags $W/bags-h-optimus-0 --holdout $BASE/runs/highgrade/held_out.csv --out $BASE/runs/highgrade/grade-mil
+```
+
+- Picking only, never a label: it cannot tell MVP from necrosis, and a slide is only a sample of its case.
+- It can also pick up other grade 4 clues, such as cellularity; the labeller calls those negative.
+- `grade-mil.json` gives the out-of-fold AUC, grouped by patient. Near 0.5 means it learnt nothing: pick without it.
+- TCGA has few grade 4 IDH-mutant astrocytomas (about 22 patients with slides in the stage-A set, against about
+  100 grade 3). `--positive astro4 gbm` adds glioblastomas, at the cost of IDH-wildtype features unrelated to MVP
+  or necrosis.
 
 ## For every module
 

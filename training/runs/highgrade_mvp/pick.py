@@ -15,7 +15,8 @@ only for picking) and the MVP head. From round 2 the picks come from the tiles t
   MVP probability. These are the hardest negatives, or a grading error worth knowing about.
 
 Round 1 has no heads: ``--attended`` (the triage model's most attended tiles, often vessels in a glioblastoma),
-``--diverse`` (one tile per cluster of the slide's embeddings) and ``--random``.
+``--grade`` (with ``--grade-model``: the tiles that push a grade 4 vs grade 3 model most towards grade 4, see
+``highgrade_common/grade_mil.py``), ``--diverse`` (one tile per cluster of the slide's embeddings) and ``--random``.
 
 Slides: ``--per-category`` patients per category (see ``highgrade_common/common.py``), one slide each. The default
 leans on lower-grade backgrounds with MVP (``oligo3``, ``astro4``) so the head learns MVP, not glioblastoma.
@@ -49,7 +50,7 @@ INSTRUCTIONS = ("Label the <b>outlined tile</b> (112 µm). Left: the tile at hig
                 "around it. A vessel counts if any part of it is inside the outline; MVP wins over vessel.")
 
 
-def choose(bag, a, cat, model, vhead, mhead, rng, seen) -> list:
+def choose(bag, a, cat, model, gm, vhead, mhead, rng, seen) -> list:
     pk = Picker(i for i, c in enumerate(bag.coords_um) if xy(*c) in seen)
     pm = mhead.tile_p(bag) if mhead is not None else None
     if cat in FREE_NEGATIVE and pm is not None:
@@ -57,6 +58,9 @@ def choose(bag, a, cat, model, vhead, mhead, rng, seen) -> list:
         return pk.out
     if model is not None and a.attended:
         pk.add(np.argsort(-np.asarray(model.predict(bag)["attention"])), "attended", a.attended)
+    if gm is not None and a.grade:
+        from grade_mil import tile_scores
+        pk.add(np.argsort(-tile_scores(gm, bag.features)), "grade", a.grade)
     if vhead is not None:
         pv = vhead.tile_p(bag)
         order = np.argsort(-pv)                          # vessels, or at least the most vessel-like tiles
@@ -87,6 +91,9 @@ def main() -> int:
     ap.add_argument("--exclude", action="append", default=[], help="key.csv of an earlier round (repeat)")
     ap.add_argument("--holdout", action="append", default=[], help="CSV of held-out patients: never picked")
     ap.add_argument("--attended", type=int, default=4)
+    ap.add_argument("--grade-model", help="grade-mil.npz from highgrade_common/grade_mil.py, for --grade")
+    ap.add_argument("--grade", type=int, default=6,
+                    help="tiles that push the grade model most towards grade 4")
     ap.add_argument("--diverse", type=int, default=8)
     ap.add_argument("--random", type=int, default=2)
     ap.add_argument("--uncertain", type=int, default=6)
@@ -103,6 +110,10 @@ def main() -> int:
     if a.model and a.attended:
         from entip_glioma.triage.model import TriageModel
         model = TriageModel.load(a.model)
+    gm = None
+    if a.grade_model and a.grade:
+        from entip_glioma.wsi.abmil import ABMIL
+        gm = ABMIL.load(a.grade_model)
     vhead = RegionDetector.load(a.vessel_head) if a.vessel_head else None
     mhead = RegionDetector.load(a.mvp_head) if a.mvp_head else None
 
@@ -116,7 +127,7 @@ def main() -> int:
         bag = Bag.load(Path(a.bags) / f"{uid}.npz")
         if len(bag) == 0:
             continue
-        tiles = choose(bag, a, r["category"], model, vhead, mhead, rng, seen[uid])
+        tiles = choose(bag, a, r["category"], model, gm, vhead, mhead, rng, seen[uid])
         random.Random(f"{a.seed}-{uid}").shuffle(tiles)
         rd = open_slide(str(find_slide(Path(a.slides), uid)))
         code_s, items = f"S{si:03d}", []

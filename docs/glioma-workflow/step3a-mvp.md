@@ -30,6 +30,8 @@ The labelling effort goes into telling MVP from ordinary vessels, and nothing el
 - **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no MVP by their grade,
   checked by eye as a grid before use.
   They are MVP negatives at no cost, in a lower-grade background.
+- **Round 1 candidates from grade:** a grade 4 vs grade 3 IDH-mutant astrocytoma model, trained on slide labels
+  only, points to the tiles that make a slide grade 4. Used for picking, never as a label.
 - **Active learning from round 2:**
   - vessels the MVP head is least sure of, and those it is surest are MVP;
   - random vessels;

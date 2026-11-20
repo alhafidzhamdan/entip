@@ -29,11 +29,14 @@ glioblastoma, and the head could learn "glioblastoma" instead of MVP.
 ## Round 1, on Eddie
 
 ```bash
-cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && git pull && REPO=$PWD . training/runs/triage/eddie/config.sh && activate_env && W=$BASE/runs/triage-diverse && python training/runs/highgrade_mvp/pick.py --manifest $W/trial.csv --bags $W/bags-h-optimus-0 --slides $W/slides --model $W/model-h-optimus-0 --holdout $BASE/runs/highgrade/held_out.csv --out $BASE/runs/highgrade/mvp-r1 --round r1
+cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && git pull && REPO=$PWD . training/runs/triage/eddie/config.sh && activate_env && W=$BASE/runs/triage-diverse && python training/runs/highgrade_mvp/pick.py --manifest $W/trial.csv --bags $W/bags-h-optimus-0 --slides $W/slides --model $W/model-h-optimus-0 --holdout $BASE/runs/highgrade/held_out.csv --grade-model $BASE/runs/highgrade/grade-mil/grade-mil.npz --out $BASE/runs/highgrade/mvp-r1 --round r1
 ```
 
+Train the grade model first ([`grade_mil.py`](../highgrade_common/README.md#grade-4-vs-grade-3-for-picking)), or
+leave out `--grade-model`.
+
 - Slides: `--per-category`, default `gbm=10 astro4=8 oligo3=12 astro3=4 grade2=4`.
-- Tiles per slide: 4 attended, 8 diverse and 2 random, so about 530 tiles (38 slides × 14).
+- Tiles per slide: 4 attended, 6 from the grade model, 8 diverse and 2 random, so about 760 tiles (38 slides × 20).
 - Each tile shows twice: at high power, and with its 3 × 3 field.
 - The diverse trial set has few `oligo3` and `astro4` slides. The stage-A set (`RUN=stage-a`) has many more.
 

@@ -9,7 +9,9 @@ large areas and give the edge. ``--outline-per-category`` writes ``outline-slide
 and ``fetch-slides.sh`` (copies them from Eddie to your Mac).
 
 The page is for single tiles: look-alikes (haemorrhage, crush, cautery, fibrin) and the tiles a head is unsure of.
-Round 1: ``--attended`` (triage model's most attended tiles), ``--diverse``, ``--random``. From round 2, with
+Round 1: ``--attended`` (triage model's most attended tiles), ``--grade`` (with ``--grade-model``: the tiles that
+push a grade 4 vs grade 3 model most towards grade 4, see ``highgrade_common/grade_mil.py``), ``--diverse``,
+``--random``. From round 2, with
 ``--head``: ``--uncertain`` (nearest 0.5), ``--likely`` (highest p), and on free-negative slides (``astro3``,
 ``grade2``: no necrosis by their grade) ``--audit``, the highest-p tiles: hard negatives, or a grading error.
 
@@ -41,7 +43,7 @@ INSTRUCTIONS = ("Label the <b>outlined tile</b> (112 µm). Left: the tile; right
                 "Necrosis counts if any part of it is inside the outline.")
 
 
-def choose(bag, a, cat, model, head, rng, seen) -> list:
+def choose(bag, a, cat, model, gm, head, rng, seen) -> list:
     pk = Picker(i for i, c in enumerate(bag.coords_um) if xy(*c) in seen)
     p = head.tile_p(bag) if head is not None else None
     if cat in FREE_NEGATIVE:
@@ -50,6 +52,9 @@ def choose(bag, a, cat, model, head, rng, seen) -> list:
         return pk.out
     if model is not None and a.attended:
         pk.add(np.argsort(-np.asarray(model.predict(bag)["attention"])), "attended", a.attended)
+    if gm is not None and a.grade:
+        from grade_mil import tile_scores
+        pk.add(np.argsort(-tile_scores(gm, bag.features)), "grade", a.grade)
     if p is not None:
         pk.add(np.argsort(np.abs(p - 0.5)), "uncertain", a.uncertain)
         pk.add(np.argsort(-p), "likely", a.likely)
@@ -91,6 +96,9 @@ def main() -> int:
     ap.add_argument("--exclude", action="append", default=[])
     ap.add_argument("--holdout", action="append", default=[])
     ap.add_argument("--attended", type=int, default=4)
+    ap.add_argument("--grade-model", help="grade-mil.npz from highgrade_common/grade_mil.py, for --grade")
+    ap.add_argument("--grade", type=int, default=6,
+                    help="tiles that push the grade model most towards grade 4")
     ap.add_argument("--diverse", type=int, default=6)
     ap.add_argument("--random", type=int, default=2)
     ap.add_argument("--uncertain", type=int, default=6)
@@ -106,6 +114,10 @@ def main() -> int:
     if a.model and a.attended:
         from entip_glioma.triage.model import TriageModel
         model = TriageModel.load(a.model)
+    gm = None
+    if a.grade_model and a.grade:
+        from entip_glioma.wsi.abmil import ABMIL
+        gm = ABMIL.load(a.grade_model)
     head = RegionDetector.load(a.head) if a.head else None
 
     out = Path(a.out)
@@ -120,7 +132,7 @@ def main() -> int:
         bag = Bag.load(Path(a.bags) / f"{uid}.npz")
         if len(bag) == 0:
             continue
-        tiles = choose(bag, a, r["category"], model, head, rng, seen[uid])
+        tiles = choose(bag, a, r["category"], model, gm, head, rng, seen[uid])
         if not tiles:
             continue
         random.Random(f"{a.seed}-{uid}").shuffle(tiles)

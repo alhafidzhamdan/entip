@@ -30,6 +30,7 @@ tissue around it** decide most cases.
   page covers single tiles: look-alikes, and the tiles the head is unsure of.
 - **Head:** the tile's H-optimus-0 embedding plus the mean embeddings of its 3 × 3 and 5 × 5 neighbourhoods, with
   no re-embedding.
+- **Round 1 candidates from grade:** the same grade 4 vs grade 3 picking model as 3a.
 - **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no necrosis by their
   grade, checked by eye as a grid before use and by audit picks.
 - **Slide score:** the best focus of connected positive tiles.

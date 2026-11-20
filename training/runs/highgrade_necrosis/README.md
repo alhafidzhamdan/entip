@@ -14,7 +14,7 @@ Necrosis is an area, and its edge decides most cases. So:
 - **Free negatives:** random tiles from `astro3` and `grade2` slides, which have no necrosis by their grade, checked
   by eye first ([`free_negatives.py`](../highgrade_common/README.md#free-negatives); the same check serves 3a).
 - **The page is for single tiles:**
-  - round 1: attended, diverse and random tiles;
+  - round 1: attended tiles, tiles from the grade 4 vs grade 3 model, diverse and random tiles;
   - from round 2: tiles the head is unsure of, its surest positives, and audit tiles on free-negative slides.
 
   Each tile shows twice: on its own, and with its 5 × 5 field.
@@ -24,14 +24,17 @@ Labels come only from primary, untreated resections, because treatment necrosis 
 ## Round 1, on Eddie
 
 ```bash
-cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && git pull && REPO=$PWD . training/runs/triage/eddie/config.sh && activate_env && W=$BASE/runs/triage-diverse && python training/runs/highgrade_necrosis/pick.py --manifest $W/trial.csv --bags $W/bags-h-optimus-0 --slides $W/slides --model $W/model-h-optimus-0 --holdout $BASE/runs/highgrade/held_out.csv --out $BASE/runs/highgrade/nec-r1 --round r1
+cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && git pull && REPO=$PWD . training/runs/triage/eddie/config.sh && activate_env && W=$BASE/runs/triage-diverse && python training/runs/highgrade_necrosis/pick.py --manifest $W/trial.csv --bags $W/bags-h-optimus-0 --slides $W/slides --model $W/model-h-optimus-0 --holdout $BASE/runs/highgrade/held_out.csv --grade-model $BASE/runs/highgrade/grade-mil/grade-mil.npz --out $BASE/runs/highgrade/nec-r1 --round r1
 ```
+
+Train the grade model first ([`grade_mil.py`](../highgrade_common/README.md#grade-4-vs-grade-3-for-picking)), or
+leave out `--grade-model`.
 
 This writes:
 
 - `outline-slides.csv`: 10 slides to outline (`--outline-per-category`, default `gbm=4 astro4=3 oligo3=3`);
 - `fetch-slides.sh`: run it on your Mac to copy those slides from Eddie (DICOM folders, about 0.5 to 2 GB each);
-- the page with about 340 tiles (28 slides × 12).
+- the page with about 500 tiles (28 slides × 18; 6 of each from the grade model).
 
 In QuPath (0.5 or later), open each slide, outline it, select all annotations, and use **File > Export objects as
 GeoJSON**. Name each file `<SeriesInstanceUID>.geojson`.
