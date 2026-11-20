@@ -33,7 +33,9 @@ RATINGS = [  # value, key, name, definition shown to the rater
                                   "not haemorrhage, cautery, crush or fibrin"),
     ("both", "b", "Both", "MVP and necrosis in the outlined tile"),
     ("neither", "0", "Neither", "No MVP and no necrosis in the outlined tile"),
-    ("unassessable", "x", "Can't assess", "Out of focus, folded, too little tissue, or otherwise not judgeable"),
+    ("artefact", "a", "Artefact", "Fold, blur, pen, slide edge, crush or cautery stops you judging the tile"),
+    ("other", "t", "Other (type)", "Something else: type what you see; the box opens when you choose it"),
+    ("unassessable", "x", "Can't assess", "Too little tissue, or not judgeable for another reason"),
 ]
 FEATURE = {"mvp": (1, 0), "necrosis": (0, 1), "both": (1, 1), "neither": (0, 0)}
 
@@ -94,7 +96,7 @@ TEMPLATE = r"""<!doctype html>
 <title>%TITLE%</title>
 <style>
 :root{--bg:#f6f5f1;--panel:#fff;--fg:#1d1d1b;--muted:#6b6a64;--line:#dddbd2;--accent:#3b5bdb;--accent-fg:#fff;
---mvp:#c2255c;--necrosis:#e8590c;--both:#7048e8;--neither:#2b8a3e;--unassessable:#868e96;--focus:#3b5bdb}
+--mvp:#c2255c;--necrosis:#e8590c;--both:#7048e8;--neither:#2b8a3e;--artefact:#9c6b00;--other:#0c8599;--unassessable:#868e96;--focus:#3b5bdb}
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#21211f;--fg:#ecebe6;--muted:#a9a79f;--line:#3a3a37;
 --accent:#748ffc;--accent-fg:#111}}
 *{box-sizing:border-box}
@@ -141,7 +143,9 @@ padding:10px 12px;cursor:pointer;text-align:left}
 .rate.on kbd{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff}
 .rate[data-v=mvp].on{background:var(--mvp)} .rate[data-v=necrosis].on{background:var(--necrosis)}
 .rate[data-v=both].on{background:var(--both)} .rate[data-v=neither].on{background:var(--neither)}
+.rate[data-v=artefact].on{background:var(--artefact)} .rate[data-v=other].on{background:var(--other)}
 .rate[data-v=unassessable].on{background:var(--unassessable)}
+#note.need{border-color:var(--other);box-shadow:0 0 0 2px var(--other)}
 .check{display:flex;align-items:center;gap:8px;cursor:pointer}
 textarea{width:100%;min-height:60px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;
 resize:vertical}
@@ -162,8 +166,7 @@ resize:vertical}
   <p class="lede">You will see <b id="ntiles"></b> fields from gliomas, one at a time, in random order.
   Judge only the <b>outlined tile in the centre</b>; the ring around it is context.</p>
   <div class="card"><h2>What to call</h2><dl>%LEGEND%</dl>
-  <p class="muted" style="margin:12px 0 0">Optional: press <kbd>a</kbd> to flag an artefact (fold, pen, blur, edge),
-  and add a comment. Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
+  <p class="muted" style="margin:12px 0 0">You can add a comment to any tile. Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
   <kbd>z</kbd>, to zoom.</p></div>
   <div class="card"><h2>Your initials</h2>
     <div class="row"><input type="text" id="initials" maxlength="6" autocomplete="off" placeholder="e.g. AH">
@@ -185,14 +188,15 @@ resize:vertical}
     <div class="row" style="justify-content:space-between"><span id="itemid"></span>
       <span class="muted" id="state"></span></div>
     <div class="rates">%KEYS%</div>
-    <label class="check"><input type="checkbox" id="artefact"> Artefact <kbd>a</kbd></label>
-    <textarea id="note" placeholder="Comment (optional)"></textarea>
+    <textarea id="note" placeholder="Comment (optional) c"></textarea>
+    <p class="muted hidden" id="needtext" style="margin:-6px 0 0">Type what you see, then press Enter.</p>
     <div class="nav"><button class="btn" id="prev">← Back</button><button class="btn" id="next">Next →</button></div>
     <button class="btn" id="unrated">Next unrated <kbd>u</kbd></button>
     <div class="spacer"></div>
     <button class="btn primary" id="dl">Download ratings</button>
-    <div class="help"><kbd>m</kbd> <kbd>n</kbd> <kbd>b</kbd> <kbd>0</kbd> <kbd>x</kbd> rate and move on ·
-    <kbd>←</kbd> <kbd>→</kbd> move · <kbd>z</kbd> zoom · <kbd>Esc</kbd> leave the comment box</div>
+    <div class="help"><kbd>m</kbd> <kbd>n</kbd> <kbd>b</kbd> <kbd>0</kbd> <kbd>a</kbd> <kbd>x</kbd> rate and move on ·
+    <kbd>t</kbd> other: type, then <kbd>Enter</kbd> · <kbd>c</kbd> comment · <kbd>←</kbd> <kbd>→</kbd> move ·
+    <kbd>z</kbd> zoom · <kbd>Esc</kbd> leave the text box</div>
   </aside>
 </section>
 
@@ -218,13 +222,14 @@ const store = {
   load() { try { return JSON.parse(localStorage.getItem(this.key()) || "{}"); } catch (e) { return {}; } },
   save() { try { localStorage.setItem(this.key(), JSON.stringify(R)); } catch (e) {} }
 };
-const nRated = () => DATA.filter(d => R[d.id] && R[d.id].rating).length;
+const done = r => !!(r && r.rating && (r.rating !== "other" || (r.note || "").trim()));
+const nRated = () => DATA.filter(d => done(R[d.id])).length;
 
 $("#ntiles").textContent = DATA.length;
 $("#initials").addEventListener("input", e => {
   rater = e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
   $("#go").disabled = !rater;
-  if (rater) { const n = Object.values(store.load()).filter(r => r.rating).length;
+  if (rater) { const n = Object.values(store.load()).filter(done).length;
     $("#go").textContent = n ? `Continue (${n} rated)` : "Start"; }
 });
 $("#initials").addEventListener("keydown", e => { if (e.key === "Enter" && rater) start(); });
@@ -234,7 +239,7 @@ function start() {
   R = Object.assign(store.load(), R);
   $("#start").classList.add("hidden"); $("#done").classList.add("hidden"); $("#review").classList.remove("hidden");
   $("#who").textContent = rater;
-  const first = DATA.findIndex(d => !(R[d.id] && R[d.id].rating));
+  const first = DATA.findIndex(d => !done(R[d.id]));
   show(first < 0 ? 0 : first);
 }
 
@@ -246,9 +251,9 @@ function show(k) {
   if (DATA[i + 1]) new Image().src = DATA[i + 1].src;
   $("#itemid").textContent = d.id;
   document.querySelectorAll(".rate").forEach(b => b.classList.toggle("on", b.dataset.v === r.rating));
-  $("#artefact").checked = !!r.artefact;
   $("#note").value = r.note || "";
-  $("#state").textContent = r.rating ? "rated" : "";
+  needText(r.rating === "other" && !done(r));
+  $("#state").textContent = done(r) ? "rated" : (r.rating === "other" ? "needs text" : "");
   const n = nRated();
   $("#count").textContent = `${i + 1} of ${DATA.length} · ${n} rated`;
   $("#bar i").style.width = (100 * n / DATA.length) + "%";
@@ -260,17 +265,25 @@ function entry() { const d = DATA[i]; return R[d.id] = R[d.id] || {}; }
 function saveNote() { if (!DATA[i] || $("#review").classList.contains("hidden")) return;
   const v = $("#note").value.trim(), e = entry(); if (v || e.note) { e.note = v; store.save(); } }
 
+function needText(on) {
+  $("#note").classList.toggle("need", on); $("#needtext").classList.toggle("hidden", !on);
+  $("#note").placeholder = on ? "Describe what you see (required)" : "Comment (optional) c";
+}
 function rate(v) {
   const e = entry();
   e.rating = v; e.seconds = Math.round((performance.now() - shownAt) / 100) / 10; e.at = new Date().toISOString();
   saveNote(); store.save();
+  document.querySelectorAll(".rate").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  if (v === "other" && !done(e)) { needText(true); $("#state").textContent = "needs text"; $("#note").focus(); return; }
+  advance();
+}
+function advance() {
   if (nRated() === DATA.length) { show(i); return finish(); }
-  const nxt = DATA.findIndex((d, k) => k > i && !(R[d.id] && R[d.id].rating));
+  const nxt = DATA.findIndex((d, k) => k > i && !done(R[d.id]));
   show(nxt >= 0 ? nxt : i + 1);
 }
-function toggleArtefact() { const e = entry(); e.artefact = !e.artefact; $("#artefact").checked = e.artefact; store.save(); }
-function nextUnrated() { let k = DATA.findIndex((d, j) => j > i && !(R[d.id] && R[d.id].rating));
-  if (k < 0) k = DATA.findIndex(d => !(R[d.id] && R[d.id].rating)); if (k >= 0) show(k); else finish(); }
+function nextUnrated() { let k = DATA.findIndex((d, j) => j > i && !done(R[d.id]));
+  if (k < 0) k = DATA.findIndex(d => !done(R[d.id])); if (k >= 0) show(k); else finish(); }
 
 function finish() {
   saveNote();
@@ -282,10 +295,10 @@ function finish() {
 function csvCell(s) { s = String(s ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function download() {
   saveNote();
-  const head = ["rater","page_id","item","rating","artefact","note","seconds","rated_at"];
+  const head = ["rater","page_id","item","rating","note","seconds","rated_at"];
   const lines = [head.join(",")];
-  DATA.forEach(d => { const r = R[d.id]; if (!r || (!r.rating && !r.note && !r.artefact)) return;
-    lines.push([rater, CFG.page, d.id, r.rating || "", r.artefact ? 1 : 0, r.note || "", r.seconds ?? "", r.at || ""]
+  DATA.forEach(d => { const r = R[d.id]; if (!r || (!r.rating && !r.note)) return;
+    lines.push([rater, CFG.page, d.id, r.rating || "", r.note || "", r.seconds ?? "", r.at || ""]
       .map(csvCell).join(",")); });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], {type: "text/csv"}));
@@ -311,7 +324,7 @@ $("#import").addEventListener("change", async e => {
   if (other) { alert("These ratings belong to a different set of tiles."); return; }
   const ids = new Set(DATA.map(d => d.id)); let n = 0;
   rows.forEach(r => { const id = r[col("item")]; if (!ids.has(id)) return;
-    R[id] = {rating: r[col("rating")] || undefined, artefact: r[col("artefact")] === "1", note: r[col("note")] || "",
+    R[id] = {rating: r[col("rating")] || undefined, note: r[col("note")] || "",
              seconds: r[col("seconds")] ? +r[col("seconds")] : undefined, at: r[col("rated_at")] || undefined}; n++;
     if (!rater && r[col("rater")]) rater = r[col("rater")]; });
   if (rater) { $("#initials").value = rater; $("#go").disabled = false; }
@@ -321,22 +334,25 @@ $("#import").addEventListener("change", async e => {
 });
 
 document.querySelectorAll(".rate").forEach(b => b.onclick = () => rate(b.dataset.v));
-$("#artefact").onchange = e => { entry().artefact = e.target.checked; store.save(); };
 $("#prev").onclick = () => show(i - 1); $("#next").onclick = () => show(i + 1);
 $("#unrated").onclick = nextUnrated;
 $("#dl").onclick = download; $("#dl2").onclick = download;
 $("#back").onclick = () => { $("#done").classList.add("hidden"); $("#review").classList.remove("hidden"); show(0); };
 $("#img").onclick = () => $("#img").classList.toggle("zoom");
 $("#note").addEventListener("blur", saveNote);
+$("#note").addEventListener("input", () => { const r = entry(); if (r.rating === "other") {
+  saveNote(); const ok = done(r); needText(!ok); $("#state").textContent = ok ? "rated" : "needs text"; } });
 
 document.addEventListener("keydown", e => {
   if ($("#review").classList.contains("hidden")) return;
-  if (e.target.tagName === "TEXTAREA") { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.target.tagName === "TEXTAREA") {
+    if (e.key === "Escape") e.target.blur();
+    else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(); e.target.blur();
+      const r = entry(); if (r.rating === "other" ? done(r) : r.rating) advance(); }
+    return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (KEYMAP[k]) { e.preventDefault(); rate(KEYMAP[k]); }
-  else if (k === "o") { e.preventDefault(); rate("neither"); }
-  else if (k === "a") { e.preventDefault(); toggleArtefact(); }
   else if (k === "z") { e.preventDefault(); $("#img").classList.toggle("zoom"); }
   else if (k === "u") { e.preventDefault(); nextUnrated(); }
   else if (e.key === "ArrowRight" || k === "j") { e.preventDefault(); show(i + 1); }
@@ -393,10 +409,11 @@ def tally(rows: list) -> dict:
     mvp = sum(FEATURE[r["rating"]][0] for r in ok)
     nec = sum(FEATURE[r["rating"]][1] for r in ok)
     either = sum(max(FEATURE[r["rating"]]) for r in ok)
-    art = sum(r.get("artefact") == "1" for r in rows)
+    c = Counter(r["rating"] for r in rows)
     f = lambda k: None if n == 0 else round(k / n, 3)  # noqa: E731
     return {"rated": len(rows), "assessable": n, "mvp": f(mvp), "necrosis": f(nec), "either": f(either),
-            "either_95ci": wilson(either, n), "unassessable": len(rows) - n, "artefact_flags": art}
+            "either_95ci": wilson(either, n), "artefact": c["artefact"], "other": c["other"],
+            "unassessable": c["unassessable"]}
 
 
 def summary(a) -> int:
@@ -428,6 +445,9 @@ def summary(a) -> int:
                 {"slides": len(hits), "with": sum(hits), "share": round(sum(hits) / len(hits), 3)} if hits else None)
         secs = sorted(float(r["seconds"]) for r in rows if r.get("seconds"))
         res["median_seconds_per_tile"] = secs[len(secs) // 2] if secs else None
+        res["texts"] = [{"item": r["item"], "rating": r["rating"], "text": r["note"], "category": r["category"],
+                         "kind": r["kind"], "rank": int(r["rank"]), "code": r["code"]}
+                        for r in sorted(rows, key=lambda r: r["item"]) if (r.get("note") or "").strip()]
         out["raters"][rater] = res
     for r1, r2 in combinations(sorted(raw), 2):
         both = [i for i in raw[r1] if i in raw[r2]]
@@ -437,7 +457,7 @@ def summary(a) -> int:
         e1 = [max(FEATURE[raw[r1][i]["rating"]]) for i in ok]
         e2 = [max(FEATURE[raw[r2][i]["rating"]]) for i in ok]
         out["agreement"][f"{r1} vs {r2}"] = {
-            "tiles_both_rated": len(both), "kappa_all_five": cohen(a5, b5),
+            "tiles_both_rated": len(both), "kappa_all_ratings": cohen(a5, b5),
             "kappa_mvp_or_necrosis": cohen(e1, e2),
             "kappa_mvp": cohen([FEATURE[raw[r1][i]["rating"]][0] for i in ok],
                                [FEATURE[raw[r2][i]["rating"]][0] for i in ok]),

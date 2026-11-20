@@ -88,13 +88,15 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
 - `tile-review.html` is one self-contained file (about 36 MB for 27 slides): send it, and it opens offline in any
   browser. The top and random tiles of every slide are shuffled together and renamed, so it shows no grade, slide,
   score or tile source. Keep `tile-review-key.csv` back.
-- One tile at a time: `m` MVP, `n` necrosis, `b` both, `0` neither, `x` can't assess, `a` artefact flag, and an
-  optional comment. Ratings stay in the browser as the rater goes and download as `ratings-<initials>.csv`; loading
-  that file continues on another computer.
+- One tile at a time: `m` MVP, `n` necrosis, `b` both, `0` neither, `a` artefact, `x` can't assess, or `t` other,
+  which opens a text box that must be filled in (Enter saves and moves on). Any tile can also take a comment (`c`).
+  Ratings stay in the browser as the rater goes and download as `ratings-<initials>.csv`; loading that file
+  continues on another computer.
 - `summary` gives, per rater, the share of tiles with MVP or necrosis (95% Wilson interval) for grade 4 top,
   grade 4 random, grade 3 top and grade 3 random tiles; the same by rank (top 1-3, 4-6, 7-12); the share of slides
-  with MVP or necrosis in any top tile; and Cohen's kappa between each pair of raters (all five ratings, MVP or
-  necrosis, MVP, necrosis). The grade model finds MVP and necrosis if grade 4 top tiles score well above grade 4
+  with MVP or necrosis in any top tile; and Cohen's kappa between each pair of raters (all ratings, MVP or
+  necrosis, MVP, necrosis). Shares count only tiles rated MVP, necrosis, both or neither; artefact, other and can't assess
+  are counted apart, and every typed text is listed with its tile. The grade model finds MVP and necrosis if grade 4 top tiles score well above grade 4
   random tiles and grade 3 top tiles.
 - The fields are 336 µm across at the embedding's magnification (about 0.9 µm per pixel), enough for necrosis but
   coarse for MVP. The ratings are not training labels: the view key has no tile coordinates.
