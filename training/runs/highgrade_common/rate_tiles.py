@@ -158,6 +158,7 @@ padding:10px 12px;cursor:pointer;text-align:left}
 .rate[data-v=both].on{background:var(--both)} .rate[data-v=neither].on{background:var(--neither)}
 .rate[data-v=artefact].on{background:var(--artefact)} .rate[data-v=other].on{background:var(--other)}
 .rate[data-v=unassessable].on{background:var(--unassessable)}
+.warn{color:var(--mvp)!important;font-weight:600}
 #note.need{border-color:var(--other);box-shadow:0 0 0 2px var(--other)}
 .check{display:flex;align-items:center;gap:8px;cursor:pointer}
 textarea{width:100%;min-height:60px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;
@@ -254,6 +255,8 @@ function start() {
   $("#who").textContent = rater;
   const first = DATA.findIndex(d => !done(R[d.id]));
   show(first < 0 ? 0 : first);
+  sync.resendUnconfirmed();
+  if (first < 0) finish();
 }
 
 function show(k) {
@@ -289,27 +292,44 @@ const sync = {
   init() { if (!CFG.endpoint) return; try { this.q = JSON.parse(localStorage.getItem(this.qkey()) || "[]"); } catch (e) {}
     $("#sync").classList.remove("hidden"); this.show(); this.flush(); },
   keep() { try { localStorage.setItem(this.qkey(), JSON.stringify(this.q)); } catch (e) {} },
-  push(id) { if (!CFG.endpoint || !rater) return; const r = R[id] || {};
+  push(id, quiet) { if (!CFG.endpoint || !rater) return; const r = R[id] || {};
     this.q = this.q.filter(x => !(x.item === id && x.rater === rater));
     this.q.push({rater, page_id: CFG.page, item: id, rating: r.rating || "", note: r.note || "",
                  seconds: r.seconds ?? "", rated_at: r.at || new Date().toISOString(), client: this.client()});
-    this.keep(); this.show(); this.flush(); },
+    if (quiet) return; this.keep(); this.show(); this.flush(); },
+  // A rating counts as sent only when the sheet replies that it saved every row in the batch.
   async flush() {
     if (!CFG.endpoint || this.busy || !this.q.length) return;
-    this.busy = true; const batch = this.q.slice(0, 200); this.show();
+    this.busy = true; const batch = this.q.slice(0, 100); this.show();
     try {
-      await fetch(CFG.endpoint, {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"},
-                                 body: JSON.stringify({rows: batch})});
-      this.q = this.q.filter(x => !batch.includes(x)); this.keep(); this.failed = false;
-    } catch (e) { this.failed = true; clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 15000); }
+      const res = await fetch(CFG.endpoint, {method: "POST", headers: {"Content-Type": "text/plain;charset=utf-8"},
+                                             body: JSON.stringify({rows: batch})});
+      let j = null; try { j = await res.json(); } catch (e) {}
+      if (!res.ok || !j || !j.ok || j.saved !== batch.length)
+        throw new Error(j && j.error ? j.error : `the sheet did not confirm (${res.status})`);
+      batch.forEach(x => { const r = R[x.item]; if (r && x.rater === rater) r.sent = sig(r); });
+      if (rater) store.save();
+      this.q = this.q.filter(x => !batch.includes(x)); this.keep(); this.error = "";
+    } catch (e) {
+      this.error = navigator.onLine === false ? "offline" : String(e.message || e);
+      clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 30000);
+    }
     this.busy = false; this.show();
-    if (this.q.length && !this.failed) this.flush();
+    if (this.q.length && !this.error) this.flush();
   },
+  // Every rated tile whose current rating the sheet has not confirmed goes (again) into the queue.
+  resendUnconfirmed() { if (!CFG.endpoint || !rater) return;
+    DATA.forEach(d => { const r = R[d.id]; if (r && r.rating && r.sent !== sig(r)) this.push(d.id, true); });
+    this.keep(); this.show(); this.flush(); },
   show() { if (!CFG.endpoint) return; const n = this.q.length;
-    const t = !n ? "All ratings sent." : this.failed ? `Offline: ${n} waiting, sent when you are back online.`
-                                           : `Sending ${n}…`;
-    $("#sync").textContent = t; $("#sync2").textContent = t; }
+    const sent = DATA.filter(d => R[d.id] && R[d.id].rating && R[d.id].sent === sig(R[d.id])).length;
+    const t = !n ? (sent ? `All ${sent} ratings saved to the study sheet.` : "Ratings are saved to the study sheet as you go.")
+      : this.error === "offline" ? `Offline: ${n} not sent yet. They go when you are back online; keep this page open.`
+      : this.error ? `Not sent yet: ${n} waiting (${this.error}). Retrying every 30 s; keep this page open.`
+      : `Sending ${n}…`;
+    for (const el of [$("#sync"), $("#sync2")]) { el.textContent = t; el.classList.toggle("warn", !!this.error); } }
 };
+const sig = r => (r.rating || "") + "\u0001" + (r.note || "");
 window.addEventListener("online", () => sync.flush());
 
 function needText(on) {

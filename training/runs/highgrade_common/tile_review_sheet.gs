@@ -10,11 +10,15 @@
  */
 const READ_KEY = 'CHANGE-ME-to-a-long-random-string';
 const SHEET = 'ratings';
+// Leave empty when this script was made from the sheet (Extensions > Apps Script). For a script made on its own at
+// script.google.com, put the sheet's id here: the long code in its address, between /d/ and /edit.
+const SPREADSHEET_ID = '';
 const HEADER = ['received_at', 'rater', 'page_id', 'item', 'rating', 'note', 'seconds', 'rated_at', 'client'];
 const RATINGS = ['mvp', 'necrosis', 'both', 'neither', 'artefact', 'other', 'unassessable', ''];
 
 function sheet_() {
-  const book = SpreadsheetApp.getActiveSpreadsheet();
+  const book = SPREADSHEET_ID ? SpreadsheetApp.openById(SPREADSHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!book) throw new Error('no sheet: open the script from the sheet, or set SPREADSHEET_ID');
   let sh = book.getSheetByName(SHEET);
   if (!sh) {
     sh = book.insertSheet(SHEET);
@@ -31,10 +35,14 @@ function cell_(v, max) {
   return s;
 }
 
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
   try {
+    lock.waitLock(20000);
     const body = JSON.parse(e.postData.contents);
     const rows = (Array.isArray(body.rows) ? body.rows : [body]).slice(0, 1000);
     const now = new Date().toISOString();
@@ -48,14 +56,18 @@ function doPost(e) {
       const sh = sheet_();
       sh.getRange(sh.getLastRow() + 1, 1, out.length, HEADER.length).setNumberFormat('@').setValues(out);
     }
-    return ContentService.createTextOutput(JSON.stringify({ok: true, saved: out.length}))
-      .setMimeType(ContentService.MimeType.JSON);
+    return json_({ok: true, saved: out.length});
+  } catch (err) {
+    return json_({ok: false, saved: 0, error: String(err && err.message || err)});
   } finally {
     lock.releaseLock();
   }
 }
 
 function doGet(e) {
+  if (e.parameter.check === '1') {  // is the sheet reachable? answers without revealing any rating
+    try { sheet_(); return json_({ok: true}); } catch (err) { return json_({ok: false, error: String(err.message || err)}); }
+  }
   if (!e.parameter.key || e.parameter.key !== READ_KEY || READ_KEY.indexOf('CHANGE-ME') === 0) {
     return ContentService.createTextOutput('forbidden');
   }

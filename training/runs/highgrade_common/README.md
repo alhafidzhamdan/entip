@@ -110,8 +110,10 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
   4. Read every rating straight from the sheet: `rate_tiles.py summary --key grade-mil/review/tile-review-key.csv
      --sheet "<URL>?key=<READ_KEY>"`. The latest row per reviewer and tile counts. A CSV downloaded from the
      sheet works as a ratings file too.
-  - Rate one tile yourself first and check the row appears: the page cannot see Google's reply, so a wrong URL
-    fails silently. Anyone with the page can add rows to the sheet; only the key reads them back.
+  - A rating counts as sent only when the sheet replies that it saved it; until then the page says how many are
+    waiting and retries every 30 s, and reopening the page resends every rating the sheet has not confirmed.
+    `<URL>?check=1` says whether the script can reach its sheet. Anyone with the page can add rows to the sheet;
+    only the key reads them back.
   - Reviewers are told by their initials, so two people with the same initials are merged: give each a code.
 - The fields are 336 µm across at the embedding's magnification (about 0.9 µm per pixel), enough for necrosis but
   coarse for MVP. The ratings are not training labels: the view key has no tile coordinates.
