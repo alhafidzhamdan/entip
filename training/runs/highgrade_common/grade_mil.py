@@ -144,12 +144,16 @@ def main() -> int:
     rows = [r for r in read_manifest(a.manifest)
             if r["category"] in set(a.positive) | set(a.negative) and r.get("label", "glioma") == "glioma"
             and r["PatientID"] not in holdout and (Path(a.bags) / f"{r['SeriesInstanceUID']}.npz").exists()]
+    bags = [Bag.load(Path(a.bags) / f"{r['SeriesInstanceUID']}.npz", max_tiles=a.max_tiles, seed=a.seed).features
+            for r in rows]
+    keep = [i for i, b in enumerate(bags) if len(b)]                  # a slide with no tissue tiles has no bag to use
+    if len(keep) < len(rows):
+        print(f"{len(rows) - len(keep)} slides with no tissue tiles left out", file=sys.stderr)
+    rows, bags = [rows[i] for i in keep], [bags[i] for i in keep]
     y = np.array([int(r["category"] in a.positive) for r in rows])
     if min(np.bincount(y, minlength=2)) < 2:
         raise SystemExit(f"need at least 2 slides of each class; have {np.bincount(y, minlength=2).tolist()} "
-                         "(grade 3, grade 4): check --bags and the manifest's diagnosis columns")
-    bags = [Bag.load(Path(a.bags) / f"{r['SeriesInstanceUID']}.npz", max_tiles=a.max_tiles, seed=a.seed).features
-            for r in rows]
+                         "(negative, positive): check --bags and the manifest's diagnosis columns")
     pats = np.array([r["PatientID"] for r in rows])
 
     up = np.unique(pats)

@@ -1,5 +1,5 @@
 {
-  "description": "The diverse set (plans/diverse.json, unchanged and picked first, so the same 250 slides) plus every grade 4 IDH-mutant astrocytoma (TCGA histological grade, IDH and 1p/19q from cBioPortal) with all their slides and no 2 GB cap (the largest resections are the likeliest to show MVP or necrosis), for the step 3 grade picking model. Run in the diverse folder with SKIP_TRAIN=1: only the new slides are downloaded and embedded, and the triage model is left as it is.",
+  "description": "The diverse set (plans/diverse.json, unchanged and picked first, so the same 250 slides) plus every grade 4 IDH-mutant astrocytoma (TCGA histological grade, IDH and 1p/19q from cBioPortal) with all their FFPE slides and no size limits (the largest resections are the likeliest to show MVP or necrosis; the smallest may hold little tissue), so all 22 TCGA patients with an FFPE slide; the other 13 have frozen sections only and are left out, since every grade 3 slide is FFPE and the model could learn frozen against FFPE instead of grade, for the step 3 grade picking model. Run in the diverse folder with SKIP_TRAIN=1: only the new slides are downloaded and embedded, and the triage model is left as it is.",
   "manifest_args": [
     "--prep",
     "ffpe",
@@ -77,7 +77,8 @@
       ],
       "n": null,
       "all_slides": true,
-      "max_mb": null
+      "max_mb": null,
+      "min_mb": 0
     }
   ],
   "train_args": []

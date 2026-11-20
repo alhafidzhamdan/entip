@@ -9,7 +9,7 @@ manifest → TCGA IDH status → pick the slides in a run plan → step 1 (pre-t
 | `test-run` | 10 (≈1 GB): 5 glioma, 5 normal brain, the smallest of at least 100 MB | Checks the pipeline. First run on Eddie 2026-11-15: worked end to end; the gate accepted nothing, as expected at this size |
 | `diverse` | 250 (≈190 GB): see below | A first model across classes and sources |
 | `stage-a` | 3,138 slides, 2,373 patients (≈2.7 TB): see below | The full public triage set |
-| `diverse-astro4` | the 250 diverse slides plus every grade 4 IDH-mutant astrocytoma (about 59 new slides from 20 patients, ≈42 GB; no 2 GB cap for this group) | Bags for the step 3 grade picking model ([`highgrade_common/grade_mil.py`](../highgrade_common/README.md#grade-4-vs-grade-3-for-picking)), against the diverse set's grade 3 astrocytomas. Runs in the diverse folder, stage and embed only: `SKIP_TRAIN=1 RUN=diverse-astro4 WORK=$BASE/runs/triage-diverse bash training/runs/triage/eddie/submit.sh` |
+| `diverse-astro4` | the 250 diverse slides plus every grade 4 IDH-mutant astrocytoma (65 new slides: all 22 TCGA patients with an FFPE slide, ≈42 GB, no size limits for this group; the other 13 have frozen sections only and are left out) | Bags for the step 3 grade picking model ([`highgrade_common/grade_mil.py`](../highgrade_common/README.md#grade-4-vs-grade-3-for-picking)), against the diverse set's grade 3 astrocytomas. Runs in the diverse folder, stage and embed only: `SKIP_TRAIN=1 RUN=diverse-astro4 WORK=$BASE/runs/triage-diverse bash training/runs/triage/eddie/submit.sh` |
 
 ## The diverse set
 
