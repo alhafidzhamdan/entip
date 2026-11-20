@@ -18,6 +18,8 @@ A group with ``"categories"`` (for example ``["astro4"]``) keeps only gliomas in
 (``highgrade_common/common.py``: grade and type from the WHO CNS5 diagnosis below), for a run that only needs some
 grades.
 
+A group can override the plan's ``min_mb`` / ``max_mb`` (``"max_mb": null``: no upper limit).
+
 Every chosen slide gets ``diagnosis`` (its WHO CNS5 term) and ``who_cns5_basis`` (what that rests on), from
 ``entip_glioma.triage.who_cns5``: IDH, 1p/19q and grade from the ``--idh`` table for TCGA and CPTAC gliomas, the
 source diagnosis (``dx``) otherwise, and confirmed label corrections first.
@@ -52,13 +54,15 @@ def pick(rows: list, plan: dict, idh: dict | None = None, category=None) -> tupl
     used, chosen, notes = set(), [], []
     for g in plan["groups"]:
         cols = g.get("collections")
+        g_lo = float(g["min_mb"]) if "min_mb" in g else lo          # a group can set its own size limits;
+        g_hi = (float("inf") if g["max_mb"] is None else float(g["max_mb"])) if "max_mb" in g else hi  # null: none
         dropped = Counter()
         by_col = defaultdict(list)
         for r in rows:
             if r["label"] != g["label"] or (cols and r["collection_id"] not in cols):
                 continue
             mb = float(r.get("series_size_MB") or 0)
-            if not lo <= mb <= hi:
+            if not g_lo <= mb <= g_hi:
                 dropped["size"] += 1
                 continue
             if g.get("idh"):
