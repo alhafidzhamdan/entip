@@ -11,7 +11,8 @@ Necrosis is an area, and its edge decides most cases. So:
   to the necrosis: haemorrhage, crush, cautery, fibrin.
 - **The head sees each tile's surroundings:** the mean embeddings of its 3 × 3 and 5 × 5 fields are added to its
   own (`--context 1 2`), without re-embedding.
-- **Free negatives:** random tiles from `astro3` and `grade2` slides, which have no necrosis by their grade.
+- **Free negatives:** random tiles from `astro3` and `grade2` slides, which have no necrosis by their grade, checked
+  by eye first ([`free_negatives.py`](../highgrade_common/README.md#free-negatives); the same check serves 3a).
 - **The page is for single tiles:**
   - round 1: attended, diverse and random tiles;
   - from round 2: tiles the head is unsure of, its surest positives, and audit tiles on free-negative slides.
@@ -38,7 +39,7 @@ GeoJSON**. Name each file `<SeriesInstanceUID>.geojson`.
 ## Export and train
 
 ```bash
-python training/runs/highgrade_necrosis/export.py --outlines qupath --slides $W/slides --key nec-r1/key.csv labels-AH.csv --bags $W/bags-h-optimus-0 --manifest $W/trial.csv --holdout held_out.csv --out nec-export-r1
+python training/runs/highgrade_necrosis/export.py --outlines qupath --slides $W/slides --key nec-r1/key.csv labels-AH.csv --bags $W/bags-h-optimus-0 --manifest $W/trial.csv --holdout held_out.csv --free-negatives free-r1 --free-review review-AH.csv --out nec-export-r1
 bash nec-export-r1/train-necrosis.sh
 ```
 

@@ -31,7 +31,7 @@ tissue around it** decide most cases.
 - **Head:** the tile's H-optimus-0 embedding plus the mean embeddings of its 3 × 3 and 5 × 5 neighbourhoods, with
   no re-embedding.
 - **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no necrosis by their
-  grade, checked by audit picks.
+  grade, checked by eye as a grid before use and by audit picks.
 - **Slide score:** the best focus of connected positive tiles.
 
 Tiles from one large outline are near-copies of each other. Cross-validation groups by slide, so this does not

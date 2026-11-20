@@ -44,7 +44,8 @@ Each finding gives one `entip.glioma_step/1` record: `present`, `absent` or `ind
   sub-step (`training/runs/highgrade_mvp/`, `highgrade_necrosis/`, `highgrade_mitosis/`, sharing
   `highgrade_common/`).
 - **Free negatives.** Under the grading TCGA used, grade 3 astrocytic and grade 2 gliomas had no necrosis or MVP, so
-  their slides give negatives for 3a and 3b without labelling. Audit picks and the export check them.
+  their slides give negatives for 3a and 3b without labelling. A pathologist checks their tiles by eye first, as a
+  grid, and audit picks and the export check them again.
 
 ```bash
 entip-train highgrade-demo

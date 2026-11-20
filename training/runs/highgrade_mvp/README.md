@@ -10,7 +10,7 @@ its cheapest:
 
 | Signal | Source | Cost |
 |---|---|---|
-| MVP negatives in a lower-grade background | Free-negative slides (`astro3`, `grade2`): random tiles | None |
+| MVP negatives in a lower-grade background | Free-negative slides (`astro3`, `grade2`): random tiles, checked by eye as a grid | A quick look per slide |
 | Where the vessels are | A vessel head trained on the same labels (`m` or `v` vs `0`); finds vessels to pick from | None extra |
 | MVP vs ordinary vessel | The page, one key per tile, or a click per vessel in QuPath | The labelling |
 | Which vessels to label next | Round 2 on: vessels the MVP head is least sure of (`uncertain`) and surest are MVP (`likely`) | None |
@@ -40,16 +40,20 @@ cd /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip && git pull && REPO=$PWD .
 ## Export and train
 
 ```bash
-python training/runs/highgrade_mvp/export.py --key mvp-r1/key.csv labels-AH.csv labels-XY.csv --bags $W/bags-h-optimus-0 --manifest $W/trial.csv --holdout held_out.csv --out mvp-export-r1
+python training/runs/highgrade_mvp/export.py --key mvp-r1/key.csv labels-AH.csv labels-XY.csv --bags $W/bags-h-optimus-0 --manifest $W/trial.csv --holdout held_out.csv --free-negatives free-r1 --free-review review-AH.csv --out mvp-export-r1
 bash mvp-export-r1/train-mvp.sh
 bash mvp-export-r1/train-vessel.sh
 ```
 
-- `train-mvp.sh` adds the free-negative slides (`--negative-bag`, 200 random tiles each by default).
+- **Free negatives:** the checked tiles from `highgrade_common/free_negatives.py` (see
+  [its README](../highgrade_common/README.md#free-negatives)) become MVP negatives. Leave both options out to train
+  on labelled tiles only.
 - `summary.json` gives:
   - counts;
   - Cohen's kappa for MVP on tiles both labellers called a vessel, which is the judgement that matters;
-  - `free_negative_slides_with_mvp`: check the grade of any slide listed there.
+  - `free_negatives`: slides checked, not checked, and left out for a flag;
+  - `free_negative_slides_with_mvp`: free-negative slides labelled MVP on the page. Check the grade of any slide
+    listed in either.
 - **QuPath** (optional, `--outlines qupath/ --slides $W/slides`): add a point on each vessel with the class `MVP` or
   `Vessel`, or outline areas of `Neither`. Name each export `<SeriesInstanceUID>.geojson`. Look at
   `check/<slide>.jpg` first: MVP is blue, vessels green, neither grey.

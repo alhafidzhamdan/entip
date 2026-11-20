@@ -27,7 +27,8 @@ The labelling effort goes into telling MVP from ordinary vessels, and nothing el
 - **Labels per tile:** MVP, vessel without MVP, no vessel, or not assessable. On the page that is one key per tile;
   in QuPath it is a point on each vessel.
 - **Two heads from the same labels:** a vessel head, used only to find vessels to label, and the MVP head.
-- **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no MVP by their grade.
+- **Free negatives:** random tiles from grade 3 astrocytic and grade 2 slides, which have no MVP by their grade,
+  checked by eye as a grid before use.
   They are MVP negatives at no cost, in a lower-grade background.
 - **Active learning from round 2:**
   - vessels the MVP head is least sure of, and those it is surest are MVP;

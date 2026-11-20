@@ -18,8 +18,9 @@ TCGA and CPTAC rest on IDH, 1p/19q and the source histological grade:
 **Free negatives.** Under the WHO grading TCGA used, necrosis or MVP made an astrocytic glioma a glioblastoma
 (grade 4), and a grade 2 glioma had neither. So every slide in ``astro3`` or ``grade2`` (``FREE_NEGATIVE``) has no
 necrosis and no MVP, at the specimen level, without labelling. The grade is of the case and the slide is a sample
-of it, so a slide can only be wrong through a grading error, which the audit picks (``--audit``) look for. Not for
-mitoses: a grade 2 glioma can have one.
+of it, so a slide can only be wrong through a grading error. ``free_negatives.py`` picks their tiles for a check by
+eye before use, and the audit picks (``--audit``) show their most MVP- or necrosis-like tiles. Not for mitoses: a
+grade 2 glioma can have one.
 """
 from __future__ import annotations
 
@@ -243,8 +244,7 @@ def square(x: float, y: float, s: float) -> list:
     return [[x, y], [x + s, y], [x + s, y + s], [x, y + s]]
 
 
-def write_feature(out: Path, name: str, feature: str, labels: dict, tile_um: dict, a, negative_bags=(),
-                  context=()) -> dict:
+def write_feature(out: Path, name: str, feature: str, labels: dict, tile_um: dict, a, context=()) -> dict:
     """``labels``: slide -> (x, y) -> 0/1. Writes ``<name>/<slide>.json`` and ``train-<name>.sh``; returns counts."""
     fdir = out / name
     fdir.mkdir(parents=True, exist_ok=True)
@@ -259,17 +259,12 @@ def write_feature(out: Path, name: str, feature: str, labels: dict, tile_um: dic
         (fdir / f"{slide}.json").write_text(json.dumps({"positives": pos, "negatives": neg,
                                                         "training_data": a.training_data}) + "\n")
     info = {"slides": len(labels), "positive_tiles": npos, "negative_tiles": nneg,
-            "slides_with_positives": sum(any(v == 1 for v in tl.values()) for tl in labels.values()),
-            "free_negative_slides": len(negative_bags)}
+            "slides_with_positives": sum(any(v == 1 for v in tl.values()) for tl in labels.values())}
     if a.bags and labels:
         args = ["entip-train", "highgrade-train", "--feature", feature, "--training-data", a.training_data,
                 "--out", str(out / f"{name}.joblib")]
         for slide in sorted(labels):
             args += ["--bag", str(Path(a.bags) / f"{slide}.npz"), "--labels", str(fdir / f"{slide}.json")]
-        for b in negative_bags:
-            args += ["--negative-bag", str(b)]
-        if negative_bags:
-            args += ["--negatives-per-bag", str(a.negatives_per_bag)]
         if context:
             args += ["--context", *map(str, context)]
         missing = [s for s in labels if not (Path(a.bags) / f"{s}.npz").exists()]
@@ -277,22 +272,9 @@ def write_feature(out: Path, name: str, feature: str, labels: dict, tile_um: dic
             print(f"{name}: {len(missing)} bags not found in {a.bags}", file=sys.stderr)
         (out / f"train-{name}.sh").write_text("#!/usr/bin/env bash\nset -euo pipefail\n"
                                               + " ".join(shlex.quote(x) for x in args) + "\n")
-    if npos == 0 or nneg + len(negative_bags) == 0:
+    if npos == 0 or nneg == 0:
         print(f"{name}: needs positive and negative tiles before a head can be trained", file=sys.stderr)
     return info
-
-
-def free_negative_bags(manifest, bags, holdout: set, exclude_slides=()) -> list:
-    """Bags of every ``FREE_NEGATIVE`` slide in the manifest, except held-out patients and ``exclude_slides``."""
-    if not manifest or not bags:
-        return []
-    out = []
-    for r in read_manifest(manifest):
-        p = Path(bags) / f"{r['SeriesInstanceUID']}.npz"
-        if r["category"] in FREE_NEGATIVE and r["PatientID"] not in holdout and p.exists() \
-                and r["SeriesInstanceUID"] not in exclude_slides:
-            out.append(p)
-    return sorted(out)
 
 
 def add_export_args(ap) -> None:
@@ -365,12 +347,12 @@ def outline_labels(a, classes: dict, decide, colours: dict) -> tuple[dict, dict,
 
 def add_outline_args(ap) -> None:
     ap.add_argument("--bags", required=True, help="bag folder (H-optimus-0 bags the heads train on)")
-    ap.add_argument("--manifest", help="trial.csv, for the free-negative slides")
+    ap.add_argument("--manifest", help="trial.csv: finds held-out slides among the outlines")
     ap.add_argument("--outlines", help="folder of QuPath GeoJSON exports, one <SeriesInstanceUID>.geojson per slide")
     ap.add_argument("--slides", help="slide folder: pixel size of outlined slides, and a check image each")
     ap.add_argument("--mpp", type=float, help="pixel size (µm) of the outlined slides, instead of --slides")
-    ap.add_argument("--negatives-per-bag", type=int, default=200, help="random tiles per free-negative slide")
-    ap.add_argument("--no-free-negatives", action="store_true", help="use labelled tiles only")
+    from free_negatives import add_free_args
+    add_free_args(ap)
 
 
 def merge_tile_labels(labels: dict, tile_um: dict, key: dict, raw: dict, raters: list, name: str, vote,

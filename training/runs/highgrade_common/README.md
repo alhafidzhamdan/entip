@@ -19,17 +19,29 @@ What they share:
   - writing the training files.
 - `labelpage.py`: the labelling page. One key per label, `j` / `k` to move, labels kept in the browser and
   downloaded as `labels-<initials>.csv`. It shows no diagnosis, model output or reason for picking.
+- `free_negatives.py`: picks the free-negative tiles and writes the page to check them.
 - `outlines.py`: QuPath GeoJSON (outlines and points) to tile hits, and the check image.
 
 ## Free negatives
 
 Under the WHO grading TCGA used, necrosis or MVP made an astrocytic glioma grade 4, and a grade 2 glioma had
 neither. So slides of grade 3 astrocytic gliomas (`astro3`) and grade 2 gliomas (`grade2`) give MVP and necrosis
-negatives without labelling (`highgrade-train --negative-bag`). The grade is of the whole case, so a slide can be
-wrong only through a grading error. Two things catch that:
+negatives without labelling. The grade is of the whole case, so a slide can be wrong only through a grading error.
+Three things catch that:
 
-- the round 2 `audit` picks: the tiles on those slides the head is surest about;
-- the export, which drops any free-negative slide a labeller marked positive and lists it in `summary.json`.
+- **A check by eye before use** (`free_negatives.py`): random tiles from each free-negative slide, shown as a grid of
+  3 × 3 fields. Click a tile to flag it (MVP, necrosis or both) and tick each slide when you have looked at it.
+  Only checked slides are used, and a slide with a flag is left out of that feature's negatives.
+- **The round 2 `audit` picks:** the tiles on those slides the head is surest about.
+- **The export**, which also drops any free-negative slide a labeller marked positive on the page, and lists every
+  slide left out in `summary.json`.
+
+```bash
+python training/runs/highgrade_common/free_negatives.py --manifest $W/trial.csv --bags $W/bags-h-optimus-0 --slides $W/slides --holdout $BASE/runs/highgrade/held_out.csv --out $BASE/runs/highgrade/free-r1
+```
+
+`--per-slide` (default 200) sets the tiles per slide. One check serves both 3a and 3b: pass
+`--free-negatives free-r1 --free-review review-AH.csv` to both exports.
 
 Two exceptions:
 

@@ -7,9 +7,10 @@ QuPath classes: ``Necrosis`` (or *Tumour necrosis*) and ``Neither`` (tumour with
 outline some ``Neither`` on every slide, including look-alikes next to necrosis. Page labels: ``n`` -> 1, ``0`` -> 0,
 ``x`` left out. A page label wins over an outline: it was judged on its own.
 
-**Free negatives.** With ``--manifest``, every free-negative slide (``astro3``, ``grade2``: no necrosis by its
-grade) adds ``--negatives-per-bag`` random tiles as negatives. One where anyone marked necrosis is left out and
-listed in ``summary.json`` (``free_negative_slides_with_necrosis``).
+**Free negatives.** ``--free-negatives free-r1 --free-review review-AH.csv``: the tiles of free-negative slides
+(``astro3``, ``grade2``: no necrosis by their grade) picked by ``highgrade_common/free_negatives.py`` and checked by
+eye on its page. A slide where anyone flagged necrosis there, or marked it on this page, is left out and listed in
+``summary.json``.
 
 The head gets each tile's neighbourhood (``--context``, default 1 2: the mean embeddings of the 3 x 3 and 5 x 5
 fields), so it sees the edge of a necrosis and the tissue beside it without re-embedding.
@@ -25,7 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "highgrade_common"))
-from common import (add_export_args, add_outline_args, agreement, free_negative_bags, merge_tile_labels,  # noqa: E402
+from common import (add_export_args, add_outline_args, agreement, merge_tile_labels,  # noqa: E402
                     outline_labels, read_labels, read_patients, write_feature)
 
 CLASSES = {"necrosis": "necrosis", "tumour necrosis": "necrosis", "tumor necrosis": "necrosis",
@@ -58,12 +59,17 @@ def main() -> int:
     labels, tile_um, oinfo = outline_labels(a, CLASSES, decide, COLOURS)
     counts = merge_tile_labels(labels, tile_um, key, raw, raters, "necrosis", vote, a.rule)
     with_nec = sorted(s for s, tl in labels["necrosis"].items() if any(v == 1 for v in tl.values()))
-    neg = [] if a.no_free_negatives else free_negative_bags(a.manifest, a.bags, holdout, exclude_slides=with_nec)
     flagged = sorted({k["slide"] for k in key.values() if k.get("category") in ("astro3", "grade2")} & set(with_nec))
+    finfo = None
+    if a.free_negatives:
+        from free_negatives import merge_free, read_review
+        free, free_um, finfo = read_review(a.free_negatives, a.free_review, holdout)
+        finfo["tiles_added"] = merge_free(labels["necrosis"], tile_um, free["necrosis"], free_um, exclude=with_nec)
     summary = {"raters": raters, "rule": a.rule, "items_labelled": len(raw), "held_out_patients": len(holdout),
                "outlines": oinfo, "context": a.context, "free_negative_slides_with_necrosis": flagged,
+               "free_negatives": finfo,
                "features": {"necrosis": {
-                   **write_feature(out, "necrosis", "necrosis", labels["necrosis"], tile_um, a, neg, a.context),
+                   **write_feature(out, "necrosis", "necrosis", labels["necrosis"], tile_um, a, a.context),
                    **counts, "agreement": agreement(raw, raters, vote)}}}
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))
