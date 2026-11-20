@@ -97,9 +97,9 @@ Settings are in `eddie/config.sh`, and each can be overridden from the environme
 - `HOME`: `$BASE/home`. Every Eddie script moves `HOME` here, so no tool can write to the real home folder
   (its quota is small). A Hugging Face login made from your normal shell is still picked up.
 - `ENCODER`: `h-optimus-0` (`handcrafted` for a quick run that needs no GPU weights)
-- `GPU_REQUEST`: `-q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G` (one A100, 4 cores, 64 GB RAM; Eddie
-  limits memory with `h_rss` per slot, at most 32 GB per slot). Use `-l l40s=true` for an L40S, or
-  `-l h200=true` for an H200 (IGC users). `qstat -F gpu,gputype,h_rss -q gpu` shows what is free.
+- `GPU_REQUEST`: `-q gpu -l gpu=1 -l h200=true -pe sharedmem 4 -l h_rss=16G` (one H200, 4 cores, 64 GB RAM; Eddie
+  limits memory with `h_rss` per slot, at most 32 GB per slot). The H200s are for IGC users; others use
+  `-l a100=true` for an A100 or `-l l40s=true` for an L40S. `qstat -F gpu,gputype,h_rss -q gpu` shows what is free.
 - `EMBED_SHARDS`: `1`. GPU tasks the embedding is split across (`-t 1-N` array job); each writes `index-<i>.jsonl`.
 - `TRAIN_REQUEST`: `-pe sharedmem 8 -l h_rss=8G` for the CPU training job (8 cores, 64 GB). The embed job's cores
   (in `GPU_REQUEST`) are also its tile-reading workers. Every job limits its maths libraries to the cores it was given.

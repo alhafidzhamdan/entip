@@ -14,9 +14,9 @@ ENV_DIR="${ENV_DIR:-$BASE/envs/entip}"                       # conda env made by
 ENCODER="${ENCODER:-h-optimus-0}"                            # handcrafted for a CPU-only dry run
 # How the embed job asks Eddie for a GPU. Check what the gpu queue offers with:
 #   qconf -sq gpu | grep -E "pe_list|complex_values";  qconf -spl | grep -i gpu;  qconf -sc | grep -i gpu
-# Eddie GPU wiki: gpu queue + gpu resource; a100=true picks an A100 (else A100 or L40S, whichever is free);
+# Eddie GPU wiki: gpu queue + gpu resource; h200=true picks an H200 (IGC users), a100=true an A100, l40s=true an L40S;
 # memory is h_rss per slot (max 32G), times the sharedmem slots. No h_vmem.
-GPU_REQUEST="${GPU_REQUEST:--q gpu -l gpu=1 -l a100=true -pe sharedmem 4 -l h_rss=16G}"   # 1 A100, 4 cores, 64 GB RAM
+GPU_REQUEST="${GPU_REQUEST:--q gpu -l gpu=1 -l h200=true -pe sharedmem 4 -l h_rss=16G}"   # 1 H200, 4 cores, 64 GB RAM
 # The CPU training job: cores (sharedmem slots) and memory per core (h_rss, at most 32G). Total RAM = both multiplied.
 TRAIN_REQUEST="${TRAIN_REQUEST:--pe sharedmem 8 -l h_rss=8G}"             # 8 cores, 64 GB RAM
 # GPU tasks the embedding is split across (each its own GPU job). 1 for small runs; ~8 for stage A.
