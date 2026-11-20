@@ -159,7 +159,7 @@ resize:vertical}
 
 <section id="start">
   <h1>%TITLE%</h1>
-  <p class="lede">You will see <b id="ntiles"></b> fields from IDH-mutant astrocytomas, one at a time, in random order.
+  <p class="lede">You will see <b id="ntiles"></b> fields from gliomas, one at a time, in random order.
   Judge only the <b>outlined tile in the centre</b>; the ring around it is context.</p>
   <div class="card"><h2>What to call</h2><dl>%LEGEND%</dl>
   <p class="muted" style="margin:12px 0 0">Optional: press <kbd>a</kbd> to flag an artefact (fold, pen, blur, edge),
