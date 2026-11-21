@@ -92,6 +92,7 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
   the only choice with a text box, which must be filled in (Save and next, or Cmd/Ctrl+Enter; plain Enter is a new line).
   When every tile is rated, the finish page opens each rating group as a grid; a rater can walk through a group and
   keep (same key) or change a rating. A change sends a new row, so the Sheet keeps the first answer too.
+  The start page gives the working MVP definition and what does not count, and `m` opens it on any tile.
   Ratings stay in the browser as the rater goes and download as `ratings-<initials>.csv`; loading that file
   continues on another computer.
 - `summary` gives, per rater, the share of tiles with MVP or necrosis (95% Wilson interval) for grade 4 top,

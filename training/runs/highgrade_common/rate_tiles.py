@@ -28,7 +28,7 @@ from pathlib import Path
 
 RATINGS = [  # value, key, name, definition shown to the rater
     ("mvp", "1", "MVP", "Microvascular proliferation: multilayered, mitotically active vessel walls, often glomeruloid; "
-                        "not just thick-walled, hyalinised or many vessels"),
+                        "not just plump endothelium or thick-walled, hyalinised or many vessels"),
     ("necrosis", "2", "Necrosis", "Tumour necrosis, palisading or not: eosinophilic granular debris with nuclear dust; "
                                   "not haemorrhage, cautery, crush or fibrin"),
     ("neither", "3", "Neither MVP/necrosis", "No MVP and no necrosis in the outlined tile"),
@@ -42,6 +42,19 @@ RATINGS = [  # value, key, name, definition shown to the rater
     ("other", "0", "Other / free text", "Something else: type what you see; the box opens when you choose it"),
 ]
 FEATURE = {"mvp": (1, 0), "necrosis": (0, 1), "both": (1, 1), "neither": (0, 0), "gemistocytic": (0, 0), "haemorrhage": (0, 0)}
+# The study's working rule, based on the WHO description. It says nothing about grade, to keep raters blinded.
+MVP_DEFINITION = """<p class="deflead">Working definition for this review, based on the WHO description.</p>
+<h3>Call MVP if the tile shows</h3>
+<ul><li>A vessel with <b>at least two layers</b> of plump proliferating wall cells (endothelial cells, pericytes,
+smooth muscle cells) around a lumen</li>
+<li>A <b>glomeruloid</b> tuft, sometimes in garland-like chains</li></ul>
+<h3>Not MVP on its own</h3>
+<ul><li>Plump or hypertrophic endothelium in a single layer</li>
+<li>Many thin-walled capillaries (&ldquo;chicken-wire&rdquo; pattern)</li>
+<li>Thick or hyalinised vessels</li>
+<li>Tangentially cut vessels, or adjacent vessels that look layered</li>
+<li>Reactive vessels around an infarct, abscess or organising haemorrhage</li></ul>
+<p class="deflead">If the field is too coarse to tell, press <kbd>9</kbd> Unsure.</p>"""
 
 
 # ------------------------------------------------------------------------------------------------ build
@@ -104,6 +117,7 @@ def page(title: str, page_id: str, data: list, field_um: float, endpoint: str | 
         thanks = "Thank you. Download your ratings and send the file back. You can still go back and change any tile."
     return TEMPLATE.replace("%KEEP%", keep).replace("%PRIVACY%", privacy).replace("%THANKS%", thanks) \
         .replace("%TITLE%", html.escape(title)).replace("%KEYS%", keys).replace("%LEGEND%", legend) \
+        .replace("%MVPDEF%", MVP_DEFINITION) \
         .replace("%FIELD%", f"{field_um:.0f}").replace("%TILE%", f"{field_um / 3:.0f}") \
         .replace("%CFG%", cfg).replace("%DATA%", json.dumps(data, separators=(",", ":")))
 
@@ -172,6 +186,11 @@ resize:vertical}
 .nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .help{font-size:12px;color:var(--muted);line-height:1.7}
 .spacer{flex:1}
+.mvpdef h3{font-size:13px;font-weight:600;margin:10px 0 3px}
+.mvpdef ul{margin:0;padding-left:18px;font-size:13px;line-height:1.5}
+.mvpdef .deflead{font-size:12px;color:var(--muted);margin:6px 0 0}
+#mvpbox{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--bg)}
+#mvpbox summary{cursor:pointer;font-size:13px;font-weight:600}
 /* done */
 #done{max-width:620px;margin:0 auto;padding:60px 16px;text-align:center}
 #done h1{font-size:24px;font-weight:600}
@@ -201,6 +220,7 @@ cursor:pointer;text-align:left}
   <div class="card"><h2>What to call</h2><dl>%LEGEND%</dl>
   <p class="muted" style="margin:12px 0 0">Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
   <kbd>z</kbd>, to zoom.</p></div>
+  <div class="card mvpdef"><h2>What counts as MVP</h2>%MVPDEF%</div>
   <div class="card"><h2>Your initials</h2>
     <div class="row"><input type="text" id="initials" maxlength="6" autocomplete="off" placeholder="e.g. AH">
     <button class="btn primary" id="go" disabled>Start</button>
@@ -221,6 +241,7 @@ cursor:pointer;text-align:left}
       <span class="muted" id="state"></span></div>
     <p class="muted hidden" id="sync" style="margin:0"></p>
     <div class="rates">%KEYS%</div>
+    <details id="mvpbox" class="mvpdef"><summary>MVP definition <kbd>m</kbd></summary>%MVPDEF%</details>
     <textarea id="note" class="hidden" placeholder="Describe what you see (required)"></textarea>
     <p class="muted hidden" id="needtext" style="margin:-6px 0 0">Type what you see, then save it.</p>
     <button class="btn primary hidden" id="savenote">Save and next (⌘/Ctrl Enter)</button>
@@ -231,7 +252,7 @@ cursor:pointer;text-align:left}
     <button class="btn primary" id="dl">Download ratings</button>
     <div class="help"><kbd>1</kbd> to <kbd>9</kbd> rate and move on ·
     <kbd>0</kbd> other / free text: type, then <kbd>⌘/Ctrl Enter</kbd> · <kbd>←</kbd> <kbd>→</kbd> move ·
-    <kbd>z</kbd> zoom · <kbd>Esc</kbd> leave the text box</div>
+    <kbd>z</kbd> zoom · <kbd>m</kbd> MVP definition · <kbd>Esc</kbd> leave the text box</div>
   </aside>
 </section>
 
@@ -517,6 +538,7 @@ document.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if (KEYMAP[k]) { e.preventDefault(); rate(KEYMAP[k]); }
   else if (k === "z") { e.preventDefault(); $("#img").classList.toggle("zoom"); }
+  else if (k === "m") { e.preventDefault(); $("#mvpbox").open = !$("#mvpbox").open; }
   else if (k === "u" && !qc) { e.preventDefault(); nextUnrated(); }
   else if (e.key === "Escape" && qc) { e.preventDefault(); qcGrid(); }
   else if (e.key === "ArrowRight" || k === "j") { e.preventDefault(); move(1); }
