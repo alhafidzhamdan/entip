@@ -27,17 +27,21 @@ from itertools import combinations
 from pathlib import Path
 
 RATINGS = [  # value, key, name, definition shown to the rater
-    ("mvp", "m", "MVP", "Microvascular proliferation: multilayered, mitotically active vessel walls, often glomeruloid; "
+    ("mvp", "1", "MVP", "Microvascular proliferation: multilayered, mitotically active vessel walls, often glomeruloid; "
                         "not just thick-walled, hyalinised or many vessels"),
-    ("necrosis", "n", "Necrosis", "Tumour necrosis, palisading or not: eosinophilic granular debris with nuclear dust; "
+    ("necrosis", "2", "Necrosis", "Tumour necrosis, palisading or not: eosinophilic granular debris with nuclear dust; "
                                   "not haemorrhage, cautery, crush or fibrin"),
-    ("both", "b", "Both", "MVP and necrosis in the outlined tile"),
-    ("neither", "0", "Neither", "No MVP and no necrosis in the outlined tile"),
-    ("artefact", "a", "Artefact", "Fold, blur, pen, slide edge, crush or cautery stops you judging the tile"),
-    ("other", "t", "Other (type)", "Something else: type what you see; the box opens when you choose it"),
-    ("unassessable", "x", "Can't assess", "Too little tissue, or not judgeable for another reason"),
+    ("neither", "3", "Neither MVP/necrosis", "No MVP and no necrosis in the outlined tile"),
+    ("both", "4", "Both MVP and necrosis", "MVP and necrosis in the outlined tile"),
+    ("gemistocytic", "5", "Gemistocytic", "Mainly gemistocytes (plump cells with glassy pink cytoplasm), "
+                                          "with no MVP and no necrosis"),
+    ("haemorrhage", "6", "Haemorrhage", "Mainly blood or haemorrhage, with no MVP and no necrosis"),
+    ("artefact", "7", "Artefact", "Blurry area, bubble, fold, pen, slide edge, crush, cautery or other artefact stops you judging the tile"),
+    ("unassessable", "8", "Can't assess", "Too little tissue, or not judgeable for another reason"),
+    ("unsure", "9", "Unsure", "You can judge the tile but cannot decide between the options"),
+    ("other", "0", "Other / free text", "Something else: type what you see; the box opens when you choose it"),
 ]
-FEATURE = {"mvp": (1, 0), "necrosis": (0, 1), "both": (1, 1), "neither": (0, 0)}
+FEATURE = {"mvp": (1, 0), "necrosis": (0, 1), "both": (1, 1), "neither": (0, 0), "gemistocytic": (0, 0), "haemorrhage": (0, 0)}
 
 
 # ------------------------------------------------------------------------------------------------ build
@@ -109,10 +113,12 @@ TEMPLATE = r"""<!doctype html>
 <title>%TITLE%</title>
 <style>
 :root{--bg:#f6f5f1;--panel:#fff;--fg:#1d1d1b;--muted:#6b6a64;--line:#dddbd2;--accent:#3b5bdb;--accent-fg:#fff;
---mvp:#c2255c;--necrosis:#e8590c;--both:#7048e8;--neither:#2b8a3e;--artefact:#9c6b00;--other:#0c8599;--unassessable:#868e96;--focus:#3b5bdb}
+--mvp:#c2255c;--necrosis:#e8590c;--both:#7048e8;--neither:#2b8a3e;--gemistocytic:#5c7cfa;--haemorrhage:#c92a2a;--artefact:#9c6b00;--other:#0c8599;--unassessable:#868e96;--unsure:#5f3dc4;--focus:#3b5bdb}
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--panel:#21211f;--fg:#ecebe6;--muted:#a9a79f;--line:#3a3a37;
 --accent:#748ffc;--accent-fg:#111}}
 *{box-sizing:border-box}
+button,input,textarea{color:inherit}
+textarea::placeholder{color:var(--muted);opacity:1}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 button,input{font:inherit;color:inherit}
 kbd{font:12px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
@@ -156,8 +162,8 @@ padding:10px 12px;cursor:pointer;text-align:left}
 .rate.on kbd{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff}
 .rate[data-v=mvp].on{background:var(--mvp)} .rate[data-v=necrosis].on{background:var(--necrosis)}
 .rate[data-v=both].on{background:var(--both)} .rate[data-v=neither].on{background:var(--neither)}
-.rate[data-v=artefact].on{background:var(--artefact)} .rate[data-v=other].on{background:var(--other)}
-.rate[data-v=unassessable].on{background:var(--unassessable)}
+.rate[data-v=gemistocytic].on{background:var(--gemistocytic)} .rate[data-v=haemorrhage].on{background:var(--haemorrhage)} .rate[data-v=artefact].on{background:var(--artefact)} .rate[data-v=other].on{background:var(--other)}
+.rate[data-v=unassessable].on{background:var(--unassessable)} .rate[data-v=unsure].on{background:var(--unsure)}
 .warn{color:var(--mvp)!important;font-weight:600}
 #note.need{border-color:var(--other);box-shadow:0 0 0 2px var(--other)}
 .check{display:flex;align-items:center;gap:8px;cursor:pointer}
@@ -170,7 +176,20 @@ resize:vertical}
 #done{max-width:620px;margin:0 auto;padding:60px 16px;text-align:center}
 #done h1{font-size:24px;font-weight:600}
 .tally{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0 26px}
-.tally span{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;font-size:13px}
+.tally button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 13px;font-size:13px;
+cursor:pointer}
+.tally button:hover:not(:disabled){border-color:var(--accent)} .tally button:disabled{opacity:.45;cursor:default}
+/* check by group */
+#qc{padding:16px 20px 40px}
+#qchead{position:sticky;top:0;z-index:2;background:var(--bg);padding:4px 0 10px}
+#qctabs{justify-content:flex-start;margin:8px 0 0}
+#qctabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+#qcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.qtile{display:block;padding:0;border:2px solid var(--line);background:var(--panel);border-radius:8px;overflow:hidden;
+cursor:pointer;text-align:left}
+.qtile:hover,.qtile:focus-visible{border-color:var(--accent)} .qtile.moved{border-color:var(--necrosis)}
+.qtile img{display:block;width:100%;aspect-ratio:1}
+.qtile span{display:block;padding:3px 8px;font-size:12px;color:var(--muted)} .qtile.moved span{color:var(--fg);font-weight:600}
 @media (max-width:820px){#review{grid-template-columns:1fr;height:auto}#imgwrap{min-height:60vh}
 #side{border-left:0;border-top:1px solid var(--line)}}
 </style></head><body>
@@ -180,7 +199,7 @@ resize:vertical}
   <p class="lede">You will see <b id="ntiles"></b> fields from gliomas, one at a time, in random order.
   Judge only the <b>outlined tile in the centre</b>; the ring around it is context.</p>
   <div class="card"><h2>What to call</h2><dl>%LEGEND%</dl>
-  <p class="muted" style="margin:12px 0 0">You can add a comment to any tile. Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
+  <p class="muted" style="margin:12px 0 0">Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
   <kbd>z</kbd>, to zoom.</p></div>
   <div class="card"><h2>Your initials</h2>
     <div class="row"><input type="text" id="initials" maxlength="6" autocomplete="off" placeholder="e.g. AH">
@@ -202,14 +221,16 @@ resize:vertical}
       <span class="muted" id="state"></span></div>
     <p class="muted hidden" id="sync" style="margin:0"></p>
     <div class="rates">%KEYS%</div>
-    <textarea id="note" placeholder="Comment (optional) c"></textarea>
-    <p class="muted hidden" id="needtext" style="margin:-6px 0 0">Type what you see, then press Enter.</p>
+    <textarea id="note" class="hidden" placeholder="Describe what you see (required)"></textarea>
+    <p class="muted hidden" id="needtext" style="margin:-6px 0 0">Type what you see, then save it.</p>
+    <button class="btn primary hidden" id="savenote">Save and next (⌘/Ctrl Enter)</button>
     <div class="nav"><button class="btn" id="prev">← Back</button><button class="btn" id="next">Next →</button></div>
     <button class="btn" id="unrated">Next unrated <kbd>u</kbd></button>
+    <button class="btn hidden" id="togroup">Back to group <kbd>Esc</kbd></button>
     <div class="spacer"></div>
     <button class="btn primary" id="dl">Download ratings</button>
-    <div class="help"><kbd>m</kbd> <kbd>n</kbd> <kbd>b</kbd> <kbd>0</kbd> <kbd>a</kbd> <kbd>x</kbd> rate and move on ·
-    <kbd>t</kbd> other: type, then <kbd>Enter</kbd> · <kbd>c</kbd> comment · <kbd>←</kbd> <kbd>→</kbd> move ·
+    <div class="help"><kbd>1</kbd> to <kbd>9</kbd> rate and move on ·
+    <kbd>0</kbd> other / free text: type, then <kbd>⌘/Ctrl Enter</kbd> · <kbd>←</kbd> <kbd>→</kbd> move ·
     <kbd>z</kbd> zoom · <kbd>Esc</kbd> leave the text box</div>
   </aside>
 </section>
@@ -218,9 +239,20 @@ resize:vertical}
   <h1>All tiles rated</h1>
   <p class="muted">%THANKS%</p>
   <p class="muted" id="sync2"></p>
+  <h2 style="font-size:15px;margin:22px 0 0">Check your ratings by group</h2>
+  <p class="muted" style="margin:2px 0 0">Choose a group to see all its tiles, and open any tile to keep or change its rating.</p>
   <div class="tally" id="tally"></div>
   <div class="row" style="justify-content:center">
     <button class="btn primary" id="dl2">Download ratings</button><button class="btn" id="back">Review again</button></div>
+</section>
+
+<section id="qc" class="hidden">
+  <div id="qchead">
+    <div class="row"><button class="btn" id="qcdone">← All groups</button><b id="qctitle"></b>
+      <span class="muted">Click a tile to check it. Ratings you change are saved straight away.</span></div>
+    <div class="tally" id="qctabs"></div>
+  </div>
+  <div id="qcgrid"></div>
 </section>
 
 <script>
@@ -229,7 +261,8 @@ const DATA = %DATA%;
 const $ = s => document.querySelector(s);
 const NAMES = Object.fromEntries(CFG.ratings.map(([v,k,n]) => [v,n]));
 const KEYMAP = Object.fromEntries(CFG.ratings.map(([v,k]) => [k,v]));
-let rater = "", R = {}, i = 0, shownAt = 0;
+let rater = "", R = {}, i = 0, shownAt = 0, noteFor = null;  // noteFor: the tile whose text is in the box
+let qc = null;  // checking a group: {v, ids (tile positions, fixed when the group opens), pos}
 
 const store = {
   key: () => `tile-review:${CFG.page}:${rater}`,
@@ -264,22 +297,24 @@ function show(k) {
   i = Math.max(0, Math.min(DATA.length - 1, k));
   const d = DATA[i], r = R[d.id] || {};
   const img = $("#img"); img.classList.remove("zoom"); img.src = d.src;
-  if (DATA[i + 1]) new Image().src = DATA[i + 1].src;
+  const after = DATA[qc ? qc.ids[qc.pos + 1] : i + 1]; if (after) new Image().src = after.src;
   $("#itemid").textContent = d.id;
   document.querySelectorAll(".rate").forEach(b => b.classList.toggle("on", b.dataset.v === r.rating));
-  $("#note").value = r.note || "";
-  needText(r.rating === "other" && !done(r));
-  $("#state").textContent = done(r) ? "rated" : (r.rating === "other" ? "needs text" : "");
+  $("#note").value = r.note || ""; noteFor = d.id;
+  noteState();
   const n = nRated();
-  $("#count").textContent = `${i + 1} of ${DATA.length} · ${n} rated`;
-  $("#bar i").style.width = (100 * n / DATA.length) + "%";
-  $("#prev").disabled = i === 0; $("#next").disabled = i === DATA.length - 1;
+  $("#count").textContent = qc ? `Checking ${NAMES[qc.v]} · ${qc.pos + 1} of ${qc.ids.length}`
+    : `${i + 1} of ${DATA.length} · ${n} rated`;
+  $("#bar i").style.width = (qc ? 100 * (qc.pos + 1) / qc.ids.length : 100 * n / DATA.length) + "%";
+  $("#prev").disabled = qc ? qc.pos === 0 : i === 0; $("#next").disabled = !qc && i === DATA.length - 1;
+  $("#unrated").classList.toggle("hidden", !!qc); $("#togroup").classList.toggle("hidden", !qc);
   shownAt = performance.now();
 }
 
 function entry() { const d = DATA[i]; return R[d.id] = R[d.id] || {}; }
-function saveNote() { if (!DATA[i] || $("#review").classList.contains("hidden")) return;
+function saveNote() { if (!DATA[i] || noteFor !== DATA[i].id || $("#review").classList.contains("hidden")) return;
   const v = $("#note").value.trim(), e = entry();
+  if (e.rating !== "other") return;
   if (v !== (e.note || "")) { e.note = v; store.save(); sync.push(DATA[i].id); } }
 
 // Online saving: each change joins a queue kept in this browser, sent in order, and kept until it has gone.
@@ -319,7 +354,7 @@ const sync = {
   },
   // Every rated tile whose current rating the sheet has not confirmed goes (again) into the queue.
   resendUnconfirmed() { if (!CFG.endpoint || !rater) return;
-    DATA.forEach(d => { const r = R[d.id]; if (r && r.rating && r.sent !== sig(r)) this.push(d.id, true); });
+    DATA.forEach(d => { const r = R[d.id]; if (done(r) && r.sent !== sig(r)) this.push(d.id, true); });
     this.keep(); this.show(); this.flush(); },
   show() { if (!CFG.endpoint) return; const n = this.q.length;
     const sent = DATA.filter(d => R[d.id] && R[d.id].rating && R[d.id].sent === sig(R[d.id])).length;
@@ -334,17 +369,35 @@ window.addEventListener("online", () => sync.flush());
 
 function needText(on) {
   $("#note").classList.toggle("need", on); $("#needtext").classList.toggle("hidden", !on);
-  $("#note").placeholder = on ? "Describe what you see (required)" : "Comment (optional) c";
+}
+// Typing changes nothing until the note is saved: with the button, by rating, or by leaving the tile.
+function noteState() {
+  const r = entry(), isOther = r.rating === "other", typed = $("#note").value.trim();
+  const dirty = isOther && typed !== (r.note || "");
+  $("#note").classList.toggle("hidden", !isOther);
+  needText(isOther && !typed);
+  $("#savenote").classList.toggle("hidden", !(isOther && typed));
+  $("#state").textContent = dirty ? "not saved yet" : done(r) ? "rated" : (isOther ? "needs text" : "");
+}
+function commitNote() {
+  saveNote(); const r = entry();
+  if (done(r)) return advance();
+  noteState(); $("#note").focus();
 }
 function rate(v) {
   const e = entry();
-  e.rating = v; e.seconds = Math.round((performance.now() - shownAt) / 100) / 10; e.at = new Date().toISOString();
-  saveNote(); store.save(); sync.push(DATA[i].id);
+  if (qc && v === e.rating && v !== "other") return qcStep(1);  // kept as it was
+  if (e.rating === "other" && v !== "other") { e.note = ""; $("#note").value = ""; }  // the text belonged to Other
+  e.rating = v; e.at = new Date().toISOString();
+  if (!qc || e.seconds == null) e.seconds = Math.round((performance.now() - shownAt) / 100) / 10;  // first-read time
+  store.save();
+  if (done(e)) sync.push(DATA[i].id);
   document.querySelectorAll(".rate").forEach(b => b.classList.toggle("on", b.dataset.v === v));
-  if (v === "other" && !done(e)) { needText(true); $("#state").textContent = "needs text"; $("#note").focus(); return; }
+  if (v === "other") { noteState(); $("#note").focus(); return; }
   advance();
 }
 function advance() {
+  if (qc) return qcStep(1);
   if (nRated() === DATA.length) { show(i); return finish(); }
   const nxt = DATA.findIndex((d, k) => k > i && !done(R[d.id]));
   show(nxt >= 0 ? nxt : i + 1);
@@ -353,11 +406,52 @@ function nextUnrated() { let k = DATA.findIndex((d, j) => j > i && !done(R[d.id]
   if (k < 0) k = DATA.findIndex(d => !done(R[d.id])); if (k >= 0) show(k); else finish(); }
 
 function finish() {
-  saveNote();
-  $("#review").classList.add("hidden"); $("#done").classList.remove("hidden");
+  saveNote(); qc = null;
+  $("#review").classList.add("hidden"); $("#qc").classList.add("hidden"); $("#done").classList.remove("hidden");
   const c = {}; DATA.forEach(d => { const v = (R[d.id] || {}).rating; if (v) c[v] = (c[v] || 0) + 1; });
-  $("#tally").innerHTML = CFG.ratings.map(([v,,n]) => `<span>${n}: ${c[v] || 0}</span>`).join("");
+  $("#tally").innerHTML = groupButtons(c);
 }
+
+// Check by group: a grid of one rating's tiles, then a walk through them. The list stays fixed while it is open, so a
+// tile whose rating changes stays in place, marked with its new rating.
+const groupCounts = () => { const c = {}; DATA.forEach(d => { const v = (R[d.id] || {}).rating; if (v) c[v] = (c[v] || 0) + 1; });
+  return c; };
+const groupButtons = (c, cur) => CFG.ratings.map(([v,,n]) =>
+  `<button data-v="${v}" class="${v === cur ? "on" : ""}" ${c[v] ? "" : "disabled"}>${n}: ${c[v] || 0}</button>`).join("");
+function openGroup(v) {
+  qc = {v, pos: 0, ids: DATA.map((d, k) => (R[d.id] || {}).rating === v ? k : -1).filter(k => k >= 0)};
+  qcGrid(); window.scrollTo(0, 0);
+}
+function qcGrid() {
+  saveNote();
+  if (!$("#review").classList.contains("hidden") && !done(entry())) { noteState(); $("#note").focus(); return; }
+  $("#done").classList.add("hidden"); $("#review").classList.add("hidden"); $("#qc").classList.remove("hidden");
+  $("#qctitle").textContent = `${NAMES[qc.v]} (${qc.ids.length})`;
+  $("#qctabs").innerHTML = groupButtons(groupCounts(), qc.v);
+  const grid = $("#qcgrid"); grid.textContent = "";
+  let current = null;
+  qc.ids.forEach((k, pos) => {
+    const d = DATA[k], now = (R[d.id] || {}).rating, b = document.createElement("button"), im = new Image(),
+      cap = document.createElement("span");
+    b.className = "qtile" + (now !== qc.v ? " moved" : ""); b.onclick = () => qcOpen(pos);
+    im.loading = "lazy"; im.alt = d.id; im.src = d.src;
+    cap.textContent = now !== qc.v ? `${d.id} → ${NAMES[now]}` : d.id;
+    b.append(im, cap); grid.append(b); if (pos === qc.pos) current = b;
+  });
+  if (current) current.scrollIntoView({block: "center"});
+}
+function qcOpen(pos) {
+  qc.pos = pos; $("#qc").classList.add("hidden"); $("#review").classList.remove("hidden"); show(qc.ids[pos]);
+}
+function qcStep(d) {
+  saveNote();
+  if (!done(entry())) { noteState(); $("#note").focus(); return; }  // Other still needs its text
+  const p = qc.pos + d;
+  if (p < 0) return;
+  if (p >= qc.ids.length) return qcGrid();
+  qc.pos = p; show(qc.ids[p]);
+}
+const move = d => { if (qc) qcStep(d); else show(i + d); };
 
 function csvCell(s) { s = String(s ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function download() {
@@ -401,30 +495,32 @@ $("#import").addEventListener("change", async e => {
 });
 
 document.querySelectorAll(".rate").forEach(b => b.onclick = () => rate(b.dataset.v));
-$("#prev").onclick = () => show(i - 1); $("#next").onclick = () => show(i + 1);
+$("#prev").onclick = () => move(-1); $("#next").onclick = () => move(1);
+$("#togroup").onclick = qcGrid; $("#qcdone").onclick = finish;
+for (const el of [$("#tally"), $("#qctabs")]) el.addEventListener("click", e => {
+  const b = e.target.closest("button[data-v]"); if (b && !b.disabled) openGroup(b.dataset.v); });
 $("#unrated").onclick = nextUnrated;
 $("#dl").onclick = download; $("#dl2").onclick = download;
 $("#back").onclick = () => { $("#done").classList.add("hidden"); $("#review").classList.remove("hidden"); show(0); };
 $("#img").onclick = () => $("#img").classList.toggle("zoom");
-$("#note").addEventListener("blur", saveNote);
-$("#note").addEventListener("input", () => { const r = entry(); if (r.rating === "other") {
-  saveNote(); const ok = done(r); needText(!ok); $("#state").textContent = ok ? "rated" : "needs text"; } });
+$("#note").addEventListener("input", noteState);
+$("#savenote").onclick = commitNote;
 
 document.addEventListener("keydown", e => {
+  if (!$("#qc").classList.contains("hidden")) { if (e.key === "Escape") finish(); return; }
   if ($("#review").classList.contains("hidden")) return;
   if (e.target.tagName === "TEXTAREA") {
     if (e.key === "Escape") e.target.blur();
-    else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(); e.target.blur();
-      const r = entry(); if (r.rating === "other" ? done(r) : r.rating) advance(); }
+    else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.target.blur(); commitNote(); }
     return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (KEYMAP[k]) { e.preventDefault(); rate(KEYMAP[k]); }
   else if (k === "z") { e.preventDefault(); $("#img").classList.toggle("zoom"); }
-  else if (k === "u") { e.preventDefault(); nextUnrated(); }
-  else if (e.key === "ArrowRight" || k === "j") { e.preventDefault(); show(i + 1); }
-  else if (e.key === "ArrowLeft" || k === "k") { e.preventDefault(); show(i - 1); }
-  else if (k === "c") { e.preventDefault(); $("#note").focus(); }
+  else if (k === "u" && !qc) { e.preventDefault(); nextUnrated(); }
+  else if (e.key === "Escape" && qc) { e.preventDefault(); qcGrid(); }
+  else if (e.key === "ArrowRight" || k === "j") { e.preventDefault(); move(1); }
+  else if (e.key === "ArrowLeft" || k === "k") { e.preventDefault(); move(-1); }
 });
 window.addEventListener("beforeunload", saveNote);
 sync.init();
@@ -480,8 +576,9 @@ def tally(rows: list) -> dict:
     c = Counter(r["rating"] for r in rows)
     f = lambda k: None if n == 0 else round(k / n, 3)  # noqa: E731
     return {"rated": len(rows), "assessable": n, "mvp": f(mvp), "necrosis": f(nec), "either": f(either),
-            "either_95ci": wilson(either, n), "artefact": c["artefact"], "other": c["other"],
-            "unassessable": c["unassessable"]}
+            "either_95ci": wilson(either, n), "gemistocytic": c["gemistocytic"],
+            "haemorrhage": c["haemorrhage"], "artefact": c["artefact"], "other": c["other"],
+            "unassessable": c["unassessable"], "unsure": c["unsure"]}
 
 
 def summary(a) -> int:
@@ -560,7 +657,7 @@ def main() -> int:
     b.add_argument("--top", type=int, default=None, help="top tiles per slide to include (default: all)")
     b.add_argument("--random", type=int, default=None, help="random tiles per slide to include (default: all)")
     b.add_argument("--seed", type=int, default=0, help="shuffle order; the same seed gives the same page")
-    b.add_argument("--title", default="Tile review: MVP and necrosis")
+    b.add_argument("--title", default="Neuropathology tile expert annotations")
     b.add_argument("--field-um", type=float, default=336.0, help="width of each field (3 tiles of 112 µm)")
     b.add_argument("--endpoint", help="Google Apps Script web app URL (tile_review_sheet.gs): ratings are sent there "
                                       "as they are made")

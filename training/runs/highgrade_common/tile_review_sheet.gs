@@ -14,7 +14,7 @@ const SHEET = 'ratings';
 // script.google.com, put the sheet's id here: the long code in its address, between /d/ and /edit.
 const SPREADSHEET_ID = '';
 const HEADER = ['received_at', 'rater', 'page_id', 'item', 'rating', 'note', 'seconds', 'rated_at', 'client'];
-const RATINGS = ['mvp', 'necrosis', 'both', 'neither', 'artefact', 'other', 'unassessable', ''];
+const RATINGS = ['mvp', 'necrosis', 'both', 'neither', 'gemistocytic', 'haemorrhage', 'artefact', 'other', 'unassessable', 'unsure', ''];
 
 function sheet_() {
   const book = SPREADSHEET_ID ? SpreadsheetApp.openById(SPREADSHEET_ID) : SpreadsheetApp.getActiveSpreadsheet();

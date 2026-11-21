@@ -88,14 +88,16 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
 - `tile-review.html` is one self-contained file (about 36 MB for 27 slides): send it, and it opens offline in any
   browser. The top and random tiles of every slide are shuffled together and renamed, so it shows no grade, slide,
   score or tile source. Keep `tile-review-key.csv` back.
-- One tile at a time: `m` MVP, `n` necrosis, `b` both, `0` neither, `a` artefact, `x` can't assess, or `t` other,
-  which opens a text box that must be filled in (Enter saves and moves on). Any tile can also take a comment (`c`).
+- One tile at a time: `1` MVP, `2` necrosis, `3` neither MVP/necrosis, `4` both MVP and necrosis, `5` gemistocytic, `6` haemorrhage, `7` artefact, `8` can't assess, `9` unsure, or `0` other / free text,
+  the only choice with a text box, which must be filled in (Save and next, or Cmd/Ctrl+Enter; plain Enter is a new line).
+  When every tile is rated, the finish page opens each rating group as a grid; a rater can walk through a group and
+  keep (same key) or change a rating. A change sends a new row, so the Sheet keeps the first answer too.
   Ratings stay in the browser as the rater goes and download as `ratings-<initials>.csv`; loading that file
   continues on another computer.
 - `summary` gives, per rater, the share of tiles with MVP or necrosis (95% Wilson interval) for grade 4 top,
   grade 4 random, grade 3 top and grade 3 random tiles; the same by rank (top 1-3, 4-6, 7-12); the share of slides
   with MVP or necrosis in any top tile; and Cohen's kappa between each pair of raters (all ratings, MVP or
-  necrosis, MVP, necrosis). Shares count only tiles rated MVP, necrosis, both or neither; artefact, other and can't assess
+  necrosis, MVP, necrosis). Shares count only tiles rated MVP, necrosis, both, neither, gemistocytic or haemorrhage (the last two count as no MVP and no necrosis, and are also counted on their own); artefact, can't assess, unsure and other
   are counted apart, and every typed text is listed with its tile. The grade model finds MVP and necrosis if grade 4 top tiles score well above grade 4
   random tiles and grade 3 top tiles.
 - **Collecting ratings online** (no CSV files to send back): ratings go to a Google Sheet you own, through
