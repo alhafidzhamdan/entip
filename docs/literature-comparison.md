@@ -56,6 +56,24 @@ pathology foundation model with attention over tiles; check each other paper's m
 architecture. Licences differ: DEPLOY and Neuropath-AI are non-commercial with a pending patent (WO2025165914A1);
 see `docs/data-sources.md`.
 
+## Related method outside CNS tumours
+
+**Pheno-MYCN** (Chai et al., bioRxiv preprint v2, 9 October 2026, not peer reviewed,
+[doi:10.64898/2026.08.20.745848](https://doi.org/10.64898/2026.08.20.745848); checked 2026-11-21). It is left out of
+the table above because it studies paediatric neuroblastoma, not a CNS classifier.
+
+- **Task and data.** Predicts MYCN amplification (binary, from FISH) on 189 H&E slides from 86 patients at one
+  centre (Great Ormond Street biobank): 49 amplified, 140 not; 68 primary, 121 relapse. No external test.
+- **Method.** Frozen UNI tile embeddings, an attention MIL branch for the slide label, and a Gaussian mixture branch
+  that groups tiles into 6 phenotypes, which experts then mapped to neuroblastoma morphology.
+- **Results.** Mean test accuracy 0.889, F1 0.873 and AUC 0.900 over ten hold-out splits of 9 test slides each.
+  Haemorrhagic and acellular necrosis clusters were enriched in amplified slides.
+- **Relevance to ENTIP.** The closest published pattern to the grade_mil tile review: weak slide labels, then expert
+  review of what the model picks out. Its phenotype clusters could complement ranking tiles by attention.
+- **Caution.** Splits are by slide, so one patient's slides can fall on both sides. The authors justify this because
+  status can differ within a patient (6 of 86) and report a check on fully held-out patients. ENTIP should still
+  split by patient.
+
 ## Data access for the studies above
 
 | Study | Slides available? |
@@ -64,3 +82,4 @@ see `docs/data-sources.md`.
 | DEPLOY | Its external tests include the DBTA (public, EBRAINS); other cohorts per the paper |
 | IPD-Brain | Yes, after registration (India Data DUA: research use; no commercial use without consent) |
 | DBTA | Yes, through EBRAINS after the Data Use Agreement (research only) |
+| Pheno-MYCN | Slides restricted (Great Ormond Street biobank; any access under a non-commercial agreement). Code is GPL-3.0 at github.com/cbhindex/pheno_mycn; weights are non-commercial, following UNI's terms |
