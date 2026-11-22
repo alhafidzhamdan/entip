@@ -112,6 +112,10 @@ automatically: the closest tiles and random controls go on one blinded page.
 qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_retrieve.sh
 ```
 
+`highgrade_common/eddie/mvp_head_similar.sh` retrains on every labelled tile, including the reviewed matches, in
+`tile-heads-similar1`. The matches were chosen for resembling MVP, so judge the head by `without_similar_tiles` in its
+`metrics.json`, and by the slide-level test.
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any

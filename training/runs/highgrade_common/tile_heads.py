@@ -18,7 +18,9 @@ neighbourhoods, as in ``highgrade_necrosis/export.py``.
 
 ``--recheck-key`` and ``--recheck-labels`` replace the first MVP labels with those of the high-power recheck:
 MVP is positive, vessel and no vessel are negative, and unsure is left out. ``--extra-key`` and ``--extra-labels`` add
-the labelled patients of ``highgrade_mvp/new_patients.py`` in the same way.
+the labelled patients of ``highgrade_mvp/new_patients.py`` in the same way, and ``--similar`` the reviewed tiles of
+``highgrade_mvp/retrieve.py``. Those were chosen for resembling MVP, so ``without_similar_tiles`` scores the head on
+the other tiles too.
 
 Each head is scored out of fold, with all of a patient's slides on one side, then refitted on every labelled tile.
 Writes ``<feature>/head.joblib``, ``oof.csv`` and ``metrics.json``. The review tiles were chosen by the grade model
@@ -172,7 +174,34 @@ def read_items(a, column: int) -> list:
                           "kind": k["kind"], "i": int(loc[item]["tile_index"]), "x": float(loc[item]["x_um"]),
                           "y": float(loc[item]["y_um"]), "label": int(FEATURE[rating[item]][column])})
     items = apply_recheck(items, a) if getattr(a, "recheck_key", None) else items
-    return add_new_patients(items, a) if getattr(a, "extra_key", None) else items
+    items = add_new_patients(items, a) if getattr(a, "extra_key", None) else items
+    return add_similar_tiles(items, a) if getattr(a, "similar", None) else items
+
+
+def add_similar_tiles(items: list, a) -> list:
+    """Adds reviewed tiles of ``highgrade_mvp/retrieve.py``. Their patients may already be in training; a held-out
+    patient or a tile already labelled is refused."""
+    if a.feature != "mvp":
+        raise SystemExit("--similar is for --feature mvp")
+    holdout, slots = read_patients(a.holdout), {(t["slide"], t["i"]) for t in items}
+    for key_path, label_path in a.similar:
+        key = {r["tile_code"]: r for r in csv.DictReader(open(key_path, newline=""))}
+        labels = {r["tile_code"]: (r["label"] or "").strip().lower() for r in csv.DictReader(open(label_path, newline=""))}
+        if set(key) != set(labels) or not set(labels.values()) <= {"m", "v", "0", "x"}:
+            raise SystemExit(f"{label_path} does not cover {key_path} with m, v, 0 or x")
+        for code, k in key.items():
+            slot = (k["slide"], int(k["tile_index"]))
+            if k["patient"] in holdout:
+                raise SystemExit(f"{code} comes from a held-out patient")
+            if slot in slots:
+                raise SystemExit(f"{code}: this tile is already labelled")
+            slots.add(slot)
+            if labels[code] != "x":
+                items.append({"item": code, "slide": k["slide"], "patient": k["patient"], "category": k["category"],
+                              "kind": f"similar-{k['source']}", "i": slot[1], "x": float(k["x_um"]),
+                              "y": float(k["y_um"]), "label": int(labels[code] == "m"), "recheck": labels[code],
+                              "weight": 1.0, "cohort": "similar"})
+    return items
 
 
 def add_new_patients(items: list, a) -> list:
@@ -228,10 +257,11 @@ PAIRS = (("mvp_vs_vessel", ("m",), ("v",)), ("mvp_vs_no_vessel", ("m",), ("0",))
          ("vessel_vs_no_vessel", ("v",), ("0",)), ("mvp_vs_rest", ("m",), ("v", "0")))
 
 
-def checked_scores(items: list, p: np.ndarray, seed: int, n: int = 2000) -> dict:
-    """Out-of-fold AUROC on every tile with a high-power label, overall and per category; 95% CI by patient."""
+def checked_scores(items: list, p: np.ndarray, seed: int, n: int = 2000, skip: str | None = None) -> dict:
+    """Out-of-fold AUROC on tiles with a high-power label (except cohort ``skip``), overall and per category; 95% CI
+    by patient."""
     from sklearn.metrics import roc_auc_score
-    idx = np.array([i for i, t in enumerate(items) if "recheck" in t])
+    idx = np.array([i for i, t in enumerate(items) if "recheck" in t and t.get("cohort", "first") != skip])
     lab, q = np.array([items[i]["recheck"] for i in idx]), p[idx]
     cats, pats = np.array([items[i]["category"] for i in idx]), np.array([items[i]["patient"] for i in idx])
 
@@ -379,6 +409,8 @@ def train(a) -> int:
     cat, kind = np.array([t["category"] for t in items]), np.array([t["kind"] for t in items])
     groups = {{"astro4": "grade 4", "astro3": "grade 3"}.get(c, c): cat == c for c in sorted(set(cat))}
     groups.update({"model-picked tiles": kind == "top", "random tiles": kind == "random"})
+    if (kind == "similar-near").any():
+        groups.update({"similar-tile matches": kind == "similar-near", "similar-tile controls": kind == "similar-control"})
     metrics = {"feature": a.feature, "status": "pilot: not validated", "rater": a.rater.upper(),
                "patients": len(set(pats)), "slides": len(bags), "folds": k, "folds_grouped_by": "patient",
                "context": list(context), "out_of_fold": {**score(y, p), **patient_ci(y, p, pats, a.seed)},
@@ -392,6 +424,8 @@ def train(a) -> int:
         metrics["new_patients"] = {"all": recheck_scores(items, p, a.seed, "new", note=note),
                                    **{c: recheck_scores(items, p, a.seed, "new", c, note=note) for c in new_cats}}
         metrics["all_high_power_labels"] = checked_scores(items, p, a.seed)
+    if any(t.get("cohort") == "similar" for t in items):
+        metrics["without_similar_tiles"] = checked_scores(items, p, a.seed, skip="similar")
     final = fit_head(feature, context, a.seed, bags, labels, bags)
     final.save(out / "head.joblib")
     metrics["final_head"] = {"model_id": final.model_id, "n_labels": final.n_labels, "validated": False}
@@ -425,6 +459,8 @@ def main() -> int:
     t.add_argument("--recheck-labels", help="labels CSV from the recheck page: these replace the first MVP labels")
     t.add_argument("--extra-key", help="key.csv from highgrade_mvp/new_patients.py (MVP only)")
     t.add_argument("--extra-labels", help="labels CSV for --extra-key: adds these patients to training")
+    t.add_argument("--similar", nargs=2, action="append", metavar=("KEY", "LABELS"),
+                   help="key and labels of a highgrade_mvp/retrieve.py round (MVP only, repeat)")
     t.add_argument("--folds", type=int, default=5)
     t.add_argument("--seed", type=int, default=0)
     t.set_defaults(fn=train)
