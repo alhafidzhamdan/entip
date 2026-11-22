@@ -102,7 +102,9 @@ def build(a) -> int:
 def page(title: str, page_id: str, data: list, field_um: float, endpoint: str | None = None) -> str:
     keys = "".join(f'<button type="button" class="rate" data-v="{v}" title="{html.escape(d)}">'
                    f'<kbd>{k}</kbd><span>{html.escape(n)}</span></button>' for v, k, n, d in RATINGS)
-    legend = "".join(f"<dt><kbd>{k}</kbd> {html.escape(n)}</dt><dd>{html.escape(d)}</dd>" for v, k, n, d in RATINGS)
+    legend = "".join(f"<dt><kbd>{k}</kbd> {html.escape(n)}</dt>"
+                     + (f'<dd class="mvpdef">Microvascular proliferation.{MVP_DEFINITION}</dd>' if v == "mvp"
+                        else f"<dd>{html.escape(d)}</dd>") for v, k, n, d in RATINGS)
     cfg = json.dumps({"page": page_id, "endpoint": endpoint or "", "ratings": [[v, k, n] for v, k, n, _ in RATINGS]})
     if endpoint:
         keep = ("Each rating is sent to the study team as you make it, so you can close the page at any time and "
@@ -220,7 +222,6 @@ cursor:pointer;text-align:left}
   <div class="card"><h2>What to call</h2><dl>%LEGEND%</dl>
   <p class="muted" style="margin:12px 0 0">Each field is %FIELD% µm across; the outlined tile is %TILE% µm. Click the image, or press
   <kbd>z</kbd>, to zoom.</p></div>
-  <div class="card mvpdef"><h2>What counts as MVP</h2>%MVPDEF%</div>
   <div class="card"><h2>Your initials</h2>
     <div class="row"><input type="text" id="initials" maxlength="6" autocomplete="off" placeholder="e.g. AH">
     <button class="btn primary" id="go" disabled>Start</button>
