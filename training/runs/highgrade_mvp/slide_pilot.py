@@ -8,8 +8,8 @@
 strongest focus as the slide score. Scores go only to ``private/key.csv``. ``review-pack.tar`` holds ``review.html`` and
 image tiles, with no slide name, patient, grade, metadata, label image or model output.
 
-**The review.** Pan and zoom each whole slide; call MVP present, absent or can't tell; shift-click one example if
-present. Calls stay in the browser and download as a CSV.
+**The review.** Pan and zoom each whole slide; call MVP present, absent or can't tell; outline any number of MVP areas
+freehand if present. Calls stay in the browser and download as a CSV, with the outlines in ``regions_um``.
 
 **compare** runs only when every case has a call. It reports how the score ranks present above absent slides, and
 sensitivity and specificity at cutoffs fixed in advance (``CUTOFFS``). This is a pilot: the cutoffs are not calibrated,
@@ -98,21 +98,23 @@ header{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 1
 h1{font-size:16px;font-weight:500;margin:0}button,input{font:inherit;font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
 button{cursor:pointer}button.on{background:var(--on);color:var(--ontext);border-color:var(--on)}kbd{font-size:11px;opacity:.7}
 #hint,#status{color:var(--muted);font-size:12px}#hint{padding:4px 12px;border-bottom:1px solid var(--line)}
-#wrap{flex:1;min-height:0;position:relative;background:#f4f2ee}canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+#wrap{flex:1;min-height:0;position:relative;background:#f4f2ee}canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}canvas.pen{cursor:crosshair}
 </style></head><body>
 <header><h1>MVP slide review</h1><label>Initials <input id="rater" size="5"></label>
 <button id="back">Back <kbd>b</kbd></button><strong id="where"></strong><button id="next">Next <kbd>n</kbd></button>
 <button class="call" data-v="present">MVP present <kbd>p</kbd></button><button class="call" data-v="absent">Absent <kbd>a</kbd></button>
 <button class="call" data-v="cant">Can't tell <kbd>c</kbd></button><button id="fit">Fit <kbd>f</kbd></button>
+<button id="pen">Draw MVP <kbd>d</kbd></button><button id="undo">Undo <kbd>u</kbd></button><button id="reset">Reset slide <kbd>r</kbd></button>
 <input id="note" placeholder="comment (optional)"><span id="status"></span><button id="dl">Download calls</button></header>
-<div id="hint">Search the whole slide. Drag to pan and scroll to zoom. If MVP is present, shift-click one clear example. Use the working definition: at least two layers of plump proliferating wall cells around a lumen, or a glomeruloid tuft.</div>
+<div id="hint">Search the whole slide. Drag to pan and scroll to zoom. If MVP is present, press d and draw around each area; hold space to pan while drawing. Use the working definition: at least two layers of plump proliferating wall cells around a lumen, or a glomeruloid tuft.</div>
 <div id="wrap"><canvas id="c"></canvas></div>
 <script>
 const D = __DATA__;
 const $ = id => document.getElementById(id), cv = $("c"), ctx = cv.getContext("2d");
 let st = {}; try { st = JSON.parse(localStorage.getItem(D.study) || "{}"); } catch (e) { st = {}; }
 st.calls = st.calls || {}; st.i = Math.min(st.i || 0, D.cases.length - 1);
-const save = () => { try { localStorage.setItem(D.study, JSON.stringify(st)); } catch (e) {} };
+let saved = true, penOn = false, pen = null, space = false;
+const save = () => { try { localStorage.setItem(D.study, JSON.stringify(st)); saved = true; } catch (e) { saved = false; } };
 const cache = new Map(); let v = {x: 0, y: 0, s: 1}, sets = [], since = performance.now(), queued = false;
 const cur = () => D.cases[st.i], rec = () => st.calls[cur().case] || (st.calls[cur().case] = {});
 function tick() { const n = performance.now(); rec().seconds = (rec().seconds || 0) + (n - since) / 1000; since = n; save(); }
@@ -131,32 +133,63 @@ function draw() { const c = cur(); ctx.fillStyle = "#f4f2ee"; ctx.fillRect(0, 0,
   const want = Math.max(0, Math.min(c.levels - 1, Math.floor(Math.log2(1 / (v.s * D.mpp)))));
   layer(c, c.levels - 1, true); for (let l = c.levels - 2; l > want; l--) layer(c, l, false); if (want < c.levels - 1) layer(c, want, true);
   const r = st.calls[c.case]; if (r && r.x != null) { const x = (r.x - v.x) * v.s, y = (r.y - v.y) * v.s;
-    ctx.lineWidth = 4; ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = "#0b4f9e"; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke(); } }
-function ui() { const r = rec(), done = D.cases.filter(c => (st.calls[c.case] || {}).call).length;
+    ctx.lineWidth = 4; ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = "#0b4f9e"; ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.stroke(); }
+  ((r && r.regions) || []).forEach((g, n) => { trace(g); ctx.closePath(); ctx.fillStyle = "rgba(11,79,158,.14)"; ctx.fill(); line();
+    const x = (g[0][0] - v.x) * v.s, y = (g[0][1] - v.y) * v.s; ctx.font = "600 13px system-ui,sans-serif"; ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.strokeText(n + 1, x + 5, y - 5); ctx.fillStyle = "#0b4f9e"; ctx.fillText(n + 1, x + 5, y - 5); });
+  if (pen) { trace(pen.pts); line(); } }
+function trace(g) { ctx.beginPath(); g.forEach((p, i) => { const x = (p[0] - v.x) * v.s, y = (p[1] - v.y) * v.s; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); }
+function line() { ctx.lineJoin = "round"; ctx.lineWidth = 4; ctx.strokeStyle = "#fff"; ctx.stroke(); ctx.lineWidth = 2; ctx.strokeStyle = "#0b4f9e"; ctx.stroke(); }
+function simplify(p, e) { const keep = new Set([0, p.length - 1]), todo = [[0, p.length - 1]];
+  while (todo.length) { const [a, b] = todo.pop(), dx = p[b][0] - p[a][0], dy = p[b][1] - p[a][1], l = Math.hypot(dx, dy); let far = -1, best = e;
+    for (let i = a + 1; i < b; i++) { const d = l ? Math.abs(dx * (p[a][1] - p[i][1]) - dy * (p[a][0] - p[i][0])) / l : Math.hypot(p[i][0] - p[a][0], p[i][1] - p[a][1]); if (d > best) { best = d; far = i; } }
+    if (far >= 0) { keep.add(far); todo.push([a, far], [far, b]); } }
+  return p.filter((_, i) => keep.has(i)).map(q => [+q[0].toFixed(1), +q[1].toFixed(1)]); }
+function area(g) { let t = 0; g.forEach((p, i) => { const q = g[(i + 1) % g.length]; t += p[0] * q[1] - q[0] * p[1]; }); return Math.abs(t) / 2; }
+function inside(g, x, y) { let o = false; for (let i = 0, j = g.length - 1; i < g.length; j = i++) if ((g[i][1] > y) !== (g[j][1] > y) && x < (g[j][0] - g[i][0]) * (y - g[i][1]) / (g[j][1] - g[i][1]) + g[i][0]) o = !o; return o; }
+function example(r) { if (!(r.regions || []).length) return r.x == null ? ["", ""] : [r.x.toFixed(1), r.y.toFixed(1)];
+  const g = r.regions[0], x = g.reduce((t, p) => t + p[0], 0) / g.length, y = g.reduce((t, p) => t + p[1], 0) / g.length, p = inside(g, x, y) ? [x, y] : g[0]; return [p[0].toFixed(1), p[1].toFixed(1)]; }
+function setPen(on) { penOn = on; pen = null; cv.classList.toggle("pen", on); $("pen").classList.toggle("on", on); redraw(); }
+function finish() { const g = simplify(pen.pts, 1 / v.s), big = g.length >= 3 && area(g) * v.s * v.s >= 36; pen = null;
+  if (big) { const r = rec(); r.regions = (r.regions || []).concat([g]); r.call = "present"; save(); ui(); } redraw(); }
+function undo() { const r = rec(); if (pen) pen = null; else if ((r.regions || []).length) { r.regions.pop(); if (!r.regions.length) delete r.regions; } else { delete r.x; delete r.y; } save(); ui(); redraw(); }
+function reset() { const r = rec(), n = (r.regions || []).length + (r.x == null ? 0 : 1); pen = null; if (!n || !confirm(`Remove all ${n} annotation${n > 1 ? "s" : ""} on this slide? The call stays as it is.`)) { redraw(); return; }
+  delete r.regions; delete r.x; delete r.y; save(); ui(); redraw(); }
+function ui() { const r = rec(), done = D.cases.filter(c => (st.calls[c.case] || {}).call).length, n = (r.regions || []).length;
   $("where").textContent = `Slide ${st.i + 1} of ${D.cases.length}`; $("note").value = r.comment || "";
   document.querySelectorAll(".call").forEach(b => b.classList.toggle("on", r.call === b.dataset.v));
-  $("status").textContent = `${done} of ${D.cases.length} called` + (r.call === "present" && r.x == null ? " | shift-click an example" : ""); }
-function show(i) { tick(); st.i = Math.max(0, Math.min(D.cases.length - 1, i)); save(); sets = []; const c = cur();
+  $("status").textContent = `${done} of ${D.cases.length} called` + (n ? ` | ${n} area${n > 1 ? "s" : ""} outlined` : r.call === "present" && r.x == null ? " | outline MVP with d" : "") + (saved ? "" : " | NOT SAVED: browser storage is full, download now"); }
+function show(i) { pen = null; tick(); st.i = Math.max(0, Math.min(D.cases.length - 1, i)); save(); sets = []; const c = cur();
   for (let l = 0; l < c.levels; l++) sets[l] = new Set(c.blocks[l].split(" ")); ui(); fit(); }
-function call(x) { const r = rec(); r.call = r.call === x ? undefined : x; if (r.call !== "present") { delete r.x; delete r.y; } save(); ui(); redraw(); }
+function call(x) { const r = rec(), next = r.call === x ? undefined : x, n = (r.regions || []).length;
+  if (next !== "present" && n && !confirm(`This removes ${n} outlined area${n > 1 ? "s" : ""} on this slide. Continue?`)) return;
+  r.call = next; if (next !== "present") { delete r.x; delete r.y; delete r.regions; } save(); ui(); redraw(); }
 document.querySelectorAll(".call").forEach(b => b.onclick = () => call(b.dataset.v));
 $("back").onclick = () => show(st.i - 1); $("next").onclick = () => show(st.i + 1); $("fit").onclick = fit;
+$("pen").onclick = () => setPen(!penOn); $("undo").onclick = undo; $("reset").onclick = reset;
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("button"); if (b) b.blur(); });
 $("rater").value = st.rater || ""; $("rater").oninput = e => { st.rater = e.target.value.trim(); save(); };
 $("note").oninput = e => { rec().comment = e.target.value; save(); };
 let drag = null;
-cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); drag = {x: e.offsetX, y: e.offsetY, vx: v.x, vy: v.y, moved: false, shift: e.shiftKey}; };
-cv.onpointermove = e => { if (!drag) return; const dx = e.offsetX - drag.x, dy = e.offsetY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); if (penOn && !space && !e.shiftKey && e.button === 0) { pen = {pts: [[v.x + e.offsetX / v.s, v.y + e.offsetY / v.s]], px: e.offsetX, py: e.offsetY}; return; }
+  drag = {x: e.offsetX, y: e.offsetY, vx: v.x, vy: v.y, moved: false, shift: e.shiftKey}; };
+cv.onpointercancel = () => { pen = null; drag = null; redraw(); };
+cv.onpointermove = e => { if (pen) { if (Math.hypot(e.offsetX - pen.px, e.offsetY - pen.py) >= 2) { pen.px = e.offsetX; pen.py = e.offsetY; pen.pts.push([v.x + e.offsetX / v.s, v.y + e.offsetY / v.s]); redraw(); } return; }
+  if (!drag) return; const dx = e.offsetX - drag.x, dy = e.offsetY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
   if (drag.moved && !drag.shift) { v.x = drag.vx - dx / v.s; v.y = drag.vy - dy / v.s; redraw(); } };
-cv.onpointerup = e => { if (drag && drag.shift && !drag.moved) { const r = rec(); r.call = "present"; r.x = v.x + e.offsetX / v.s; r.y = v.y + e.offsetY / v.s; save(); ui(); redraw(); } drag = null; };
+cv.onpointerup = e => { if (pen) { finish(); return; } if (drag && drag.shift && !drag.moved) { const r = rec(); r.call = "present"; r.x = v.x + e.offsetX / v.s; r.y = v.y + e.offsetY / v.s; save(); ui(); redraw(); } drag = null; };
 function zoom(f, px, py) { const s = Math.max(.002, Math.min(8 / D.mpp, v.s * f)), x = v.x + px / v.s, y = v.y + py / v.s; v.s = s; v.x = x - px / s; v.y = y - py / s; redraw(); }
 cv.addEventListener("wheel", e => { e.preventDefault(); zoom(Math.exp(-e.deltaY * .0016), e.offsetX, e.offsetY); }, {passive: false});
-document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey || e.altKey) return; const k = e.key.toLowerCase(), m = 90 / v.s;
-  if (k === "p") call("present"); else if (k === "a") call("absent"); else if (k === "c") call("cant"); else if (k === "n") show(st.i + 1); else if (k === "b") show(st.i - 1); else if (k === "f") fit();
+addEventListener("keyup", e => { if (e.code === "Space") space = false; }); addEventListener("blur", () => { space = false; });
+document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return; const k = e.key.toLowerCase(), m = 90 / v.s;
+  if ((e.metaKey || e.ctrlKey) && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; } if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.code === "Space") { e.preventDefault(); space = true; } else if (k === "escape") { if (pen) { pen = null; redraw(); } else if (penOn) setPen(false); }
+  else if (k === "d") setPen(!penOn); else if (k === "u") undo(); else if (k === "r") reset();
+  else if (k === "p") call("present"); else if (k === "a") call("absent"); else if (k === "c") call("cant"); else if (k === "n") show(st.i + 1); else if (k === "b") show(st.i - 1); else if (k === "f") fit();
   else if (k === "+" || k === "=") zoom(1.4, cv.clientWidth / 2, cv.clientHeight / 2); else if (k === "-") zoom(1 / 1.4, cv.clientWidth / 2, cv.clientHeight / 2);
   else if (k === "arrowleft") { v.x -= m; redraw(); } else if (k === "arrowright") { v.x += m; redraw(); } else if (k === "arrowup") { v.y -= m; redraw(); } else if (k === "arrowdown") { v.y += m; redraw(); } });
 $("dl").onclick = () => { tick(); if (!st.rater) { alert("Enter your initials first"); $("rater").focus(); return; }
-  const q = s => '"' + String(s == null ? "" : s).replace(/"/g, '""') + '"', rows = [["rater", "case", "call", "example_x_um", "example_y_um", "seconds", "comment"]];
-  D.cases.forEach(c => { const r = st.calls[c.case] || {}; rows.push([st.rater, c.case, r.call || "", r.x == null ? "" : r.x.toFixed(1), r.y == null ? "" : r.y.toFixed(1), r.seconds ? r.seconds.toFixed(1) : "", r.comment || ""]); });
+  const q = s => '"' + String(s == null ? "" : s).replace(/"/g, '""') + '"', rows = [["rater", "case", "call", "example_x_um", "example_y_um", "seconds", "comment", "n_regions", "regions_um"]];
+  D.cases.forEach(c => { const r = st.calls[c.case] || {}, p = example(r), g = r.regions || []; rows.push([st.rater, c.case, r.call || "", p[0], p[1], r.seconds ? r.seconds.toFixed(1) : "", r.comment || "", g.length, g.length ? JSON.stringify(g) : ""]); });
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(",")).join("\n") + "\n"], {type: "text/csv"})); a.download = `slide-calls-${st.rater}.csv`; a.click(); };
 addEventListener("resize", size); size(); sets = []; for (let l = 0; l < cur().levels; l++) sets[l] = new Set(cur().blocks[l].split(" ")); ui(); fit();
 </script></body></html>
@@ -280,7 +313,8 @@ def compare(a) -> int:
         rows.append(r)
     used = [r for r in rows if r["call"] != "cant"]
     res = {"status": "pilot: not validated, cutoffs not calibrated", "head_id": rows[0]["head_id"],
-           "head_sha256": rows[0]["head_sha256"], "cant_tell": len(rows) - len(used), "all": summarise(used, a.seed),
+           "head_sha256": rows[0]["head_sha256"], "calls_sha256": hashlib.sha256(Path(a.calls).read_bytes()).hexdigest(),
+           "cant_tell": len(rows) - len(used), "all": summarise(used, a.seed),
            "by_category": {c: summarise([r for r in used if r["category"] == c], a.seed)
                            for c in sorted({r["category"] for r in used})},
            "clicked_examples_inside_a_top_10_focus": {"hits": hits, "clicked": clicked}}

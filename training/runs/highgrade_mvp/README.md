@@ -129,6 +129,15 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
 Copy only `review-pack.tar` to review. Keep `private/` on Eddie until the calls are final. The cutoffs are not
 calibrated, so this is a pilot and not a clinical threshold.
 
+After `compare`, `slide_reveal.py` scores where the frozen head points against the reader's outlines and writes
+`reveal/reveal.html`, an overlay of the heatmap, model areas and outlines. It runs once and refuses any calls file other
+than the one `compare` locked. Its rules are in the script. Outline every MVP area, because a model area outside
+incomplete outlines is not a true false alarm. Copy `reveal.html` into the local `review-pack/` so it can load the tiles.
+
+```bash
+qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_slide_reveal.sh
+```
+
 ## Report-derived slide labels
 
 `report_labels.py` tests whether TCGA pathology reports can supply case-level MVP labels. This is a fresh slide-level
