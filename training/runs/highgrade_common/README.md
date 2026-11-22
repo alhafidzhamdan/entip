@@ -23,6 +23,7 @@ What they share:
 - `grade_mil.py`: a grade 4 vs grade 3 attention model, used only to pick tiles (see below).
 - `rate_tiles.py`: a blinded, one-tile-at-a-time review of the grade model's tiles for pathologists, and its
   summary (see below).
+- `tile_heads.py`: separate MVP and necrosis heads from the tile review ratings (see below).
 - `outlines.py`: QuPath GeoJSON (outlines and points) to tile hits, and the check image.
 
 ## Free negatives
@@ -122,10 +123,26 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
   browser starts empty and the summary ignores earlier rounds. Back up the old key first, keep passing the same
   `--round` on later rebuilds, and send raters the new file.
 - The fields are 336 µm across at the embedding's magnification (about 0.9 µm per pixel), enough for necrosis but
-  coarse for MVP. The ratings are not training labels: the view key has no tile coordinates.
+  coarse for MVP. The view key has no tile coordinates; `tile_heads.py locate` recovers them to train on the ratings.
 - TCGA has few grade 4 IDH-mutant astrocytomas (about 22 patients with slides in the stage-A set, against about
   100 grade 3). `--positive astro4 gbm` adds glioblastomas, at the cost of IDH-wildtype features unrelated to MVP
   or necrosis.
+
+## Tile heads from the review ratings
+
+`tile_heads.py` trains an MVP head and a necrosis head separately on the ratings of one rater.
+
+```bash
+python training/runs/highgrade_common/tile_heads.py locate --key $R/tile-review-key-round2.csv --tiles $BASE/runs/highgrade/grade-mil/tiles --bags $W/bags-h-optimus-0 --slides $W/slides --out $BASE/runs/highgrade/tile-heads-r2
+python training/runs/highgrade_common/tile_heads.py train --feature mvp --key $R/tile-review-key-round2.csv --ratings $R/ratings-AH-round2-standard.csv --rater AH --locations $BASE/runs/highgrade/tile-heads-r2/tile-locations.csv --bags $W/bags-h-optimus-0 --out $BASE/runs/highgrade/tile-heads-r2
+python training/runs/highgrade_common/tile_heads.py train --feature necrosis --key $R/tile-review-key-round2.csv --ratings $R/ratings-AH-round2-standard.csv --rater AH --locations $BASE/runs/highgrade/tile-heads-r2/tile-locations.csv --bags $W/bags-h-optimus-0 --out $BASE/runs/highgrade/tile-heads-r2
+```
+
+- `locate` matches each saved review image to its tile, and writes nothing unless every tile matches clearly.
+- `train` scores the head out of fold with each patient on one side, then refits on all labelled tiles.
+- Artefact, can't assess, unsure and other are left out. Gemistocytic, haemorrhage and neither are negatives.
+- These are pilot heads: the tiles were chosen by the grade model. They stay unvalidated until tested on held-out
+  patients whose tiles were chosen independently of the model.
 
 ## For every module
 
