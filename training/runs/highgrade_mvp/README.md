@@ -84,6 +84,9 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
 - Each tile is labelled MVP, vessel without MVP, no vessel, or unsure / not assessable, with the keys `export.py` reads.
 - `labels.html` is self-contained. Copy only that file to your Mac and keep `key.csv` back: it holds the slide, grade,
   earlier rating and score.
+- `highgrade_common/eddie/mvp_head_recheck.sh` retrains the MVP head with these labels in `tile-heads-r2-recheck1`.
+  Its `metrics.json` scores the first and retrained heads on the rechecked tiles. The hard negatives were chosen by the
+  first head, so that comparison favours the retrained one.
 
 ## Not built yet
 
