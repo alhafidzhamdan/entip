@@ -78,7 +78,10 @@ def build(a) -> int:
     width = len(str(len(items)))
     for i, it in enumerate(items, start=1):
         it["item"] = f"T{i:0{width}d}"
-    page_id = hashlib.sha1("|".join(f"{it['item']}={it['src'].name}" for it in items).encode()).hexdigest()[:12]
+    id_text = "|".join(f"{it['item']}={it['src'].name}" for it in items)
+    if a.round > 1:  # a new round has a new page id, so browsers start empty and the summary ignores earlier rounds
+        id_text = f"round{a.round}|{id_text}"
+    page_id = hashlib.sha1(id_text.encode()).hexdigest()[:12]
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -680,6 +683,7 @@ def main() -> int:
     b.add_argument("--top", type=int, default=None, help="top tiles per slide to include (default: all)")
     b.add_argument("--random", type=int, default=None, help="random tiles per slide to include (default: all)")
     b.add_argument("--seed", type=int, default=0, help="shuffle order; the same seed gives the same page")
+    b.add_argument("--round", type=int, default=1, help="review round: same tiles and order, every rater starts empty")
     b.add_argument("--title", default="Neuropathology tile expert annotations")
     b.add_argument("--field-um", type=float, default=336.0, help="width of each field (3 tiles of 112 µm)")
     b.add_argument("--endpoint", help="Google Apps Script web app URL (tile_review_sheet.gs): ratings are sent there "

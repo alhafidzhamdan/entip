@@ -118,6 +118,9 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
     `<URL>?check=1` says whether the script can reach its sheet. Anyone with the page can add rows to the sheet;
     only the key reads them back.
   - Reviewers are told by their initials, so two people with the same initials are merged: give each a code.
+- **Starting a new round:** `build --round 2` keeps the same tiles and numbers but gives the page a new id, so every
+  browser starts empty and the summary ignores earlier rounds. Back up the old key first, keep passing the same
+  `--round` on later rebuilds, and send raters the new file.
 - The fields are 336 µm across at the embedding's magnification (about 0.9 µm per pixel), enough for necrosis but
   coarse for MVP. The ratings are not training labels: the view key has no tile coordinates.
 - TCGA has few grade 4 IDH-mutant astrocytomas (about 22 patients with slides in the stage-A set, against about
