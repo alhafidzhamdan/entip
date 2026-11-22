@@ -29,7 +29,7 @@ else
   # Each worker reads one slide, so its maths libraries use one core.
   OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
     python "$TOOL" locate --workers "${NSLOTS:-1}" --key "$KEY" --tiles "$H/grade-mil/tiles" \
-    --bags "$S/bags-h-optimus-0" --slides "$S/slides" --out "$OUT"
+    --bags "$S/bags-h-optimus-0" --slides "$S/slides" --out "$OUT" --leave-out T106 T313  # both rated artefact
 fi
 
 python "$TOOL" train --feature mvp --key "$KEY" --ratings "$RATINGS" --rater AH \

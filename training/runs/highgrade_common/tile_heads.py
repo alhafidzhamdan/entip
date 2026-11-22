@@ -8,7 +8,8 @@
 
 **locate.** The review key has no tile coordinates, so each saved image is matched back to its slide: a coarse search
 over every tile in the bag, then an exact re-crop of the best candidates. Nothing is written unless all tiles match
-clearly; otherwise ``tile-locations-failed.csv`` lists those that did not.
+clearly; otherwise ``tile-locations-failed.csv`` lists those that did not. ``--leave-out`` names tiles allowed not to
+match; ``train`` refuses if any of them has a rating it would use.
 
 **train.** The rating applies to the outlined tile. MVP head: ``mvp`` / ``both`` are positive; necrosis head:
 ``necrosis`` / ``both`` are positive. ``neither``, ``gemistocytic``, ``haemorrhage`` and the other feature are
@@ -43,8 +44,12 @@ FIELD_PX = 48       # a 3 x 3 field in the one low-power read of the slide
 COARSE_PX = 16      # the same field in the first pass over every tile
 CANDIDATES = 40     # tiles compared at FIELD_PX for each image
 EXACT = 3           # tiles re-cropped from the slide for each image: slide reads are the slow part
-MAX_MAD = 8.0       # largest mean absolute pixel difference (0-255) for a match; JPEG alone gives a few
-MIN_GAP = 2.0       # the best match must beat the next by this much
+MAX_MAD = 12.0      # largest mean absolute pixel difference (0-255) for a match; JPEG alone gives up to about 9
+MIN_RATIO = 2.0     # the next-best tile must differ at least this many times more than the match
+
+
+def clear_match(mad: float, next_mad: float) -> bool:
+    return mad <= MAX_MAD and next_mad >= MIN_RATIO * mad
 
 
 def _unit(a: np.ndarray) -> np.ndarray:
@@ -91,7 +96,7 @@ def locate_slide(rd, bag, rows: list, tiles: Path) -> list:
         nxt = mads[order[1]] if len(order) > 1 else float("inf")
         out.append({"item": r["item"], "slide": r["slide"], "tile_index": i, "x_um": float(bag.coords_um[i, 0]),
                     "y_um": float(bag.coords_um[i, 1]), "tile_um": bag.tile_um, "mad": round(mad, 3),
-                    "next_mad": round(nxt, 3), "ok": int(mad <= MAX_MAD and nxt - mad >= MIN_GAP)})
+                    "next_mad": round(nxt, 3), "ok": int(clear_match(mad, nxt))})
     used = [o["tile_index"] for o in out]
     if len(set(used)) < len(used):        # two images on one tile: neither can be trusted
         for o in out:
@@ -122,13 +127,16 @@ def locate(a) -> int:
     found.sort(key=lambda f: f["item"])
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    bad = [f for f in found if not f["ok"]]
+    unmatched = [f for f in found if not f["ok"]]
+    bad = [f for f in unmatched if f["item"] not in set(a.leave_out)]
     name = "tile-locations-failed.csv" if bad else "tile-locations.csv"
     with (out / name).open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(found[0]))
         w.writeheader()
         w.writerows(bad or found)
-    print(json.dumps({"tiles": len(found), "matched": len(found) - len(bad), "worst_mad": max(f["mad"] for f in found),
+    print(json.dumps({"tiles": len(found), "matched": len(found) - len(unmatched),
+                      "left_out": [f["item"] for f in unmatched if f not in bad],
+                      "worst_matched_mad": max(f["mad"] for f in found if f["ok"]),
                       "written": str(out / name)}, indent=2))
     if bad:
         raise SystemExit(f"{len(bad)} tiles did not match clearly: no locations written")
@@ -152,6 +160,8 @@ def read_items(a, column: int) -> list:
     items = []
     for item, k in key.items():
         if rating[item] in FEATURE and k["patient"] not in holdout:
+            if not int(loc[item]["ok"]):
+                raise SystemExit(f"{item} is rated {rating[item]} but has no clear location: it cannot be left out")
             if loc[item]["slide"] != k["slide"]:
                 raise SystemExit(f"{item}: key and locations name different slides")
             items.append({"item": item, "slide": k["slide"], "patient": k["patient"], "category": k["category"],
@@ -265,6 +275,7 @@ def main() -> int:
     b.add_argument("--slides", required=True)
     b.add_argument("--out", required=True)
     b.add_argument("--workers", type=int, help="slides read at once (default: the job's cores)")
+    b.add_argument("--leave-out", nargs="*", default=[], help="review items allowed not to match (rated unusable)")
     b.set_defaults(fn=locate)
     t = sub.add_parser("train", help="fit and score one head")
     t.add_argument("--feature", required=True, choices=sorted(HEADS))

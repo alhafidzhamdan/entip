@@ -146,6 +146,7 @@ python training/runs/highgrade_common/tile_heads.py train --feature necrosis --k
 ```
 
 - `locate` matches each saved review image to its tile, and writes nothing unless every tile matches clearly.
+  `--leave-out` names tiles allowed not to match; `train` refuses if any of them has a rating it would use.
 - `train` scores the head out of fold with each patient on one side, then refits on all labelled tiles.
 - Artefact, can't assess, unsure and other are left out. Gemistocytic, haemorrhage and neither are negatives.
 - These are pilot heads: the tiles were chosen by the grade model. They stay unvalidated until tested on held-out
