@@ -42,7 +42,7 @@ ZENODO_FILES = {"MIDOGpp_subtyping.json": "08eab113df290ec40492981e3dbf0b46",
                 "Lung_mito_extended.zip": "477ae480b36d2db3175ed5a02101d34d"}
 ROLE = {1: "ignore", 2: "pos", 3: "pos", 4: "pos", 5: "pos", 6: "neg", 7: "pos"}
 UNSEEN = {"human melanoma", "human neuroendocrine tumor"}
-LUNG_MEMBER = re.compile(r"^Lung_mito_extended/(\d{6}\.png|Lung_mito_extended\.json)$")
+LUNG_MEMBER = re.compile(r"^(Lung_mito_extended/\d{6}\.png|Lung_mito_extended\.json)$")
 
 
 def md5(path: Path) -> str:
