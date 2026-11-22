@@ -129,6 +129,21 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
 Copy only `review-pack.tar` to review. Keep `private/` on Eddie until the calls are final. The cutoffs are not
 calibrated, so this is a pilot and not a clinical threshold.
 
+## Report-derived slide labels
+
+`report_labels.py` tests whether TCGA pathology reports can supply case-level MVP labels. This is a fresh slide-level
+run, so it includes the patients reserved for the tile-head pilot. It downloads open-access reports, uses OCR where
+needed, and labels each case by rule as present, absent, unclear or not mentioned. "Not mentioned" is never treated as
+absent. No report text goes to an external AI.
+
+```bash
+bash /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_reports_submit.sh
+```
+
+`report-check.json` gives coverage and agreement with reviewed tiles. `private/review-sample.csv` is the sample for
+blinded slide review. Report labels are unproven until that review. Commercial use is a project assumption, not a
+confirmed licence. See [the plan](../../../docs/glioma-workflow/end-to-end-plan.md).
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any
