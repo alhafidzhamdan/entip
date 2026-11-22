@@ -98,6 +98,10 @@ frozen head and add MVP patients for the next retraining. `key.csv` weights each
 qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_new_patients.sh
 ```
 
+`highgrade_common/eddie/mvp_head_pooled.sh` then retrains on every labelled patient. It first runs `reserve_test.py`,
+which draws fresh patients at random, with no model, into `mvp-final-test/patients.csv`. They are never trained on and
+are kept for the slide-level test. Once used for training, the new patients no longer count as an independent test.
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any

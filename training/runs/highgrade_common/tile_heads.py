@@ -17,7 +17,8 @@ negative; artefact, can't assess, unsure and other are left out. The necrosis he
 neighbourhoods, as in ``highgrade_necrosis/export.py``.
 
 ``--recheck-key`` and ``--recheck-labels`` replace the first MVP labels with those of the high-power recheck:
-MVP is positive, vessel and no vessel are negative, and unsure is left out.
+MVP is positive, vessel and no vessel are negative, and unsure is left out. ``--extra-key`` and ``--extra-labels`` add
+the labelled patients of ``highgrade_mvp/new_patients.py`` in the same way.
 
 Each head is scored out of fold, with all of a patient's slides on one side, then refitted on every labelled tile.
 Writes ``<feature>/head.joblib``, ``oof.csv`` and ``metrics.json``. The review tiles were chosen by the grade model
@@ -170,7 +171,35 @@ def read_items(a, column: int) -> list:
             items.append({"item": item, "slide": k["slide"], "patient": k["patient"], "category": k["category"],
                           "kind": k["kind"], "i": int(loc[item]["tile_index"]), "x": float(loc[item]["x_um"]),
                           "y": float(loc[item]["y_um"]), "label": int(FEATURE[rating[item]][column])})
-    return apply_recheck(items, a) if getattr(a, "recheck_key", None) else items
+    items = apply_recheck(items, a) if getattr(a, "recheck_key", None) else items
+    return add_new_patients(items, a) if getattr(a, "extra_key", None) else items
+
+
+def add_new_patients(items: list, a) -> list:
+    """Adds the labelled tiles of ``highgrade_mvp/new_patients.py``; refuses a patient already used or held out."""
+    if a.feature != "mvp" or not a.extra_labels:
+        raise SystemExit("--extra-key needs --extra-labels and --feature mvp")
+    key = {r["tile_code"]: r for r in csv.DictReader(open(a.extra_key, newline=""))}
+    labels = {r["tile_code"]: (r["label"] or "").strip().lower()
+              for r in csv.DictReader(open(a.extra_labels, newline=""))}
+    if set(key) != set(labels) or not set(labels.values()) <= {"m", "v", "0", "x"}:
+        raise SystemExit("the new-patient labels do not cover their key with m, v, 0 or x")
+    used, holdout = {t["patient"] for t in items}, read_patients(a.holdout)
+    clash = ({k["patient"] for k in key.values()} & used) | ({k["patient"] for k in key.values()} & holdout)
+    if clash:
+        raise SystemExit(f"{len(clash)} new patients are already in training or held out")
+    seen = set()
+    for code, k in key.items():
+        slot = (k["slide"], int(k["tile_index"]))
+        if slot in seen:
+            raise SystemExit(f"{code}: this tile is in the key twice")
+        seen.add(slot)
+        if labels[code] != "x":
+            items.append({"item": code, "slide": k["slide"], "patient": k["patient"], "category": k["category"],
+                          "kind": f"new-{k['source']}", "i": slot[1], "x": float(k["x_um"]), "y": float(k["y_um"]),
+                          "label": int(labels[code] == "m"), "recheck": labels[code], "old_p": float(k["p_frozen"]),
+                          "weight": 1.0, "cohort": "new"})
+    return items
 
 
 def apply_recheck(items: list, a) -> list:
@@ -195,10 +224,49 @@ def apply_recheck(items: list, a) -> list:
     return [t for t in items if t.get("recheck") != "x"]
 
 
-def recheck_scores(items: list, p: np.ndarray, seed: int, n: int = 2000) -> dict:
-    """First and retrained head on the rechecked tiles, weighted back to all rated tiles; 95% CI by patient."""
+PAIRS = (("mvp_vs_vessel", ("m",), ("v",)), ("mvp_vs_no_vessel", ("m",), ("0",)),
+         ("vessel_vs_no_vessel", ("v",), ("0",)), ("mvp_vs_rest", ("m",), ("v", "0")))
+
+
+def checked_scores(items: list, p: np.ndarray, seed: int, n: int = 2000) -> dict:
+    """Out-of-fold AUROC on every tile with a high-power label, overall and per category; 95% CI by patient."""
     from sklearn.metrics import roc_auc_score
-    idx = [i for i, t in enumerate(items) if "recheck" in t]
+    idx = np.array([i for i, t in enumerate(items) if "recheck" in t])
+    lab, q = np.array([items[i]["recheck"] for i in idx]), p[idx]
+    cats, pats = np.array([items[i]["category"] for i in idx]), np.array([items[i]["patient"] for i in idx])
+
+    def auc(ids, pos, neg):
+        ids = ids[np.isin(lab[ids], list(pos + neg))]
+        y = np.isin(lab[ids], list(pos)).astype(int)
+        return None if len(set(y)) < 2 else float(roc_auc_score(y, q[ids]))
+
+    out, rng = {}, np.random.default_rng(seed)
+    for group in ("all", *sorted(set(cats))):
+        mask = np.ones(len(idx), bool) if group == "all" else cats == group
+        by = defaultdict(list)
+        for j in np.flatnonzero(mask):
+            by[pats[j]].append(j)
+        names, res = sorted(by), {"patients": len(by), "labels": {k: int((lab[mask] == k).sum()) for k in "mv0"}}
+        for name, pos, neg in PAIRS:
+            value = auc(np.flatnonzero(mask), pos, neg)
+            draws = []
+            for _ in range(n if value is not None else 0):
+                got = auc(np.concatenate([by[names[j]] for j in rng.integers(len(names), size=len(names))]), pos, neg)
+                if got is not None:
+                    draws.append(got)
+            res[name] = {"auroc": None if value is None else round(value, 3), "ci95": [
+                round(float(v), 3) for v in np.percentile(draws, [2.5, 97.5])] if draws else None}
+        out[group] = res
+    return out
+
+
+def recheck_scores(items: list, p: np.ndarray, seed: int, cohort: str = "first", category: str | None = None,
+                   note: str = "hard negatives were chosen by the first head, so the comparison favours the retrained "
+                               "head", n: int = 2000) -> dict:
+    """Earlier and retrained head on the same tiles of one cohort, with the change's 95% CI by patient."""
+    from sklearn.metrics import roc_auc_score
+    idx = [i for i, t in enumerate(items) if "recheck" in t and t.get("cohort", "first") == cohort
+           and (category is None or t["category"] == category)]
     lab = np.array([items[i]["recheck"] for i in idx])
     old, new = np.array([items[i]["old_p"] for i in idx]), p[idx]
     w = np.array([items[i]["weight"] for i in idx])
@@ -213,18 +281,19 @@ def recheck_scores(items: list, p: np.ndarray, seed: int, n: int = 2000) -> dict
         return None if len(set(y)) < 2 else float(roc_auc_score(y, q[ids], sample_weight=w[ids]))
 
     every = np.arange(len(idx))
-    for name, pos, neg in (("mvp_vs_vessel", ("m",), ("v",)), ("mvp_vs_no_vessel", ("m",), ("0",)),
-                           ("vessel_vs_no_vessel", ("v",), ("0",)), ("mvp_vs_rest", ("m",), ("v", "0"))):
+    for name, pos, neg in PAIRS:
+        first, again = auc(every, old, pos, neg), auc(every, new, pos, neg)
         diffs = []
-        for _ in range(n):
+        for _ in range(n if first is not None else 0):
             ids = np.concatenate([by[names[j]] for j in rng.integers(len(names), size=len(names))])
             a0, a1 = auc(ids, old, pos, neg), auc(ids, new, pos, neg)
             if a0 is not None and a1 is not None:
                 diffs.append(a1 - a0)
-        out[name] = {"first_head": round(auc(every, old, pos, neg), 3), "retrained": round(auc(every, new, pos, neg), 3),
-                     "change_95ci": [round(float(v), 3) for v in np.percentile(diffs, [2.5, 97.5])]}
+        out[name] = {"first_head": None if first is None else round(first, 3),
+                     "retrained": None if again is None else round(again, 3),
+                     "change_95ci": [round(float(v), 3) for v in np.percentile(diffs, [2.5, 97.5])] if diffs else None}
     out["labels"] = {k: int((lab == k).sum()) for k in ("m", "v", "0", "x")}
-    out["note"] = "hard negatives were chosen by the first head, so the comparison favours the retrained head"
+    out["note"] = note
     return out
 
 
@@ -308,15 +377,21 @@ def train(a) -> int:
             w.writerow([t["item"], t["slide"], t["patient"], t["category"], t["kind"], t["label"], round(float(q), 5),
                         int(n)])
     cat, kind = np.array([t["category"] for t in items]), np.array([t["kind"] for t in items])
-    groups = {"grade 4": cat == "astro4", "grade 3": cat == "astro3", "model-picked tiles": kind == "top",
-              "random tiles": kind == "random"}
+    groups = {{"astro4": "grade 4", "astro3": "grade 3"}.get(c, c): cat == c for c in sorted(set(cat))}
+    groups.update({"model-picked tiles": kind == "top", "random tiles": kind == "random"})
     metrics = {"feature": a.feature, "status": "pilot: not validated", "rater": a.rater.upper(),
                "patients": len(set(pats)), "slides": len(bags), "folds": k, "folds_grouped_by": "patient",
                "context": list(context), "out_of_fold": {**score(y, p), **patient_ci(y, p, pats, a.seed)},
                "by_group": {name: score(y[m], p[m]) for name, m in groups.items()},
                "positive_patients": len(set(pats[y == 1]))}
-    if any("recheck" in t for t in items):
+    if any("recheck" in t and t.get("cohort", "first") == "first" for t in items):
         metrics["recheck"] = recheck_scores(items, p, a.seed)
+    new_cats = sorted({t["category"] for t in items if t.get("cohort") == "new"})
+    if new_cats:
+        note = "both heads score these patients without training on them; the earlier head is the frozen one"
+        metrics["new_patients"] = {"all": recheck_scores(items, p, a.seed, "new", note=note),
+                                   **{c: recheck_scores(items, p, a.seed, "new", c, note=note) for c in new_cats}}
+        metrics["all_high_power_labels"] = checked_scores(items, p, a.seed)
     final = fit_head(feature, context, a.seed, bags, labels, bags)
     final.save(out / "head.joblib")
     metrics["final_head"] = {"model_id": final.model_id, "n_labels": final.n_labels, "validated": False}
@@ -348,6 +423,8 @@ def main() -> int:
     t.add_argument("--holdout", action="append", default=[], help="CSV of held-out patients: never used (repeat)")
     t.add_argument("--recheck-key", help="key.csv from highgrade_mvp/recheck.py (MVP only)")
     t.add_argument("--recheck-labels", help="labels CSV from the recheck page: these replace the first MVP labels")
+    t.add_argument("--extra-key", help="key.csv from highgrade_mvp/new_patients.py (MVP only)")
+    t.add_argument("--extra-labels", help="labels CSV for --extra-key: adds these patients to training")
     t.add_argument("--folds", type=int, default=5)
     t.add_argument("--seed", type=int, default=0)
     t.set_defaults(fn=train)
