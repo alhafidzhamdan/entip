@@ -130,7 +130,14 @@ python training/runs/highgrade_common/rate_tiles.py summary --key grade-mil/revi
 
 ## Tile heads from the review ratings
 
-`tile_heads.py` trains an MVP head and a necrosis head separately on the ratings of one rater.
+`tile_heads.py` trains an MVP head and a necrosis head separately on the ratings of one rater. On Eddie,
+`eddie/mvp_head.sh` runs `locate` and the MVP `train` as one job, and skips `locate` once it has finished:
+
+```bash
+mkdir -p /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/tile-heads-r2/logs && qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_head.sh
+```
+
+The steps by hand:
 
 ```bash
 python training/runs/highgrade_common/tile_heads.py locate --key $R/tile-review-key-round2.csv --tiles $BASE/runs/highgrade/grade-mil/tiles --bags $W/bags-h-optimus-0 --slides $W/slides --out $BASE/runs/highgrade/tile-heads-r2

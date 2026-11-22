@@ -26,8 +26,10 @@ import argparse
 import csv
 import json
 import math
+import os
 import sys
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
@@ -37,8 +39,10 @@ from common import TRAINING_DATA, crop, find_slide, read_patients  # noqa: E402
 from rate_tiles import FEATURE  # noqa: E402
 
 HEADS = {"mvp": ("microvascular_proliferation", 0, ()), "necrosis": ("necrosis", 1, (1, 2))}
-COARSE_PX = 16      # a 3 x 3 field in the coarse search
-CANDIDATES = 12     # tiles re-cropped exactly for each image
+FIELD_PX = 48       # a 3 x 3 field in the one low-power read of the slide
+COARSE_PX = 16      # the same field in the first pass over every tile
+CANDIDATES = 40     # tiles compared at FIELD_PX for each image
+EXACT = 3           # tiles re-cropped from the slide for each image: slide reads are the slow part
 MAX_MAD = 8.0       # largest mean absolute pixel difference (0-255) for a match; JPEG alone gives a few
 MIN_GAP = 2.0       # the best match must beat the next by this much
 
@@ -48,38 +52,40 @@ def _unit(a: np.ndarray) -> np.ndarray:
     return a / (np.linalg.norm(a, axis=-1, keepdims=True) + 1e-6)
 
 
-def coarse_fields(rd, bag) -> np.ndarray:
-    """Every tile's 3 x 3 field from one low-power read of the slide, as unit vectors."""
+def field_grid(rd, bag) -> tuple:
+    """One low-power read of the slide, and where each tile's 3 x 3 field starts in it."""
     t = bag.tile_um
     lo, hi = bag.coords_um.min(0) - 2 * t, bag.coords_um.max(0) + 3 * t
     span = float((hi - lo).max())
     cx, cy = (lo + hi) / 2
-    scale = COARSE_PX / (3 * t)
+    scale = FIELD_PX / (3 * t)
     px = math.ceil(span * scale)
     im = np.asarray(rd.read_um(float(cx), float(cy), span, px), np.float32)
-    x0 = np.clip(np.rint((bag.coords_um[:, 0] - t - (cx - span / 2)) * scale).astype(int), 0, im.shape[1] - COARSE_PX)
-    y0 = np.clip(np.rint((bag.coords_um[:, 1] - t - (cy - span / 2)) * scale).astype(int), 0, im.shape[0] - COARSE_PX)
-    fields = np.stack([im[y:y + COARSE_PX, x:x + COARSE_PX].ravel() for x, y in zip(x0, y0)])
-    return _unit(fields)
+    x0 = np.clip(np.rint((bag.coords_um[:, 0] - t - (cx - span / 2)) * scale).astype(int), 0, im.shape[1] - FIELD_PX)
+    y0 = np.clip(np.rint((bag.coords_um[:, 1] - t - (cy - span / 2)) * scale).astype(int), 0, im.shape[0] - FIELD_PX)
+    return im, x0, y0
 
 
 def locate_slide(rd, bag, rows: list, tiles: Path) -> list:
     """Finds each review image in the bag; returns rows with tile index, coordinates and match quality."""
     from PIL import Image
-    fields, out = coarse_fields(rd, bag), []
+    im, x0, y0 = field_grid(rd, bag)
+    step = FIELD_PX // COARSE_PX
+    coarse = _unit(np.stack([im[y:y + FIELD_PX:step, x:x + FIELD_PX:step].ravel() for x, y in zip(x0, y0)]))
+    out = []
     for r in rows:
         with Image.open(tiles / r["image"]) as f:
             saved = f.convert("RGB")
-        small = np.asarray(saved.resize((COARSE_PX, COARSE_PX), Image.BOX), np.float32).ravel()
+        field = np.asarray(saved.resize((FIELD_PX, FIELD_PX), Image.BOX), np.float32)
+        near = np.argsort(-(coarse @ _unit(field[::step, ::step].ravel())))[:CANDIDATES]
+        fine = _unit(np.stack([im[y0[i]:y0[i] + FIELD_PX, x0[i]:x0[i] + FIELD_PX].ravel() for i in near]))
+        tried = [int(i) for i in near[np.argsort(-(fine @ _unit(field.ravel())))[:EXACT]]]
         target = np.asarray(saved, np.int16)
-        tried, mads = [], []
-        for i in np.argsort(-(fields @ _unit(small))):     # best coarse match first; go on until one fits exactly
-            x, y = bag.coords_um[int(i)]
-            im = np.asarray(crop(rd, float(x), float(y), bag.tile_um, target.shape[0]), np.int16)
-            tried.append(int(i))
-            mads.append(float(np.abs(im - target).mean()))
-            if len(tried) >= CANDIDATES and min(mads) <= MAX_MAD:
-                break
+        mads = []
+        for i in tried:
+            x, y = bag.coords_um[i]
+            mads.append(float(np.abs(np.asarray(crop(rd, float(x), float(y), bag.tile_um, target.shape[0]),
+                                                np.int16) - target).mean()))
         order = np.argsort(mads)
         i, mad = tried[order[0]], mads[order[0]]
         nxt = mads[order[1]] if len(order) > 1 else float("inf")
@@ -94,17 +100,26 @@ def locate_slide(rd, bag, rows: list, tiles: Path) -> list:
     return out
 
 
-def locate(a) -> int:
+def _locate_one(slide: str, rows: list, bags: str, slides: str, tiles: str) -> list:
     from entip_glioma.wsi.bags import Bag
     from entip_train.slides import open_slide
+    return locate_slide(open_slide(str(find_slide(Path(slides), slide))), Bag.load(Path(bags) / f"{slide}.npz"), rows,
+                        Path(tiles))
+
+
+def locate(a) -> int:
     by = defaultdict(list)
     for r in csv.DictReader(open(a.key, newline="")):
         by[r["slide"]].append(r)
+    workers = a.workers or int(os.environ.get("NSLOTS", 1))
     found = []
-    for n, (slide, rows) in enumerate(sorted(by.items()), start=1):
-        found += locate_slide(open_slide(str(find_slide(Path(a.slides), slide))),
-                              Bag.load(Path(a.bags) / f"{slide}.npz"), rows, Path(a.tiles))
-        print(f"{n}/{len(by)} slides, {sum(f['ok'] for f in found)} of {len(found)} tiles matched", file=sys.stderr)
+    with ProcessPoolExecutor(max(1, workers)) as pool:
+        jobs = [pool.submit(_locate_one, s, rows, a.bags, a.slides, a.tiles) for s, rows in sorted(by.items())]
+        for n, job in enumerate(as_completed(jobs), start=1):
+            found += job.result()
+            print(f"{n}/{len(by)} slides, {sum(f['ok'] for f in found)} of {len(found)} tiles matched",
+                  file=sys.stderr, flush=True)
+    found.sort(key=lambda f: f["item"])
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     bad = [f for f in found if not f["ok"]]
@@ -249,6 +264,7 @@ def main() -> int:
     b.add_argument("--bags", required=True)
     b.add_argument("--slides", required=True)
     b.add_argument("--out", required=True)
+    b.add_argument("--workers", type=int, help="slides read at once (default: the job's cores)")
     b.set_defaults(fn=locate)
     t = sub.add_parser("train", help="fit and score one head")
     t.add_argument("--feature", required=True, choices=sorted(HEADS))
