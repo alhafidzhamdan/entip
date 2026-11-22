@@ -138,6 +138,20 @@ incomplete outlines is not a true false alarm. Copy `reveal.html` into the local
 qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_slide_reveal.sh
 ```
 
+## Training on the pilot outlines
+
+`outline_labels.py` turns the locked pilot calls into tile labels for a new head in `tile-heads-outlines1`. Outlined
+tiles are positive, random tiles from slides called absent are negative, and other tissue on present slides stays
+unlabelled because the outlines are not exhaustive. The model's areas are never labels. Each slide's contribution is
+capped so heavily outlined slides do not dominate.
+
+```bash
+qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_head_outlines.sh
+```
+
+Compare `without_similar_tiles` in its `metrics.json` with the frozen head, and ignore the headline AUROC, which
+includes the new whole-slide labels. The 35 pilot patients no longer test this head, so it needs new patients.
+
 ## Report-derived slide labels
 
 `report_labels.py` tests whether TCGA pathology reports can supply case-level MVP labels. This is a fresh slide-level

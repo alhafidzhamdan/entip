@@ -20,7 +20,8 @@ neighbourhoods, as in ``highgrade_necrosis/export.py``.
 MVP is positive, vessel and no vessel are negative, and unsure is left out. ``--extra-key`` and ``--extra-labels`` add
 the labelled patients of ``highgrade_mvp/new_patients.py`` in the same way, and ``--similar`` the reviewed tiles of
 ``highgrade_mvp/retrieve.py``. Those were chosen for resembling MVP, so ``without_similar_tiles`` scores the head on
-the other tiles too.
+the other tiles too. ``--similar`` also takes the labels of ``highgrade_mvp/outline_labels.py``; they train the head but
+never enter the high-power scores.
 
 Each head is scored out of fold, with all of a patient's slides on one side, then refitted on every labelled tile.
 Writes ``<feature>/head.joblib``, ``oof.csv`` and ``metrics.json``. The review tiles were chosen by the grade model
@@ -201,6 +202,8 @@ def add_similar_tiles(items: list, a) -> list:
                               "kind": f"similar-{k['source']}", "i": slot[1], "x": float(k["x_um"]),
                               "y": float(k["y_um"]), "label": int(labels[code] == "m"), "recheck": labels[code],
                               "weight": 1.0, "cohort": "similar"})
+                if k["source"] in ("outline", "absent-slide"):   # whole-slide labels, not a high-power tile label
+                    del items[-1]["recheck"]
     return items
 
 
