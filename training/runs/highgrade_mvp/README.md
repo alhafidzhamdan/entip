@@ -88,6 +88,16 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
   Its `metrics.json` scores the first and retrained heads on the rechecked tiles. The hard negatives were chosen by the
   first head, so that comparison favours the retrained one.
 
+## New patients
+
+`new_patients.py` freezes the retrained head, scores patients it never trained on, and builds one blinded page from
+each slide's highest-scoring tiles, other tiles in its top 10%, and random tiles from the rest. The labels test the
+frozen head and add MVP patients for the next retraining. `key.csv` weights each pick back to the whole slide.
+
+```bash
+qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_new_patients.sh
+```
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any

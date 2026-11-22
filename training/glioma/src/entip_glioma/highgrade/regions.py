@@ -134,6 +134,7 @@ class RegionDetector:
         self.n_labels = 0
         self.slide_cal: Optional[tuple] = None      # (a, b): P(present) = sigmoid(a * logit(score) + b)
         self.threshold = cfg.threshold
+        self.labels_sha = ""                        # fingerprint of the training labels; empty in older saved heads
         self._id = ""
 
     # ------------------------------------------------------------------ training
@@ -163,6 +164,7 @@ class RegionDetector:
         self.metrics = {"n_pos": int((y == 1).sum()), "n_neg": int((y == 0).sum()), "n_slides": len(bags),
                         "tile_calibration": how}
         self.slide_cal, self.threshold = None, self.cfg.threshold
+        self.labels_sha = hashlib.sha1(np.asarray(y, np.int8).tobytes()).hexdigest()[:12]
         self._stamp()
         return self
 
@@ -179,9 +181,10 @@ class RegionDetector:
         return list(StratifiedKFold(3, shuffle=True, random_state=0).split(y, y)), "sigmoid, 3 stratified folds"
 
     def _stamp(self) -> None:
-        key = repr((self.cfg.feature, self.cfg.tile_threshold, self.cfg.top_k, self.cfg.min_tiles, self.cfg.C,
-                    tuple(getattr(self.cfg, "context", ())),
-                    self.encoder_version, self.n_labels, float(self.mu.sum()), self.slide_cal, self.threshold))
+        parts = (self.cfg.feature, self.cfg.tile_threshold, self.cfg.top_k, self.cfg.min_tiles, self.cfg.C,
+                 tuple(getattr(self.cfg, "context", ())),
+                 self.encoder_version, self.n_labels, float(self.mu.sum()), self.slide_cal, self.threshold)
+        key = repr(parts + (self.labels_sha,) if self.labels_sha else parts)   # older heads keep their id
         self._id = f"hg-{self.cfg.feature}-{hashlib.sha1(key.encode()).hexdigest()[:10]}"
 
     # ------------------------------------------------------------------ slide-level calibration
@@ -319,7 +322,7 @@ class RegionDetector:
         p.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump({k: getattr(self, k) for k in ("cfg", "clf", "encoder_version", "tile_um", "mu", "sd",
                                                    "ood_threshold", "metrics", "n_labels", "slide_cal",
-                                                   "threshold", "_id")}, p)
+                                                   "threshold", "labels_sha", "_id")}, p)
         return p
 
     @classmethod
