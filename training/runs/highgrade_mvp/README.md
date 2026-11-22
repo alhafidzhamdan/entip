@@ -102,6 +102,16 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
 which draws fresh patients at random, with no model, into `mvp-final-test/patients.csv`. They are never trained on and
 are kept for the slide-level test. Once used for training, the new patients no longer count as an independent test.
 
+## Similar-tile search
+
+`retrieve.py` uses every tile labelled MVP at high power as a reference and searches the existing embeddings for tiles
+that resemble MVP from at least three other patients. Reserved patients are never searched, and nothing is labelled
+automatically: the closest tiles and random controls go on one blinded page.
+
+```bash
+qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_retrieve.sh
+```
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any
