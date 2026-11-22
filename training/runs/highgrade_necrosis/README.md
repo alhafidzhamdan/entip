@@ -21,6 +21,24 @@ Necrosis is an area, and its edge decides most cases. So:
 
 Labels come only from primary, untreated resections, because treatment necrosis is hard to tell apart on H&E.
 
+## Fresh whole-slide review
+
+`slide_review.py` starts necrosis again from slide truth, with no model and no earlier labels. The Eddie job draws 24
+new patients at random (8 `gbm`, 6 `astro4`, 4 `oligo3`, 3 `astro3`, 3 `grade2`), leaving out every patient used in
+earlier step 3 work or reserved, and builds a blinded whole-slide viewer.
+
+```bash
+mkdir -p /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh1/logs && qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/eddie/necrosis_fresh_review.sh
+```
+
+Copy only `review-pack.tar` to review, and keep `private/` on Eddie. Call each slide present, absent or can't tell, and
+shift-click one clear example if present. Then copy the downloaded calls to Eddie and lock them once, before any
+outlining or training:
+
+```bash
+python /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/slide_review.py lock --key /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh1/private/key.csv --calls /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh1/private/necrosis-calls-AH.csv --out /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh1/private
+```
+
 ## Round 1, on Eddie
 
 ```bash
