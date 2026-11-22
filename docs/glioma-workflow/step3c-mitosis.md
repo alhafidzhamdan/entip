@@ -2,7 +2,7 @@
 
 [← step 3](step3-high-grade.md)
 
-**Status: design only.** No detector exists. Step 3 makes no `mitotic_activity` record, so step 6 asks for that
+**Status: first finder and reference-set runs are built but not yet run ([`highgrade_mitosis/`](../../training/runs/highgrade_mitosis/README.md)).** No trained detector exists. Step 3 makes no `mitotic_activity` record, so step 6 asks for that
 finding and leaves grade 2 versus 3 to the pathologist.
 
 ## What it does
