@@ -71,6 +71,20 @@ Per slide, picks come from the vessel head's candidates: 6 uncertain, 4 likely a
 free-negative slides there are 4 audit picks. Export every round together: `--key mvp-r1/key.csv --key
 mvp-r2/key.csv`.
 
+## High-power recheck of the tile review
+
+`recheck.py` tests whether the head from the tile review (`highgrade_common/tile_heads.py`) finds MVP or only vessels.
+It builds one blinded, shuffled page of every tile rated MVP, the 50 not-MVP tiles the head scored highest out of fold,
+and 40 random other not-MVP tiles.
+
+```bash
+qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_recheck.sh
+```
+
+- Each tile is labelled MVP, vessel without MVP, no vessel, or unsure / not assessable, with the keys `export.py` reads.
+- `labels.html` is self-contained. Copy only that file to your Mac and keep `key.csv` back: it holds the slide, grade,
+  earlier rating and score.
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any

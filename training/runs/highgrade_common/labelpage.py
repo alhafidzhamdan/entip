@@ -10,9 +10,10 @@ import html
 import json
 
 
-def page(study: str, title: str, slides: list, choices: list, instructions: str) -> str:
+def page(study: str, title: str, slides: list, choices: list, instructions: str, column_px: int | None = None) -> str:
     """``slides``: ``[{"slide": "S001", "items": [{"code": ..., "images": [src, ...]}]}]``;
-    ``choices``: ``[(key, name, definition)]``; ``instructions``: HTML shown under the keys."""
+    ``choices``: ``[(key, name, definition)]``; ``instructions``: HTML shown under the keys;
+    ``column_px``: smallest width of an item (default 260 px per image)."""
     btns = "".join(f'<button type="button" data-v="{c}" title="{html.escape(t)}">{html.escape(n)} '
                    f'<kbd>{c}</kbd></button>' for c, n, t in choices)
     legend = "".join(f"<li><kbd>{c}</kbd> <b>{html.escape(n)}</b>: {html.escape(t)}</li>" for c, n, t in choices)
@@ -26,7 +27,7 @@ def page(study: str, title: str, slides: list, choices: list, instructions: str)
             for it in s["items"])
         blocks.append(f'<section><h2>{s["slide"]}</h2><div class="grid">{figs}</div></section>')
     keys = json.dumps("".join(c for c, _, _ in choices))
-    cols = 260 * max(1, max((len(it["images"]) for s in slides for it in s["items"]), default=1))
+    cols = column_px or 260 * max(1, max((len(it["images"]) for s in slides for it in s["items"]), default=1))
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
@@ -52,7 +53,7 @@ summary{{cursor:pointer;color:var(--muted);font-size:13px;margin-top:4px}}
 <header><h1>{html.escape(title)}</h1>
 <label>Labeller initials <input id="rater" size="6"></label>
 <span id="progress"></span> <button id="dl" type="button">Download labels</button>
-<details open><summary>Definitions and keys</summary><ul>{legend}<li>{instructions}
+<details{" open" if column_px is None else ""}><summary>Definitions and keys</summary><ul>{legend}<li>{instructions}
 <kbd>j</kbd> / <kbd>k</kbd> move to the next / previous item.</li></ul></details>
 </header>
 {''.join(blocks)}
@@ -80,7 +81,9 @@ function draw(f) {{
 }}
 function focus(i) {{
   figs[cur].classList.remove("cur"); cur = Math.max(0, Math.min(figs.length - 1, i));
-  figs[cur].classList.add("cur"); figs[cur].scrollIntoView({{block: "nearest"}});
+  figs[cur].classList.add("cur");
+  figs[cur].style.scrollMarginTop = (document.querySelector("header").offsetHeight + 8) + "px";
+  figs[cur].scrollIntoView({{block: {json.dumps("start" if column_px else "nearest")}}});
 }}
 figs.forEach((f, i) => {{
   f.querySelectorAll("button").forEach(b => b.onclick = e => {{ e.stopPropagation(); focus(i); set(f, b.dataset.v); }});
