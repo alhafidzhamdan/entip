@@ -1,9 +1,12 @@
 """Step 3b: a fresh, blinded whole-slide necrosis review, with no model involved.
 
-    python slide_review.py build --patients necrosis-fresh1/private/patients.csv --exclude earlier-key.csv \
-        --bags bags/ --slides slides/ --expect 24 --out necrosis-fresh1
-    python slide_review.py lock --key necrosis-fresh1/private/key.csv --calls necrosis-calls-AH.csv \
-        --out necrosis-fresh1/private
+    python slide_review.py draw --manifest trial.csv --bags bags/ --out necrosis-fresh2/private
+    python slide_review.py build --patients necrosis-fresh2/private/patients.csv --bags bags/ --slides slides/ \
+        --expect 24 --out necrosis-fresh2
+    python slide_review.py lock --key necrosis-fresh2/private/key.csv --calls necrosis-calls-AH.csv \
+        --out necrosis-fresh2/private
+
+**draw** picks one slide per patient at random, with no model, and saves nothing unless every category is filled.
 
 **build** gives each slide a random case code and writes ``review-pack.tar``: ``review.html`` and image tiles of the
 tissue, with no slide name, patient, grade, metadata, label image or model output. The link from case to slide stays
@@ -23,7 +26,6 @@ import hashlib
 import json
 import os
 import random
-import re
 import sys
 import tarfile
 from collections import Counter
@@ -33,32 +35,17 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "highgrade_common"))
 sys.path.insert(0, str(HERE.parent / "highgrade_mvp"))
-from common import find_slide, read_patients  # noqa: E402
-from slide_pilot import VIEWER, block_keys  # noqa: E402
+from common import find_slide, pick_slides, quotas, read_manifest, read_patients  # noqa: E402
+from slide_pilot import block_keys  # noqa: E402
 
 CALLS = ("present", "absent", "cant")
-HINT = ('<div id="hint">Search the whole slide. Drag to pan and scroll to zoom. If necrosis is present, shift-click one '
-        "clear example. <b>Necrosis:</b> any unequivocal focus of tumour necrosis, palisading or not. <b>Not necrosis:"
-        "</b> haemorrhage, cautery, crush, fibrin, single apoptotic cells, infarct or surgical change. Suspected "
-        "treatment effect: can't tell.</div>")
-WORDING = (("<title>MVP slide review</title>", "<title>Necrosis slide review</title>"),
-           ("<h1>MVP slide review</h1>", "<h1>Necrosis slide review</h1>"),
-           (">MVP present <kbd>", ">Necrosis present <kbd>"),
-           ("`slide-calls-${st.rater}.csv`", "`necrosis-calls-${st.rater}.csv`"),
-           # a page opened in a hidden tab has no size when it first fits the slide: fit again once it has one
-           ("function draw() { const c = cur();",
-            "function draw() { const c = cur(); if (!(v.s > 0) && cv.clientWidth && cv.clientHeight) fit();"))
 
 
 def viewer(data: dict) -> str:
-    page = VIEWER
-    for old, new in WORDING:
-        if old not in page:
-            raise SystemExit(f"the shared viewer has changed: {old!r} not found")
-        page = page.replace(old, new)
-    page, n = re.subn(r'<div id="hint">.*?</div>', lambda _: HINT, page, count=1, flags=re.S)
-    if n != 1 or "MVP" in page:
-        raise SystemExit("the necrosis viewer still carries MVP wording")
+    """The necrosis page is its own file, so changes to the MVP viewer cannot alter this review."""
+    page = (HERE / "review_viewer.html").read_text(encoding="utf-8")
+    if page.count("__DATA__") != 1 or "MVP" in page:
+        raise SystemExit("review_viewer.html is not a valid necrosis viewer")
     return page.replace("__DATA__", json.dumps(data, separators=(",", ":")))
 
 
@@ -92,6 +79,26 @@ def pack_case(case: str, row: dict, bags: str, slides: str, tiles: str, mpp: flo
                "diagnosis": row.get("diagnosis", ""), "origin_x_um": ox, "origin_y_um": oy, "tile_um": t,
                "native_mpp": float(rd.mpp), "n_tiles": len(bag)}
     return public, private
+
+
+def draw(a) -> int:
+    path = Path(a.out) / "patients.csv"
+    if path.exists():
+        raise SystemExit(f"{path} already exists: a draw is never redone")
+    want = quotas(a.per_category)
+    picked = pick_slides(read_manifest(a.manifest), want, a.bags, a.seed, read_patients(a.exclude))
+    got = Counter(r["category"] for r in picked)
+    short = {c: f"{got[c]}/{n}" for c, n in want.items() if got[c] < n}
+    if short:
+        raise SystemExit(f"not enough patients, nothing saved: {short}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["patient", "slide", "category", "diagnosis"])
+        for r in sorted(picked, key=lambda r: r["PatientID"]):
+            w.writerow([r["PatientID"], r["SeriesInstanceUID"], r["category"], r.get("diagnosis", "")])
+    print(json.dumps({"drawn": len(picked), "by_category": dict(got)}, indent=2))
+    return 0
 
 
 def build(a) -> int:
@@ -185,6 +192,14 @@ def lock(a) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
+    d = sub.add_parser("draw", help="pick the patients at random, with no model")
+    d.add_argument("--manifest", required=True)
+    d.add_argument("--bags", required=True)
+    d.add_argument("--exclude", action="append", default=[], help="CSV of patients to leave out (repeat)")
+    d.add_argument("--per-category", nargs="*", default=["gbm=8", "astro4=6", "oligo3=4", "astro3=3", "grade2=3"])
+    d.add_argument("--seed", type=int, default=20261123)
+    d.add_argument("--out", required=True, help="the private folder")
+    d.set_defaults(fn=draw)
     b = sub.add_parser("build", help="write the blinded whole-slide review pack")
     b.add_argument("--patients", required=True, help="patients.csv of the fresh draw")
     b.add_argument("--exclude", action="append", default=[], help="CSV of patients used in earlier work (repeat)")
