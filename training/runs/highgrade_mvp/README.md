@@ -116,6 +116,19 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
 `tile-heads-similar1`. The matches were chosen for resembling MVP, so judge the head by `without_similar_tiles` in its
 `metrics.json`, and by the slide-level test.
 
+## Slide-level pilot
+
+`slide_pilot.py` tests one frozen head on the reserved patients. `build` scores each slide privately and writes a
+blinded whole-slide viewer with no names, metadata, label images or model output. After every slide has a call,
+`compare` reports ranking, and sensitivity and specificity at cutoffs fixed in advance.
+
+```bash
+qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_common/eddie/mvp_slide_pilot.sh
+```
+
+Copy only `review-pack.tar` to review. Keep `private/` on Eddie until the calls are final. The cutoffs are not
+calibrated, so this is a pilot and not a clinical threshold.
+
 ## Not built yet
 
 - Embeddings at 0.25 µm/px for the labelled vessels, to test whether finer detail helps before re-embedding any
