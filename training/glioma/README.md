@@ -119,7 +119,7 @@ pathologist review with the regions or cells to look at first.
 |---|---|---|
 | `necrosis` | tile head on frozen embeddings → 8-connected foci → best focus score → slide-calibrated P(present) | tile bag (`wsi.bags.Bag`, from step 1) |
 | `microvascular_proliferation` | same machinery, its own head | same bag |
-| `mitotic_activity` | MitoEd candidates → P(at least *k* true mitoses in the whole specimen) | `mitoed predict` CSV |
+| `mitotic_activity` | Not available: a count-only pipeline is being designed ([step 3c](../../docs/glioma-workflow/step3c-mitosis.md)) | none |
 
 - **Calls.** With p = P(present) and threshold t: `present` if p ≥ t, `absent` if 1 − p ≥ t, otherwise
   `indeterminate` and a pathologist review.
@@ -131,35 +131,25 @@ pathologist review with the regions or cells to look at first.
   default, so nothing is used unreviewed until it has been checked on pathologist-labelled slides), too few
   tissue tiles, too many tiles unlike the training tiles. An encoder or tile size different from training is
   refused.
-- **Mitotic cut-off.** cIMPACT-NOW update 5 keeps "significant" mitotic activity for IDH-mutant astrocytoma
-  grade 3, says no validated cut-off exists, and notes most neuropathologists use ≥ 2 mitoses in the whole
-  specimen, or 1 in a very small biopsy ([Brat et al. 2020](https://doi.org/10.1007/s00401-020-02127-9)). Here
-  `--min-mitoses` (default 2) and `--small-biopsy-mm2` (default off) are settings, not validated values. The same
-  paper makes necrosis or microvascular proliferation (or CDKN2A/B homozygous deletion) grade 4 criteria for
-  IDH-mutant astrocytoma; the step-6 engine applies those rules, not this step.
-- **Which mitosis candidates count.** MitoEd lists every candidate, most of them mimics with a small p. Only
-  those MitoEd calls `mitosis` or `uncertain` are counted (or p ≥ 0.2 for tables with no call), so thousands of
-  low-p candidates cannot add up to a count. The same mitosis on two levels of one block is counted twice:
-  pool scans of different blocks.
-- **Database.** `actions.py` writes features, models (`draft`), tile and focus regions, counted mitosis
-  candidates, predictions, then one `glioma_step` event with `detail = {study_id, records}`. Region ids carry
+- **Grading rules.** The step-6 engine applies them, not this step. With no `mitotic_activity` record, it asks for
+  that finding and leaves grade 2 versus 3 to the pathologist.
+- **Database.** `actions.py` writes features, models (`draft`), tile and focus regions, predictions, then one `glioma_step` event with `detail = {study_id, records}`. Region ids carry
   the model id, so a new model version never overwrites an older one's rows. Checked against a live
   PostgreSQL 16 + PostGIS db with the seeded synthetic patients.
 
 ```bash
-entip-train highgrade-demo                                    # synthetic specimen, prints the three records
+entip-train highgrade-demo                                    # synthetic specimen, prints the two records
 entip-train highgrade-demo --db http://127.0.0.1:8705          # also posts the actions (scan SCN-0001-A1-01)
 entip-train highgrade-train --feature necrosis --bag s1.npz --labels s1.json --out necrosis.joblib
 entip-train highgrade-calibrate --head necrosis.joblib --specimens held_out.json
 entip-train highgrade --study-id SYN-0001 --bag s1.npz --head necrosis.joblib --head mvp.joblib \
-    --mitoed-cells SCN-0001-A1-01=cells.csv --db http://127.0.0.1:8705
+    --db http://127.0.0.1:8705
 ```
 
 `highgrade-train` also takes `--negative-bag` (a slide with none of the feature: `--negatives-per-bag` random tiles
 become negatives), `--context 1 2` (each tile's 3 x 3 and 5 x 5 neighbourhood mean embeddings added to its own) and
-`--feature vessel` (a helper head that finds vessels for MVP labelling; it makes no record). `highgrade
---mitosis-calibration` remaps MitoEd's p with a sigmoid fitted on glioma labels. The training modules for each
-sub-step are `training/runs/highgrade_mvp/`, `highgrade_necrosis/` and `highgrade_mitosis/`.
+`--feature vessel` (a helper head that finds vessels for MVP labelling; it makes no record). The training modules
+are `training/runs/highgrade_mvp/` and `highgrade_necrosis/`.
 
 Labels for `highgrade-train` are `{"positives": [polygon, ...], "negatives": [...]}` in µm in the scan frame;
 `held_out.json` is a list of `{"bags": [paths], "present": 0 | 1}`. Bags come from the step-1 module
@@ -167,8 +157,7 @@ Labels for `highgrade-train` are `{"positives": [polygon, ...], "negatives": [..
 
 Not done yet: no head has been trained on real tissue. Candidate region labels are BraTS-Path 2024 and the Ivy
 Glioblastoma Atlas ([Puchalski et al. 2018](https://doi.org/10.1126/science.aaf2666)); their licences have not
-been checked against the NHS rule. MitoEd has not been run on CNS tumours (its training data, MIDOG++, has none
-released). Thresholds must be set on held-out pathologist-labelled slides before `validated` is turned on.
+been checked against the NHS rule. Thresholds must be set on held-out pathologist-labelled slides before `validated` is turned on.
 
 ## Layout
 

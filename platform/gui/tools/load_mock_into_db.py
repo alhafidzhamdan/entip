@@ -19,7 +19,7 @@ from pathlib import Path
 
 MOCK = Path(__file__).resolve().parents[1] / "web" / "mock"
 PROV = {"kind": "program", "actor": "gui:load_mock_into_db", "version": "1"}
-MODEL_ID = "mdl-mitoed-mock"
+MODEL_ID = "mdl-mitosis-mock"
 
 # The GUI mock uses display names; the database keys markers as below (see platform/db/schema/README.md).
 MARKER = {"1p/19q": "1p19q", "CDKN2A/B": "CDKN2A", "TERT promoter": "TERT", "+7/-10": "chr7_chr10"}
@@ -50,10 +50,10 @@ def main():
     data = json.loads((MOCK / "patients.json").read_text())
 
     act(db, "upsert", "feature", [{"name": "mitotic_figure", "level": "cell", "positives_only": True,
-                                   "description": "Mitotic figure (MitoEd)"}])
-    act(db, "upsert", "model", [{"model_id": MODEL_ID, "feature": "mitotic_figure", "kind": "classifier:mitoed",
-                                 "status": "draft", "version": "0.5.4-mock", "licence": "MIT (synthetic output)",
-                                 "meta": {"display_name": "MitoEd", "threshold": 0.5,
+                                   "description": "Mitotic figure"}])
+    act(db, "upsert", "model", [{"model_id": MODEL_ID, "feature": "mitotic_figure", "kind": "classifier:mock",
+                                 "status": "draft", "version": "mock", "licence": "synthetic output",
+                                 "meta": {"display_name": "Mock mitosis model", "threshold": 0.5,
                                           "note": "Synthetic detections from the GUI mock"}}])
     for p in data["patients"]:
         sid = p["study_id"]
@@ -117,7 +117,7 @@ def load_slide(db, scan_id, table):
         act(db, "upsert", "region", [{"region_id": r["region_id"], "scan_id": scan_id, "kind": "polygon",
                                       "label": r["kind"], "source": "synthetic",
                                       "geometry": {"type": "polygon", "points_um": r["polygon_um"]}}])
-    det = MOCK / "slides" / scan_id / "mitoed.json"
+    det = MOCK / "slides" / scan_id / "mitosis-mock.json"
     if det.exists():
         preds = json.loads(det.read_text())["predictions"]
         act(db, "delete", "prediction", [{"scan_id": scan_id, "model_id": MODEL_ID}])

@@ -1,6 +1,6 @@
 """Write platform/gui/web/mock/patients.json: five invented patients in the ENTIP ontology.
 
-Run after make_mock_slides.py (it reads slides/summary.json for the mock MitoEd outputs).
+Run after make_mock_slides.py (it reads slides/summary.json for the mock mitosis outputs).
 Every name, id, date and result here is made up. Study ids are pseudonymised research ids;
 the clinical link lives in the NHS-side key store (P1) and is never in this file.
 """
@@ -37,7 +37,7 @@ PEOPLE = [
 ]
 
 FEATURES = [
-    {"name": "Mitotic figure", "level": "cell", "description": "Cells in mitosis. Seeded from MitoEd.", "source": "mitoed"},
+    {"name": "Mitotic figure", "level": "cell", "description": "Cells in mitosis. Mock data.", "source": "mock"},
     {"name": "Apoptotic body", "level": "cell", "description": "Shrunken dense nuclei with a clear halo. A common mitosis mimic.", "source": "user"},
     {"name": "Endothelial cell", "level": "cell", "description": "Vessel lining cells, for microvascular proliferation.", "source": "user"},
 ]
@@ -52,12 +52,12 @@ def main():
         blk = f"{spec}-A1"
         outputs = []
         if s:
-            est = s.get("n_mitoed_called", s["n_mitosis"])
+            est = s.get("n_mock_called", s["n_mitosis"])
             outputs.append({
                 "output_id": f"MO-{i:04d}-1", "object_type": "scan", "object_id": p["scan"],
                 "measure": "Mitotic figures per mm²", "value": round(est / s["tissue_area_mm2"], 1),
                 "detail": f"{est} figures called in {s['tissue_area_mm2']} mm² of tissue",
-                "source": {"kind": "model", "name": "MitoEd", "version": "0.5.4 (mock output)"},
+                "source": {"kind": "model", "name": "Mock mitosis model", "version": "mock output"},
                 "ts": f"2026-10-{20 + i}T09:00:00Z"})
         sections = [{
             "section_id": f"{blk}-L1", "level": 1, "stain": "H&E", "thickness_um": 4,

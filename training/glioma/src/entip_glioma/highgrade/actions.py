@@ -4,8 +4,8 @@ Order of actions for one specimen:
   1. ``upsert feature``  necrosis, microvascular_proliferation (tile level), mitotic_figure (cell level)
   2. ``upsert model``    one row per detector (status ``draft`` until a gated retrain promotes it)
   3. ``upsert region``   tiles above the tile threshold (kind ``tile``) and each focus (kind ``roi``), labelled
-                         with the finding; ``upsert cell`` for mitosis candidates
-  4. ``upsert prediction`` scores on those regions and cells
+                         with the finding
+  4. ``upsert prediction`` scores on those regions
   5. ``glioma_step``     event with ``detail = {study_id, records}`` in the step-6 contract; the rules engine
                          reads these from ``GET /patients/{study_id}/actions``
 
@@ -64,17 +64,6 @@ def region_records(result: FeatureResult, bag: Bag, tile_p: np.ndarray, tile_thr
         preds.append({"model_id": result.model_id, "target_type": "region", "target_id": e["id"],
                       "scan_id": bag.scan_id, "score": float(e["weight"]), "label": result.finding})
     return regions, preds
-
-
-def cell_records(result: FeatureResult, candidates: Sequence[dict]):
-    cells, preds = [], []
-    for c in candidates:
-        cells.append({"cell_id": c["id"], "scan_id": c["scan_id"], "x_um": float(c["x_um"]), "y_um": float(c["y_um"]),
-                      "source": f"model:{result.model_id}", "model_id": result.model_id,
-                      "meta": {"kind": "mitosis_candidate"}})
-        preds.append({"model_id": result.model_id, "target_type": "cell", "target_id": c["id"],
-                      "scan_id": c["scan_id"], "score": float(c["p"]), "label": "mitotic_figure"})
-    return cells, preds
 
 
 def build_actions(study_id: str, results: Sequence[FeatureResult], models: Sequence[dict],

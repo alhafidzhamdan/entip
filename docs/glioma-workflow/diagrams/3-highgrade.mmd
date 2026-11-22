@@ -5,13 +5,12 @@ flowchart TB
   MH --> F2["Same, for microvascular proliferation"]
   F1 --> SC["Slide calibration (highgrade-calibrate)<br/>score → P(present) on held-out specimens"]
   F2 --> SC
-  MIT["MitoEd predict CSV<br/>(mitosis candidates per scan)"] --> CNT["Count only mitosis / uncertain calls<br/>→ P(≥ k mitoses in whole specimen), k = 2"]
+  MIT["Mitosis counter<br/>(new, not built yet)"] --> CNT["No mitotic_activity record<br/>until the counter exists"]
   SC --> CALL{"p ≥ t → present<br/>1 − p ≥ t → absent<br/>else indeterminate"}
-  CNT --> CALL
   CALL --> GU{"Guards: calibrated? validated?<br/>enough tissue? tiles like training?"}
   GU -->|pass| OK["status confident"]
   GU -->|fail| RV["status uncertain<br/>pathologist review of top regions"]
-  OK --> OUT["3 records: necrosis, microvascular_proliferation,<br/>mitotic_activity → glioma_step event"]
+  OK --> OUT["Records: necrosis, microvascular_proliferation<br/>→ glioma_step event"]
   RV --> OUT
   LBL["Region labels (polygons, µm)<br/>none open and NHS-usable yet"] -.->|highgrade-train| NH
   LBL -.-> MH

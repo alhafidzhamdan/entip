@@ -1,41 +1,40 @@
-# Step 3c: mitotic activity
+# Step 3c: mitotic figure counting
 
-[← step 3](step3-high-grade.md) · code `training/glioma/src/entip_glioma/highgrade/` (`--mitoed-cells`)
-· training `training/runs/highgrade_mitosis/`
+[← step 3](step3-high-grade.md)
 
-## What it decides
+**Status: design only.** No detector exists. Step 3 makes no `mitotic_activity` record, so step 6 asks for that
+finding and leaves grade 2 versus 3 to the pathologist.
 
-Are there at least *k* mitoses in the whole specimen: `present`, `absent` or `indeterminate`. Significant mitotic
-activity makes an IDH-mutant astrocytoma grade 3, and brisk mitoses point to grade 3 in oligodendroglioma.
+## What it does
 
-cIMPACT-NOW update 5 says no validated cut-off exists and that most neuropathologists use at least 2 mitoses in
-the whole specimen, or 1 in a very small biopsy ([Brat et al. 2020](https://doi.org/10.1007/s00401-020-02127-9)).
-Here `--min-mitoses` (default 2) and `--small-biopsy-mm2` (default off) are settings, not validated values.
+Counts mitotic figures. It does not diagnose, grade or apply a threshold.
 
-## What counts
+Output for a slide or any chosen area: the count, a 95% range, the assessable tissue in mm², a density map, and one
+point per mitosis.
 
-- **Mitosis:** a mitotic figure (prophase to telophase).
-- **Look-alikes:** apoptotic and pyknotic nuclei, lymphocytes, karyorrhectic debris near necrosis, crush.
+## What a correct count needs
 
-The unit is **one cell**, and the answer is a **count over the whole specimen**. That makes it a detection
-problem: tile embeddings at 112 µm are the wrong tool.
+- **A denominator:** the area of tissue that could actually be assessed.
+- **Few misses:** true mitoses found.
+- **Few false counts:** most tissue has no mitosis, so even a low false rate can swamp a small true count.
+- **One count per dividing cell:** a telophase pair counts once.
 
-## How
+## Proposed pipeline
 
-| | Now | Needed for commercial use |
-|---|---|---|
-| Candidates | MitoEd's candidate list per scan (`mitoed predict` CSV) | A candidate detector without non-commercial training data |
-| Which count | Only candidates MitoEd calls `mitosis` or `uncertain` (or p ≥ 0.2 for tables without a call), so thousands of low-p mimics cannot add up | The same rule, retuned on glioma |
-| Specimen count | P(at least *k* true mitoses), pooling scans of different blocks | The same |
-| Labels | Candidates sampled at random within bands of p, labelled one cell at a time ([training module](../../training/runs/highgrade_mitosis/README.md)) | The same |
-| Calibration | MitoEd's p recalibrated on glioma labels (`--mitosis-calibration`) | The same, for the new detector |
+1. Assessable-tissue mask, which gives the area.
+2. Finder: a point-heatmap network at about 0.25 µm per pixel, tuned to miss very little.
+3. Checker: a high-power crop with context, mitosis against pyknosis, apoptosis, karyorrhexis, lymphocyte or crush.
+4. Merge duplicates.
+5. Calibrated table of points, from which any count per area is a query.
 
-The same mitosis on two levels of one block is counted twice, so pool scans of different blocks only.
+## Proposed first run: a reference set
 
-## Status and open items
+Lock the test patients first. Then, for 20 other patients with 40× scans, a computer picks 4 random 0.5 mm² tissue
+fields each (40 mm² in total), with no model involved. A pathologist marks every mitosis, blind to diagnosis and any
+model, as mitosis, look-alike or uncertain. A second reader repeats a subset, and the counts are frozen. Any detector
+is then scored on recall, false counts per mm², and predicted against true count per field.
 
-- Synthetic only.
-- MitoEd has not been run on CNS tumours: its training data (MIDOG++) has no brain.
-- MitoEd's segmenter (Cellpose-SAM) was trained on CC BY-NC data, so a commercial count needs another one.
-- Built: the labelling and recalibration module, tested on synthetic candidates. Not done: running MitoEd on the
-  glioma slides.
+## Rules
+
+- Models or labels with non-commercial terms never train the counter or choose cells for labelling.
+- Split by patient, freeze the model before testing, and do not set cut-offs on test data.

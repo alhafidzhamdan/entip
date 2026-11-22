@@ -1,7 +1,7 @@
-"""Per-spot tables: summarise H&E cells (e.g. MitoEd calls) under each spot.
+"""Per-spot tables: summarise H&E cell calls under each spot.
 
 The H&E cell table needs ``x_um, y_um`` in the scan frame and a class
-column (MitoEd: ``call`` in {mitosis, mimic, uncertain, ...}; probabilities
+column (``call`` in {mitosis, mimic, uncertain, ...}; probabilities
 such as ``p_mitosis``). Spots must already be in the scan frame
 (``obsm["spatial_he_um"]`` after ``register.to_he``). The returned table is
 indexed by spot barcode, so it joins straight onto ``adata.obs``.

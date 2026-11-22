@@ -67,7 +67,7 @@ def make(out: str | Path, seed: int = 0, width_um: float = 2000.0, height_um: fl
     xy, t = _tissue(rng, width_um, height_um)
     n = len(xy)
 
-    # H&E nuclei: centroid noise, 10% missed, 3% false detections; MitoEd-style calls
+    # H&E nuclei: centroid noise, 10% missed, 3% false detections; cell calls
     det = rng.random(n) > 0.10
     he_xy = xy[det] + rng.normal(0, 1.0, (det.sum(), 2))
     he_type = np.array(TYPES)[t[det]]

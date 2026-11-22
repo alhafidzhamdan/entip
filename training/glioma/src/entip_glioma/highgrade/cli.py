@@ -19,7 +19,6 @@ def highgrade_demo(args) -> int:
     from entip_train.encoders import get_encoder
     from .actions import post_actions, write_jsonl
     from .assess import assess_specimen
-    from .mitoses import MitosisConfig, MitosisCounter
     from .regions import RegionConfig, RegionDetector, tile_labels
 
     enc = get_encoder(args.encoder)
@@ -31,10 +30,8 @@ def highgrade_demo(args) -> int:
         det = RegionDetector(RegionConfig(f, validated=args.validated)).fit([b for _, b in train], labels)
         det.calibrate_slides([[b] for _, b in held], [i % 2 for i in range(len(held))])
         dets.append(det)
-    s, bag = _synthetic_bag(args.scan_id, args.seed, enc, necrosis=args.necrosis, mvp=args.mvp,
-                            mitoses=args.mitoses)
-    a = assess_specimen(args.study_id, [bag], dets, MitosisCounter(MitosisConfig(validated=args.validated)),
-                        s.candidates)
+    s, bag = _synthetic_bag(args.scan_id, args.seed, enc, necrosis=args.necrosis, mvp=args.mvp)
+    a = assess_specimen(args.study_id, [bag], dets)
     print(json.dumps(a.records(), indent=2, default=float))
     if args.actions:
         print(f"actions -> {write_jsonl(a.actions, args.actions)}", file=sys.stderr)
@@ -88,28 +85,14 @@ def highgrade_calibrate(args) -> int:
 
 
 def highgrade(args) -> int:
-    """Assess one specimen: tile bags (one per scan), saved heads, optional MitoEd CSVs (scan_id=path)."""
+    """Assess one specimen: tile bags (one per scan), saved heads."""
     from .actions import post_actions, write_jsonl
     from .assess import assess_specimen
-    from .mitoses import MitosisConfig, MitosisCounter, read_mitoed_cells
     from .regions import RegionDetector
     from ..wsi.bags import Bag
     bags = [Bag.load(p) for p in args.bag]
     dets = [RegionDetector.load(p) for p in args.head]
-    cands = None
-    cal = None
-    if args.mitosis_calibration:
-        d = json.loads(Path(args.mitosis_calibration).read_text())
-        cal = (float(d["a"]), float(d["b"]))
-    if args.mitoed_cells:
-        cands = []
-        for item in args.mitoed_cells:
-            sid, _, path = item.partition("=")
-            cands += read_mitoed_cells(path, sid)
-    counter = MitosisCounter(MitosisConfig(min_count=args.min_mitoses, small_biopsy_mm2=args.small_biopsy_mm2,
-                                           calibration=cal),
-                             model_id=args.mitoed_model, version=args.mitoed_version)
-    a = assess_specimen(args.study_id, bags, dets, counter if cands is not None else None, cands)
+    a = assess_specimen(args.study_id, bags, dets)
     out = json.dumps(a.records(), indent=2, default=float)
     if args.out:
         Path(args.out).write_text(out + "\n")
@@ -122,14 +105,13 @@ def highgrade(args) -> int:
 
 
 def add_parser(sub) -> None:
-    h = sub.add_parser("highgrade-demo", help="step 3 on a synthetic specimen: necrosis, MVP, mitotic activity")
+    h = sub.add_parser("highgrade-demo", help="step 3 on a synthetic specimen: necrosis and MVP")
     h.add_argument("--encoder", default="handcrafted")
     h.add_argument("--study-id", default="SYN-0001")
     h.add_argument("--scan-id", default="SCN-0001-A1-01", help="must exist in the db when posting (seeded ids)")
     h.add_argument("--seed", type=int, default=7)
     h.add_argument("--necrosis", type=int, default=1)
     h.add_argument("--mvp", type=int, default=2)
-    h.add_argument("--mitoses", type=int, default=3)
     h.add_argument("--validated", action="store_true", help="treat models as validated (demo only)")
     h.add_argument("--actions", help="write the db actions as JSON lines here")
     h.add_argument("--db", help="post the actions to this db API, e.g. http://127.0.0.1:8705")
@@ -161,12 +143,6 @@ def add_parser(sub) -> None:
     g.add_argument("--study-id", required=True)
     g.add_argument("--bag", action="append", default=[], help="tile bag .npz per scan (repeat)")
     g.add_argument("--head", action="append", default=[], help="saved region head .joblib (repeat)")
-    g.add_argument("--mitoed-cells", action="append", default=[], help="SCAN_ID=cells.csv from mitoed predict")
-    g.add_argument("--mitoed-model", default="mitoed")
-    g.add_argument("--mitoed-version", default="")
-    g.add_argument("--min-mitoses", type=int, default=2)
-    g.add_argument("--mitosis-calibration", help="JSON {a, b} from highgrade_mitosis/export.py (glioma labels)")
-    g.add_argument("--small-biopsy-mm2", type=float, default=None)
     g.add_argument("--out")
     g.add_argument("--actions")
     g.add_argument("--db")

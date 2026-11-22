@@ -1,8 +1,7 @@
 """Frozen encoders that turn a crop into an embedding.
 
-* ``h-optimus-0`` - bioptimus/H-optimus-0 (ViT-g/14, 1536-d), Apache-2.0, loaded with timm exactly as in
-  MitoEd (``init_values=1e-5, dynamic_img_size=False``) and normalised with the mean/std MitoEd uses for the
-  H-optimus models. Pretrained on 224 px tiles; needs ``pip install entip-train[foundation]`` and the weights
+* ``h-optimus-0`` - bioptimus/H-optimus-0 (ViT-g/14, 1536-d), Apache-2.0, loaded with timm
+  (``init_values=1e-5, dynamic_img_size=False``) and normalised with the H-optimus mean/std. Pretrained on 224 px tiles; needs ``pip install entip-train[foundation]`` and the weights
   from Hugging Face. The default for real slides.
 * ``handcrafted`` - colour and texture statistics, about 40-d, no weights, CPU only. For tests, the synthetic
   demo and machines without a GPU. Not a substitute for a foundation model on real tissue.
@@ -25,7 +24,7 @@ ENCODER_LICENCES = {
     "student": ("PolyForm Noncommercial (this repository); distilled from H-optimus-0 (Apache-2.0)", ""),
 }
 
-HOPTIMUS_MEAN = (0.707223, 0.578729, 0.703617)   # as used for H-optimus models in MitoEd (models/encoders.py)
+HOPTIMUS_MEAN = (0.707223, 0.578729, 0.703617)   # H-optimus normalisation
 HOPTIMUS_STD = (0.211883, 0.230117, 0.177517)
 
 

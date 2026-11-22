@@ -257,7 +257,7 @@ def write_dzi(img, out_dir: Path):
 
 
 def mock_detections(truth: dict, seed: int):
-    """A stand-in for MitoEd's per-cell output: mostly right, with misses and mimic false positives."""
+    """A stand-in for a mitosis model's per-cell output: mostly right, with misses and mimic false positives."""
     rng = np.random.default_rng(seed)
     preds = []
     for cid, kind in truth.items():
@@ -271,7 +271,7 @@ def mock_detections(truth: dict, seed: int):
             p = rng.beta(1, 40)
         if p >= 0.05:
             preds.append({"cell_id": cid, "p": round(float(p), 3)})
-    return {"model": "MitoEd", "version": "0.5.4 (mock output)", "feature": "Mitotic figure", "threshold": 0.5,
+    return {"model": "Mock mitosis model", "version": "mock output", "feature": "Mitotic figure", "threshold": 0.5,
             "note": "Synthetic detections for the GUI mock, derived from the hidden truth with noise.",
             "predictions": preds}
 
@@ -279,7 +279,7 @@ def mock_detections(truth: dict, seed: int):
 def write_detections(out_dir: Path, seed: int):
     truth = json.loads((out_dir / "truth.json").read_text())
     det = mock_detections(truth, seed)
-    (out_dir / "mitoed.json").write_text(json.dumps(det, separators=(",", ":")))
+    (out_dir / "mitosis-mock.json").write_text(json.dumps(det, separators=(",", ":")))
     return sum(1 for x in det["predictions"] if x["p"] >= det["threshold"])
 
 
@@ -301,12 +301,12 @@ def make(scan_id, p, root: Path):
         "regions": regions,
     }
     (out_dir / "cells.json").write_text(json.dumps(table, separators=(",", ":")))
-    # Hidden truth, for tests and the mock "MitoEd" output only. The GUI never shows it.
+    # Hidden truth, for tests and the mock mitosis output only. The GUI never shows it.
     (out_dir / "truth.json").write_text(json.dumps({c["cell_id"]: k for c, (k, *_) in zip(table["cells"], cells)}))
     write_dzi(img, out_dir)
     n_called = write_detections(out_dir, p["seed"] + 2)
     n_mit = sum(1 for c in cells if c[0] == "mitosis")
-    return {"scan_id": scan_id, "n_cells": len(cells), "n_mitosis": n_mit, "n_mitoed_called": n_called,
+    return {"scan_id": scan_id, "n_cells": len(cells), "n_mitosis": n_mit, "n_mock_called": n_called,
             "tissue_area_mm2": round(area, 3)}
 
 
@@ -314,15 +314,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(Path(__file__).resolve().parents[1] / "web" / "mock"))
     ap.add_argument("--only", nargs="*", help="scan ids to render")
-    ap.add_argument("--detections-only", action="store_true", help="redo mitoed.json from existing truth.json")
+    ap.add_argument("--detections-only", action="store_true", help="redo mitosis-mock.json from existing truth.json")
     a = ap.parse_args()
     root = Path(a.out)
     if a.detections_only:
         sm = json.loads((root / "slides" / "summary.json").read_text())
         for sid, p in RENDERS.items():
             if sid in sm and (not a.only or sid in a.only):
-                sm[sid]["n_mitoed_called"] = write_detections(root / "slides" / sid, p["seed"] + 2)
-                print(sid, sm[sid]["n_mitoed_called"])
+                sm[sid]["n_mock_called"] = write_detections(root / "slides" / sid, p["seed"] + 2)
+                print(sid, sm[sid]["n_mock_called"])
         (root / "slides" / "summary.json").write_text(json.dumps(sm, indent=1))
         return
     summary = {}

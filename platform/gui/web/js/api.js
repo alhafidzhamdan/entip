@@ -102,11 +102,11 @@
       return rec;
     }
 
-    async getOutputs(scanId) { // per-cell outputs of existing models (MitoEd mock) for one scan
+    async getOutputs(scanId) { // per-cell outputs of existing models (mock) for one scan
       if (!this._outputs) this._outputs = new Map();
       if (!this._outputs.has(scanId)) {
         let o = [];
-        try { o = [await getJSON(`${this.base}/slides/${scanId}/mitoed.json`)]; } catch (e) { o = []; }
+        try { o = [await getJSON(`${this.base}/slides/${scanId}/mitosis-mock.json`)]; } catch (e) { o = []; }
         this._outputs.set(scanId, o);
       }
       return this._outputs.get(scanId);

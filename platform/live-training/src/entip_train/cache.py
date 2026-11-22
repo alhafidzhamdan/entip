@@ -17,8 +17,8 @@ import numpy as np
 from .encoders import Encoder
 from .slides import Reader, centres
 
-# Field of view per level, in micrometres. A cell crop of 56 µm at 224 px is 0.25 µm/px (MitoEd's
-# working resolution); tiles use their own size.
+# Field of view per level, in micrometres. A cell crop of 56 µm at 224 px is 0.25 µm/px;
+# tiles use their own size.
 DEFAULT_FIELD_UM = {"cell": 56.0}
 
 

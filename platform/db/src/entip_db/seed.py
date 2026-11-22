@@ -63,7 +63,7 @@ def seed(conn, n_cells: int = 400, rng_seed: int = 7) -> dict:
         return r
 
     act("upsert", "feature", [{"name": "mitotic_figure", "level": "cell", "positives_only": True,
-                               "description": "Mitotic figure (MitoEd)"},
+                               "description": "Mitotic figure"},
                               {"name": "necrosis", "level": "tile", "description": "Necrosis"}])
     act("upsert", "model", [{"model_id": "mdl-cellpose-sam-synthetic", "kind": "segmenter:cellpose-sam",
                              "status": "draft", "version": "synthetic", "licence": "BSD-3-Clause code; "

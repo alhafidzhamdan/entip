@@ -4,8 +4,8 @@
   {
    "name": "Mitotic figure",
    "level": "cell",
-   "description": "Cells in mitosis. Seeded from MitoEd.",
-   "source": "mitoed"
+   "description": "Cells in mitosis. Mock data.",
+   "source": "mock"
   },
   {
    "name": "Apoptotic body",
@@ -47,8 +47,8 @@
      "detail": "65 figures called in 1.11 mm² of tissue",
      "source": {
       "kind": "model",
-      "name": "MitoEd",
-      "version": "0.5.4 (mock output)"
+      "name": "Mock mitosis model",
+      "version": "mock output"
      },
      "ts": "2026-10-21T09:00:00Z"
     }
@@ -179,8 +179,8 @@
      "detail": "22 figures called in 1.139 mm² of tissue",
      "source": {
       "kind": "model",
-      "name": "MitoEd",
-      "version": "0.5.4 (mock output)"
+      "name": "Mock mitosis model",
+      "version": "mock output"
      },
      "ts": "2026-10-22T09:00:00Z"
     }
@@ -293,8 +293,8 @@
      "detail": "11 figures called in 1.24 mm² of tissue",
      "source": {
       "kind": "model",
-      "name": "MitoEd",
-      "version": "0.5.4 (mock output)"
+      "name": "Mock mitosis model",
+      "version": "mock output"
      },
      "ts": "2026-10-23T09:00:00Z"
     }
@@ -423,8 +423,8 @@
      "detail": "2 figures called in 1.153 mm² of tissue",
      "source": {
       "kind": "model",
-      "name": "MitoEd",
-      "version": "0.5.4 (mock output)"
+      "name": "Mock mitosis model",
+      "version": "mock output"
      },
      "ts": "2026-10-24T09:00:00Z"
     }
@@ -517,8 +517,8 @@
      "detail": "101 figures called in 1.164 mm² of tissue",
      "source": {
       "kind": "model",
-      "name": "MitoEd",
-      "version": "0.5.4 (mock output)"
+      "name": "Mock mitosis model",
+      "version": "mock output"
      },
      "ts": "2026-10-25T09:00:00Z"
     }

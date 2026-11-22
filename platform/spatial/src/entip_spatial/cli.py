@@ -2,7 +2,7 @@
 
   entip-spatial synth OUT                  synthetic H&E + Xenium + Visium
   entip-spatial register ...               assay -> H&E Transform, records for P5
-  entip-spatial spot-table ...             H&E cells (e.g. MitoEd calls) per spot
+  entip-spatial spot-table ...             H&E cell calls per spot
   entip-spatial labels ...                 per-nucleus training labels for P2
   entip-spatial demo OUT                   all of the above on synthetic data
 """
@@ -136,7 +136,7 @@ def cmd_demo(a) -> dict:
                             scan_id="scan_demo", section_id="section_demo", assay_id="assay_visium_demo", model="affine",
                             refine_cells=None, max_dist=10.0, um_per_unit=1.0, out=str(out / "visium")))
     cmd_spot_table(ns(assay_h5ad=str(out / "visium" / "assay_registered.h5ad"), cells=str(d / "he_cells.csv"), radius=None,
-                      class_col="call", prefix="mitoed_", out=str(out / "visium" / "spot_table.csv")))
+                      class_col="call", prefix="he_", out=str(out / "visium" / "spot_table.csv")))
     lx = cmd_labels(ns(assay_h5ad=str(out / "xenium" / "assay_registered.h5ad"), transform=str(out / "xenium" / "transform.json"),
                        cells=str(d / "he_cells.csv"), markers=str(d / "markers.json"), label_key=None, min_margin=0.25,
                        max_dist=None, fractions=None, min_fraction=0.8, out=str(out / "xenium" / "training_labels.csv")))
@@ -179,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("spot-table", help="summarise H&E cells under each spot")
     s.add_argument("--assay-h5ad", required=True); s.add_argument("--cells", required=True)
     s.add_argument("--radius", type=float, help="micrometres (default: assay spot radius)")
-    s.add_argument("--class-col", default="call"); s.add_argument("--prefix", default="mitoed_")
+    s.add_argument("--class-col", default="call"); s.add_argument("--prefix", default="he_")
     s.add_argument("--out", required=True)
     s.set_defaults(func=cmd_spot_table)
 

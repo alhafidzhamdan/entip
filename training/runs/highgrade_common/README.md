@@ -6,7 +6,7 @@ Each step 3 sub-step has its own training module, built on this folder:
 |---|---|---|---|---|
 | 3a MVP | [`highgrade_mvp/`](../highgrade_mvp/README.md) | A tile, vessel by vessel | Page (MVP / vessel / no vessel), QuPath points on vessels | MVP head, plus a vessel head for picking |
 | 3b Necrosis | [`highgrade_necrosis/`](../highgrade_necrosis/README.md) | An area | QuPath outlines first, page for look-alikes | Necrosis head with neighbourhood context |
-| 3c Mitosis | [`highgrade_mitosis/`](../highgrade_mitosis/README.md) | One cell | Page of MitoEd candidates | Recalibration of MitoEd's p on glioma |
+| 3c Mitosis | Not built ([design](../../../docs/glioma-workflow/step3c-mitosis.md)) | One cell | To be decided | None yet |
 
 What they share:
 

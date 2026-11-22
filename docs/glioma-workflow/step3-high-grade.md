@@ -28,11 +28,12 @@ slide-level sensitivity separately for IDH-mutant cases.
 
 ## Shared to all three
 
-Each finding gives one `entip.glioma_step/1` record: `present`, `absent` or `indeterminate`.
+Each of 3a and 3b gives one `entip.glioma_step/1` record: `present`, `absent` or `indeterminate`. 3c is being
+redesigned as a count and makes no record for now.
 
 - **Call.** With p = P(present) and threshold t: `present` if p ≥ t, `absent` if 1 − p ≥ t, else `indeterminate`.
 - **Slide call from foci, not tiles.** A slide has about 50,000 tiles, so even 1 false tile in 10,000 gives 5 a
-  slide. The slide score comes from the best focus (3a, 3b) or the specimen count (3c), and is calibrated on
+  slide. The slide score comes from the best focus (3a, 3b), and is calibrated on
   held-out specimens whose truth comes from a pathologist's review of the whole slide (`highgrade-calibrate`).
 - **Guards.** The call is `uncertain`, with a pathologist review of the top regions, when the slide score is not
   calibrated, the model is not signed off (`validated=False`, the default), there are too few tissue tiles, or
@@ -41,8 +42,7 @@ Each finding gives one `entip.glioma_step/1` record: `present`, `absent` or `ind
   sensitive list is easier to validate than an autonomous call.
 - **Labels are our own.** BraTS-Path (CC BY-NC) and Ivy GAP (Allen non-commercial) never train or pick tiles for
   these heads. Labels are made in-house on CC BY slides (TCGA, CPTAC via IDC), by one training module per
-  sub-step (`training/runs/highgrade_mvp/`, `highgrade_necrosis/`, `highgrade_mitosis/`, sharing
-  `highgrade_common/`).
+  sub-step (`training/runs/highgrade_mvp/`, `highgrade_necrosis/`, sharing `highgrade_common/`).
 - **Free negatives.** Under the grading TCGA used, grade 3 astrocytic and grade 2 gliomas had no necrosis or MVP, so
   their slides give negatives for 3a and 3b without labelling. A pathologist checks their tiles by eye first, as a
   grid, and audit picks and the export check them again.
@@ -52,10 +52,9 @@ entip-train highgrade-demo
 entip-train highgrade-train --feature necrosis --bag s1.npz --labels s1.json --out necrosis.joblib
 entip-train highgrade-calibrate --head necrosis.joblib --specimens held_out.json
 entip-train highgrade --study-id SYN-0001 --bag s1.npz --head necrosis.joblib --head mvp.joblib \
-    --mitoed-cells SCN-0001-A1-01=cells.csv --db http://127.0.0.1:8705
+    --db http://127.0.0.1:8705
 ```
 
 ## Status
 
-Synthetic only: no head has been trained on real tissue. The three training modules run end to end on synthetic
-slides and are ready for round 1 on Eddie.
+3a and 3b have their own training modules. 3c has no detector yet ([design](step3c-mitosis.md)).

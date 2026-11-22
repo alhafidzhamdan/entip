@@ -8,11 +8,11 @@ milliseconds (warm start from the previous version), and returns a review queue:
 objects first (smallest |p − 0.5|) plus a 10% random share to catch confident errors. Features marked
 mostly with positives get down-weighted background negatives sampled away from the positives.
 
-**Tier 2, gated retrain.** A champion/challenger round after MitoEd's `src/mitoed/train/retrain.py`: train on
+**Tier 2, gated retrain.** A champion/challenger round: train on
 every non-locked mark across scans, score both models on a locked set that is never trained on, and promote
 only if balanced accuracy does not drop, no scan drops by more than `tol_group`, and calibration (ECE) does not
 worsen by more than `tol_ece`. Every round is recorded; the old champion is retired, not deleted. Models that are
-not live heads (e.g. MitoEd's classifier) can use the same gate through the `Trainable` interface in `retrain.py`.
+not live heads (e.g. a cell detector) can use the same gate through the `Trainable` interface in `retrain.py`.
 
 ## Quick start
 

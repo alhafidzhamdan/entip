@@ -2,8 +2,7 @@
 
 Pink fibrillary background with dense purple nuclei ("tumour"), a white strip of glass, optional pale
 necrosis patches with nuclear dust and a palisade of crowded nuclei at the edge, optional "microvascular
-proliferation" tufts (dark multilayered rings of nuclei around open lumens), and a MitoEd-style candidate table
-with a chosen number of true mitoses among low-scoring distractors. Truth is returned as polygons in µm.
+proliferation" tufts (dark multilayered rings of nuclei around open lumens). Truth is returned as polygons in µm.
 """
 from __future__ import annotations
 
@@ -23,8 +22,6 @@ class SyntheticGBM:
     necrosis_polys: List[list] = field(default_factory=list)
     mvp_polys: List[list] = field(default_factory=list)
     tumour_polys: List[list] = field(default_factory=list)   # areas with neither feature (for negatives)
-    candidates: List[dict] = field(default_factory=list)
-    n_true_mitoses: int = 0
 
 
 def _disc(img, yy, xx, x, y, r, colour, ex=1.0, angle=0.0):
@@ -44,7 +41,7 @@ def _square(cx, cy, h):
 
 
 def synthetic_gbm(scan_id: str = "SCN-SYN-GBM-01", seed: int = 0, tiles: int = 20, tile_um: float = 112.0,
-                  mpp: float = 0.5, necrosis: int = 2, mvp: int = 4, mitoses: int = 3, distractors: int = 40,
+                  mpp: float = 0.5, necrosis: int = 2, mvp: int = 4,
                   glass_cols: int = 2) -> SyntheticGBM:
     rng = np.random.default_rng(seed)
     tile_px = int(round(tile_um / mpp))
@@ -116,12 +113,4 @@ def synthetic_gbm(scan_id: str = "SCN-SYN-GBM-01", seed: int = 0, tiles: int = 2
                 cx, cy = (x0 + tile_px / 2) * mpp, (y0 + tile_px / 2) * mpp
                 tum.append(_square(cx, cy, tile_um * 0.3))
 
-    cands = []
-    for k in range(mitoses):
-        cands.append({"id": f"{scan_id}:m{k:06d}", "scan_id": scan_id, "x_um": float(rng.uniform(0, tissue_w * mpp)),
-                      "y_um": float(rng.uniform(0, H * mpp)), "p": float(rng.uniform(0.9, 0.99))})
-    for k in range(distractors):
-        cands.append({"id": f"{scan_id}:m{mitoses + k:06d}", "scan_id": scan_id,
-                      "x_um": float(rng.uniform(0, tissue_w * mpp)), "y_um": float(rng.uniform(0, H * mpp)),
-                      "p": float(rng.beta(1, 60))})
-    return SyntheticGBM(scan, ArrayReader(rgb, mpp), nec_polys, mvp_polys, tum, cands, mitoses)
+    return SyntheticGBM(scan, ArrayReader(rgb, mpp), nec_polys, mvp_polys, tum)

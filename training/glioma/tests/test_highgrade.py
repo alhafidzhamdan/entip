@@ -1,5 +1,4 @@
 """Step 3 (high-grade features) on synthetic slides only."""
-import itertools
 import json
 from pathlib import Path
 
@@ -11,7 +10,6 @@ from entip_glioma.highgrade.actions import build_actions
 from entip_glioma.highgrade.assess import assess_specimen
 from entip_glioma.highgrade.bags import tile_ids
 from entip_glioma.highgrade.contract import CALLS, CONTRACT
-from entip_glioma.highgrade.mitoses import MitosisConfig, MitosisCounter, p_at_least
 from entip_glioma.highgrade.regions import RegionConfig, RegionDetector, tile_labels
 from entip_glioma.highgrade.synthetic import synthetic_gbm
 from entip_glioma.wsi.bags import Bag, extract_bag
@@ -51,56 +49,6 @@ def detectors(train_set, held_out):
         det.calibrate_slides([[b] for _, b in held_out], [i % 2 for i in range(len(held_out))])
         dets[f] = det
     return dets
-
-
-# ---------------------------------------------------------------- mitoses
-
-def test_p_at_least_matches_brute_force():
-    rng = np.random.default_rng(0)
-    p = rng.uniform(0, 1, 7)
-    for k in range(0, 5):
-        brute = sum(np.prod([q if b else 1 - q for q, b in zip(p, bits)])
-                    for bits in itertools.product([0, 1], repeat=len(p)) if sum(bits) >= k)
-        assert p_at_least(p, k) == pytest.approx(brute, abs=1e-12)
-
-
-@pytest.mark.parametrize("ps, call", [([0.95, 0.97, 0.9] + [0.01] * 30, "present"),
-                                      ([0.02] * 40, "absent"),
-                                      ([0.6, 0.6] + [0.01] * 10, "indeterminate")])
-def test_mitotic_activity_calls(ps, call):
-    cands = [{"id": f"c{i}", "scan_id": "S", "x_um": float(i), "y_um": 0.0, "p": p} for i, p in enumerate(ps)]
-    r = MitosisCounter(MitosisConfig(validated=True)).assess(cands, ["S"], tissue_mm2=10.0)
-    assert r.call == call
-    assert (r.status == "confident") == (call != "indeterminate")
-    assert (r.order_test == "pathologist_review") == (call == "indeterminate")
-    assert r.to_record("SYN-0001")["calibration"] == {"method": "rule", "calibrated": False, "validated": False,
-                                                      "n_heldout": 0}
-    counted = [p for p in ps if p >= 0.2]                       # the floor for tables without a MitoEd call
-    assert r.value["n_counted"] == len(counted) and r.value["n_candidates"] == len(ps)
-    assert [e["weight"] for e in r.evidence[:1]] == sorted(counted)[-1:]
-
-
-def test_many_mimics_do_not_add_up_to_a_count(tmp_path):
-    """5,000 low-p candidates must not read as elevated; MitoEd's own mimic call removes them."""
-    from entip_glioma.highgrade.mitoses import read_mitoed_cells
-    rows = ["x_px,y_px,p_mitosis,p_std,call,x_um,y_um,slide"]
-    rows += [f"{i},{i},0.02,0,mimic,{i * 0.5},{i * 0.5},s" for i in range(5000)]
-    rows += ["9,9,0.45,0,uncertain,4.5,4.5,s"]
-    f = tmp_path / "cells.csv"
-    f.write_text("\n".join(rows) + "\n")
-    cands = read_mitoed_cells(f, "S")
-    counter = MitosisCounter(MitosisConfig(validated=True))
-    r = counter.assess(cands, ["S"], tissue_mm2=50.0)
-    assert r.call == "absent" and r.value["n_counted"] == 1 and len(counter.counted(cands)) == 1
-
-
-def test_small_biopsy_lowers_cutoff_and_unvalidated_is_uncertain():
-    cands = [{"id": "c0", "scan_id": "S", "x_um": 0.0, "y_um": 0.0, "p": 0.97}]
-    big = MitosisCounter(MitosisConfig(validated=True, small_biopsy_mm2=2.0)).assess(cands, ["S"], 20.0)
-    small = MitosisCounter(MitosisConfig(validated=True, small_biopsy_mm2=2.0)).assess(cands, ["S"], 1.0)
-    assert big.call == "absent" and small.call == "present" and small.value["min_count"] == 1
-    default = MitosisCounter().assess(cands, ["S"], 1.0)
-    assert default.status == "uncertain" and default.order_test == "pathologist_review"
 
 
 # ---------------------------------------------------------------- necrosis and MVP
@@ -205,18 +153,16 @@ DB_SCHEMA = Path(__file__).resolve().parents[3] / "platform" / "db" / "schema" /
 def test_specimen_records_and_actions(detectors):
     s1, b1 = _bag(scan_id="SCN-SYN-0001-A1-01", seed=201, necrosis=1, mvp=2)
     s2, b2 = _bag(scan_id="SCN-SYN-0001-A2-01", seed=202, necrosis=0, mvp=0)
-    cands = s1.candidates + s2.candidates
-    a = assess_specimen("SYN-0001", [b1, b2], list(detectors.values()),
-                        MitosisCounter(MitosisConfig(validated=True)), cands)
+    a = assess_specimen("SYN-0001", [b1, b2], list(detectors.values()))
     recs = {r["finding"]: r for r in a.records()}
-    assert set(recs) == {"necrosis", "microvascular_proliferation", "mitotic_activity"}
+    assert set(recs) == {"necrosis", "microvascular_proliferation"}   # no mitosis record until a new counter exists
     for r in recs.values():
         assert r["contract"] == CONTRACT and r["step"] == "high_grade_features" and r["source"] == "ai"
         assert r["call"] in CALLS and 0 <= r["confidence"] <= 1 and r["model"]["model_id"]
         assert r["scan_ids"] == ["SCN-SYN-0001-A1-01", "SCN-SYN-0001-A2-01"]
         assert all(set(e) >= {"kind", "id"} for e in r["evidence"])
         assert not _keys(r) & {"age", "site", "location", "sex", "chi", "nhs_number", "dob", "imaging"}
-    assert recs["necrosis"]["call"] == "present" and recs["mitotic_activity"]["call"] == "present"
+    assert recs["necrosis"]["call"] == "present"
 
     verbs = [(x["verb"], x["object_type"]) for x in a.actions]
     assert verbs[0] == ("upsert", "feature") and verbs[-1] == ("glioma_step", None)
@@ -250,7 +196,7 @@ def test_post_to_live_db(detectors):
         pytest.skip("set ENTIP_TEST_DB_API=http://127.0.0.1:8705 to run")
     from entip_glioma.highgrade.actions import post_actions
     s, b = _bag(scan_id="SCN-0001-A1-01", seed=401, necrosis=1, mvp=2)
-    a = assess_specimen("SYN-0001", [b], list(detectors.values()), MitosisCounter(), s.candidates)
+    a = assess_specimen("SYN-0001", [b], list(detectors.values()))
     res = post_actions(url, a.actions)
     assert len(res) == len(a.actions)
     with urllib.request.urlopen(f"{url}/actions?verb=glioma_step&limit=5000") as r:
@@ -300,11 +246,3 @@ def test_train_cli_takes_negative_bags(train_set, tmp_path):
     det = RegionDetector.load(tmp_path / "m.joblib")
     assert det.metrics["negative_bags"] == 1 and det.metrics["n_neg"] == 30
     assert det.cfg.context == (1,)
-
-
-def test_mitosis_calibration_changes_the_count_probability():
-    cands = [{"id": f"c{i}", "x_um": 0, "y_um": 0, "p": 0.6, "call": "mitosis"} for i in range(3)]
-    raw = MitosisCounter(MitosisConfig()).assess(cands, ["S"], 10.0)
-    low = MitosisCounter(MitosisConfig(calibration=(1.0, -2.0))).assess(cands, ["S"], 10.0)
-    assert low.p_present < raw.p_present
-    assert low.calibration["calibrated"] and not raw.calibration["calibrated"]

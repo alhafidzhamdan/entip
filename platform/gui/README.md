@@ -18,7 +18,7 @@ Two views over the same data, switched at the top of every page and remembered p
 - **Cohort**: sortable table, one row per patient, every molecular field and model value; copy or download CSV.
 - **Patient page**: the full tissue tree (Specimen > Block > Section > Scan | Assay), all outputs and assays, full log.
 - **Slide page**: layer toggles (model calls, marks, cell outlines, regions, queue); pick which model's calls to
-  show (the live head or an existing model such as MitoEd) and move the threshold while a histogram and the
+  show (the live head or an existing model) and move the threshold while a histogram and the
   count per mm² update; teach any feature with the review queue; export the per-cell table as CSV.
 
 Layout ideas (candidate gallery, probability histogram with a threshold, layer list) were taken from looking
@@ -67,7 +67,7 @@ entip-train serve --encoder handcrafted --cors http://localhost:8000   # optiona
 python -m http.server 8000 -d platform/gui/web                    # open http://localhost:8000/?api=http
 ```
 
-Tested this way on 31 Oct 2026: patient list, patient tree, slide with cells, regions and MitoEd predictions
+Tested this way on 31 Oct 2026: patient list, patient tree, slide with cells, regions and mock mitosis predictions
 from the database, marks saved as annotations and shown in the patient's log. Live training on these slides
 waits for the training service to read scans and cells from the database (its open item).
 
@@ -80,7 +80,7 @@ waits for the training service to read scans and cells from the database (its op
 | `web/js/viewer.js` | OpenSeadragon plus a canvas overlay for cells, marks, model calls and the queue |
 | `web/js/api.js` | mock and HTTP adapters |
 | `web/js/head.js` | mock live head (mirrors training tier 1) |
-| `tools/make_mock_slides.py` | synthetic H&E-like slides (Beer-Lambert stain model), DZI tiles, cell tables in µm, mock MitoEd detections (`mitoed.json`) |
+| `tools/make_mock_slides.py` | synthetic H&E-like slides (Beer-Lambert stain model), DZI tiles, cell tables in µm, mock mitosis detections (`mitosis-mock.json`) |
 | `tools/make_mock_patients.py` | synthetic patient records |
 | `tools/load_mock_into_db.py` | load the mock cases into the database over its API, for `http` mode |
 | `tests/` | `node --test platform/gui/tests/*.test.js` and `python -m pytest platform/gui/tests` |

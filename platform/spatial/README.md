@@ -25,7 +25,7 @@ pytest -q
 2. **Register** (`register.py`). Fit assay µm to H&E µm from ≥ 3 landmark pairs (affine, or similarity).
    Errors are stored in µm: fit RMSE, leave-one-out RMSE and the worst landmark. For single-cell assays the
    fit can be refined by trimmed ICP on mutual nearest neighbours between assay cells and H&E nuclei.
-3. **Spot table** (`spots.py`). Per spot: H&E cells inside, counts per class (MitoEd `call`), max and mean of
+3. **Spot table** (`spots.py`). Per spot: H&E cells inside, counts per class (`call`), max and mean of
    every `p_*` column, local mitosis density. Indexed by barcode, joined onto `adata.obs`.
 4. **Labels for training** (`labels.py`), after the CytoFormer idea (rebuilt, no code copied):
    - single-cell assays: assay cells get a label from marker genes (or from an existing `obs` column);
@@ -43,7 +43,7 @@ pytest -q
 | File | Columns |
 |---|---|
 | landmarks CSV | `assay_x_um, assay_y_um, he_x_um, he_y_um` (or `assay_x, assay_y` in native units) |
-| H&E nuclei CSV | `cell_id, x_um, y_um` (+ `call`, `p_*` for MitoEd-style tables) in the scan frame |
+| H&E nuclei CSV | `cell_id, x_um, y_um` (+ `call`, `p_*` for classified cell tables) in the scan frame |
 | `transform.json` | matrix (3 × 3, assay → scan), `rmse_um`, `loo_rmse_um`, `max_err_um`, method, provenance |
 | `training_labels.csv` | `cell_id, scan_id, x_um, y_um, label, confidence, label_source, assay_id, assay_barcode, match_dist_um, transform_id, transform_err_um` |
 

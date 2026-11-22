@@ -16,8 +16,7 @@ Datasets and model weights for every step are tracked in one register: [docs/dat
 
 Not used here: UNI, UNI2-h, Virchow2, H-optimus-1 (CC-BY-NC-ND), the Heidelberg classifier software and CLAM.
 
-`highgrade/` adds no dependencies. It reads MitoEd output (MIT code; see MitoEd's LICENCES.md for its weights and
-data). Region labels for real training are not chosen yet; check their licence before use.
+`highgrade/` adds no dependencies. Region labels for real training are not chosen yet; check their licence before use.
 
 Data: synthetic only in this repository (generated in `triage/synthetic.py`, `highgrade/synthetic.py` and the
 tests). No patient data.

@@ -15,7 +15,7 @@ instead of being used. Research use only; nothing has been run on real patients.
 | 3 | High-grade features, in three sub-steps (shared rules) | [step3-high-grade.md](step3-high-grade.md) | `training/glioma/src/entip_glioma/highgrade/` |
 | 3a | Microvascular proliferation | [step3a-mvp.md](step3a-mvp.md) | `highgrade/`, training `training/runs/highgrade_mvp/` |
 | 3b | Necrosis | [step3b-necrosis.md](step3b-necrosis.md) | `highgrade/`, training `training/runs/highgrade_necrosis/` |
-| 3c | Mitotic activity | [step3c-mitosis.md](step3c-mitosis.md) | `highgrade/` with MitoEd, training `training/runs/highgrade_mitosis/` |
+| 3c | Mitotic activity | [step3c-mitosis.md](step3c-mitosis.md) | Count-only design, not built |
 | 4 | Panel markers (IDH, 1p/19q, ATRX, TP53, CDKN2A, EGFR, +7/-10, TERT, H3, MGMT) | [step4-panel.md](step4-panel.md) | `training/glioma/src/entip_glioma/panel/` |
 | 5 | Methylation class | [step5-methylation.md](step5-methylation.md) | `training/glioma/src/entip_glioma/methylation/` |
 | 6 | Integrated diagnosis and report | [step6-integrated-diagnosis.md](step6-integrated-diagnosis.md) | `training/dx/` |

@@ -1,4 +1,4 @@
-"""Tier 2: gated champion/challenger retraining (after MitoEd's src/mitoed/train/retrain.py).
+"""Tier 2: gated champion/challenger retraining.
 
 One round:
   1. Gather every firm, non-locked mark for the feature across scans (plus any external training set).
@@ -10,7 +10,7 @@ One round:
      not worse by more than ``tol_ece``. With no champion yet, the challenger needs ``min_locked_ba``.
   5. Record the round either way (Model row + action log); the old champion becomes ``retired``.
 
-The gate only sees metric dicts, so models that are not live heads (e.g. MitoEd's classifier, or a
+The gate only sees metric dicts, so models that are not live heads (e.g. a
 detector retrained on GPU) plug in by implementing ``Trainable``: ``fit`` on the training set and
 ``predict`` on the locked set. ``HeadTrainable`` is the built-in one.
 """
