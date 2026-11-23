@@ -67,7 +67,7 @@ def draw(a) -> int:
             by[r["category"]][r["PatientID"]].append(r)
     rng = random.Random(a.seed)
     queue = {}
-    for cat in set(want) | {"gbm"}:
+    for cat in sorted(set(want) | {"gbm"}):
         queue[cat] = sorted(by[cat])
         rng.shuffle(queue[cat])
 
@@ -317,7 +317,7 @@ def main() -> int:
     d.add_argument("--slides", required=True)
     d.add_argument("--reference", required=True, help="the sealed reference set's private/patients.csv")
     d.add_argument("--out", required=True)
-    d.add_argument("--per-category", nargs="*", default=["gbm=4", "astro4=2", "oligo3=2", "astro3=2", "grade2=2"])
+    d.add_argument("--per-category", nargs="*", default=["gbm=3", "astro4=3", "oligo3=2", "astro3=2", "grade2=2"])
     d.add_argument("--hold", type=int, default=3)
     d.add_argument("--seed", type=int, default=20261201)
     d.set_defaults(fn=draw)
