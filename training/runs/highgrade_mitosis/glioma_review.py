@@ -39,7 +39,6 @@ from common import quotas, read_manifest, read_patients  # noqa: E402
 CALL_LABELS = ("mitosis", "granular", "prophase", "look_alike", "uncertain", "unusable")
 CROP_UM, CROP_PX = 64.0, 256
 HOLD_FROM = ("gbm", "oligo3", "astro3")
-MIDDLE = 0.50
 
 
 def reserved_patients(path: str) -> set:
@@ -178,9 +177,11 @@ def choose_calls(rows: list, cutoff: float, n: int, seed: int) -> list:
     """About n/3 confident, borderline and low-scoring candidates, spread evenly over patients. Spare places are filled."""
     rng = random.Random(seed)
     strata = {"confident": [], "borderline": [], "low": []}
+    below = sorted(float(r["score"]) for r in rows if float(r["score"]) < cutoff)
+    middle = below[len(below) // 2] if below else cutoff      # the upper half of the calls below the cut-off
     for r in rows:
         s = float(r["score"])
-        name = "confident" if s >= cutoff else "borderline" if s >= MIDDLE else "low"
+        name = "confident" if s >= cutoff else "borderline" if s >= middle else "low"
         strata[name].append({**r, "stratum": name})
     ranked = {}
     for name, part in strata.items():
