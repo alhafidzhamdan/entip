@@ -6,6 +6,9 @@
 **pick** writes ``trial.csv`` and ``cohort.json``: patients, slides and download size per tumour category and report
 label, with no patient names. It downloads nothing, so the size can be checked first.
 
+**record** saves a pathologist's reading of the low-grade reports that the rule called present. Those calls replace the
+rule's necrosis label. Case grades are not changed: a different diagnosis is stored beside the original category.
+
 **check** stops training if more than ``--max-missing`` of the chosen slides have no embeddings.
 """
 from __future__ import annotations
@@ -13,8 +16,9 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "highgrade_common"))
@@ -79,9 +83,44 @@ def check(a) -> int:
     return 0
 
 
+def record(a) -> int:
+    """Saves a pathologist's reading of the low-grade reports the rule called present, in their case order."""
+    out = Path(a.out)
+    if out.exists():
+        raise SystemExit(f"{out} already exists: a review is recorded once")
+    labels = {r["patient"]: r["label"] for r in csv.DictReader(open(a.labels, newline=""))}
+    cats = {r["PatientID"]: category(r) for r in csv.DictReader(open(a.trial, newline=""))}
+    chosen = sorted(p for p, c in cats.items() if c in ("astro3", "grade2") and labels.get(p) == "present")
+    calls = {}
+    for item in a.calls:
+        m = re.fullmatch(r"case(\d+)=(present|absent)(?::(\w+))?", item)
+        if not m or (m[3] and m[3] not in CATEGORIES):
+            raise SystemExit(f"cannot read {item!r}: use case01=present:oligo3 or case03=absent")
+        calls[int(m[1])] = (m[2], m[3] or "")
+    if set(calls) != set(range(1, len(chosen) + 1)):
+        raise SystemExit(f"give one call for each of the {len(chosen)} cases")
+    rows = [{"patient": p, "necrosis": calls[n][0], "diagnosis": calls[n][1]} for n, p in enumerate(chosen, 1)]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["patient", "necrosis", "diagnosis"])
+        w.writeheader()
+        w.writerows(rows)
+    out.chmod(0o600)
+    print(json.dumps({"reviewed": len(rows), "necrosis": dict(Counter(r["necrosis"] for r in rows)),
+                      "category_disagreements": sum(bool(r["diagnosis"]) and r["diagnosis"] != cats[r["patient"]]
+                                                    for r in rows)}, indent=2))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
+    r = sub.add_parser("record", help="save the reviewed necrosis calls; case grades are not changed")
+    r.add_argument("--trial", required=True)
+    r.add_argument("--labels", required=True, help="report-labels.csv")
+    r.add_argument("--out", required=True)
+    r.add_argument("--calls", nargs="+", required=True, help="case01=present:oligo3 case03=absent ...")
+    r.set_defaults(fn=record)
     p = sub.add_parser("pick", help="choose the slides and report the download size")
     p.add_argument("--manifest", required=True)
     p.add_argument("--idh", required=True)

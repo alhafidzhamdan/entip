@@ -21,6 +21,7 @@ case "$MODE" in
     ;;
   run)
     [ -s "$WORK/trial.csv" ] && [ -s "$WORK/cohort.json" ] || { echo "run the pick step first" >&2; exit 1; }
+    [ -s "$WORK/private/report-review.csv" ] || { echo "record the report review first" >&2; exit 1; }
     [ ! -f "$WORK/model/summary.json" ] || { echo "$WORK/model already has a result" >&2; exit 1; }
     pass="BASE=$BASE,REPO=$REPO,RUN=$RUN,WORK=$WORK,ENV_DIR=$ENV_DIR,ENCODER=$ENCODER,TRIAL=$TRIAL,HF_HOME=$HF_HOME"
     q() { qsub -terse -v "$pass" -o "$WORK/logs" "$@"; }

@@ -106,6 +106,15 @@ def label_reports(base: Path, private: Path, min_chars: int) -> dict:
     return labels
 
 
+def read_reviewed(path: str | None) -> dict:
+    if not path:
+        return {}
+    rows = {r["patient"]: r for r in csv.DictReader(open(path, newline=""))}
+    if any(r["necrosis"] not in ("present", "absent") for r in rows.values()):
+        raise SystemExit(f"{path}: necrosis must be present or absent")
+    return rows
+
+
 def split_patients(cases: dict, fraction: float, seed: int) -> dict:
     """Reserves the same share of each category and label."""
     groups, out = defaultdict(list), {}
@@ -137,6 +146,7 @@ def main() -> int:
     ap.add_argument("--bags", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--holdout", action="append", default=[], help="CSV of patients never used here (repeat)")
+    ap.add_argument("--reviewed", help="pathologist-read necrosis calls, which replace the rule's labels")
     ap.add_argument("--test-fraction", type=float, default=0.2, help="share of labelled patients to reserve unseen")
     ap.add_argument("--min-chars", type=int, default=100)
     ap.add_argument("--min-per-class", type=int, default=10, help="stop below this many training patients per class")
@@ -152,6 +162,9 @@ def main() -> int:
         raise SystemExit(f"{out / 'summary.json'} already exists: a run is never overwritten")
     private.mkdir(parents=True, exist_ok=True)
     labels = label_reports(Path(a.reports), private, a.min_chars)
+    reviewed = read_reviewed(a.reviewed)
+    changed = sum(labels.get(p) != r["necrosis"] for p, r in reviewed.items())
+    labels.update({p: r["necrosis"] for p, r in reviewed.items()})
     holdout = read_patients(a.holdout)
     slides, category = defaultdict(list), {}
     for r in read_manifest(a.manifest):
@@ -160,6 +173,7 @@ def main() -> int:
             slides[r["PatientID"]].append(r["SeriesInstanceUID"])
             category[r["PatientID"]] = r["category"]
     matched = [p for p in slides if p in labels]
+    disagree = {p for p, r in reviewed.items() if r["diagnosis"] and p in category and r["diagnosis"] != category[p]}
     cases = {p: {"category": category[p], "y": int(labels[p] == "present")} for p in matched
              if labels[p] in ("present", "absent") and p not in holdout}
     split = split_patients(cases, a.test_fraction, a.seed)
@@ -173,6 +187,8 @@ def main() -> int:
     summary = {"label_source": "TCGA pathology reports, by rule; unproven until blinded slide review",
                "report_patients": len(labels), "report_labels": dict(Counter(labels.values())),
                "patients_with_report_and_bag": len(matched), "labels_by_category": by_category,
+               "reviewed_cases": len(reviewed), "labels_changed_by_review": changed,
+               "category_disagreements_left_out_of_within_category_auc": len(disagree),
                "held_out_patients_left_out": sum(p in holdout for p in matched),
                "reserved_unseen": {"present": sum(split[p] == "reserved" and cases[p]["y"] == 1 for p in cases),
                                    "absent": sum(split[p] == "reserved" and cases[p]["y"] == 0 for p in cases)},
@@ -196,9 +212,9 @@ def main() -> int:
         for i in te:  # the share of positives in this category among the other folds
             same = tr[cats[tr] == cats[i]]
             base[i] = (y[same].sum() + 1) / (len(same) + 2)
-    within = {}
+    within, agreed = {}, np.array([p not in disagree for p in train])
     for c in CATEGORIES:
-        m = cats == c
+        m = (cats == c) & agreed
         within[c] = {"present": int(y[m].sum()), "absent": int(m.sum() - y[m].sum()), "auc": auc(y[m], oof[m])}
     final = ABMIL(2, epochs=a.epochs, seed=a.seed).fit(bags, y)
     final.save(out / "necrosis-mil.npz")

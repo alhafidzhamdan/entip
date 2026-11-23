@@ -17,6 +17,6 @@ python "$TOOLS/necrosis_cohort.py" check --trial "$W/trial.csv" --bags "$W/bags-
 mkdir -p "$W/model/private"
 chmod -R go-rwx "$W/model/private"
 python "$TOOLS/report_mil.py" --reports "$H/necrosis-report1/reports/private" --manifest "$W/trial.csv" \
-  --bags "$W/bags-h-optimus-0" --test-fraction 0.2 --out "$W/model"
+  --bags "$W/bags-h-optimus-0" --reviewed "$W/private/report-review.csv" --test-fraction 0.2 --out "$W/model"
 chmod -R go-rwx "$W/model/private"
 echo "done: $W/model/summary.json"

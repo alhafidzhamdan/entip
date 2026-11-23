@@ -63,6 +63,10 @@ from patients with a clear report label. The first step downloads no slides and 
 bash /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/eddie/necrosis_cohort_submit.sh pick
 ```
 
+Read the original reports of the `astro3` and `grade2` cases the rule called present, and save the calls with
+`necrosis_cohort.py record`. They replace the rule's necrosis labels. Case grades are not changed: a different
+diagnosis is stored beside the original category, and that case is left out of the within-category AUC.
+
 After checking the size and class balance, this downloads the slides, embeds them on GPUs and trains:
 
 ```bash
