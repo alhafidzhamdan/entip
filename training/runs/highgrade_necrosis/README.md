@@ -40,6 +40,20 @@ outlining or training:
 python /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/slide_review.py lock --key /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh2/private/key.csv --calls /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh2/private/necrosis-calls-AH.csv --out /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/necrosis-fresh2/private
 ```
 
+## Report-labelled slide model
+
+`report_mil.py` finds TCGA cases whose pathology report states necrosis or no necrosis, then trains a draft attention
+model on all of each patient's slides. "Not mentioned" is never treated as absent. This is a fresh run: it downloads
+and reads its own reports, excludes no patients from earlier runs, and keeps a random 20% of its patients unseen.
+
+```bash
+bash /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/eddie/necrosis_report_submit.sh
+```
+
+Judge `summary.json` by the AUC within each category and against `category_only_baseline_auc`, because necrosis tracks
+grade. Report labels are unproven until compared with blinded slide review. Commercial use is a project assumption, not
+a confirmed licence.
+
 ## Round 1, on Eddie
 
 ```bash
