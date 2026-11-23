@@ -54,6 +54,21 @@ Judge `summary.json` by the AUC within each category and against `category_only_
 grade. Report labels are unproven until compared with blinded slide review. Commercial use is a project assumption, not
 a confirmed licence.
 
+### Larger report cohort
+
+`necrosis-report1` could use only the patients already embedded. `necrosis_cohort.py` chooses every TCGA FFPE slide
+from patients with a clear report label. The first step downloads no slides and reports the size in `cohort.json`:
+
+```bash
+bash /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/eddie/necrosis_cohort_submit.sh pick
+```
+
+After checking the size and class balance, this downloads the slides, embeds them on GPUs and trains:
+
+```bash
+bash /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_necrosis/eddie/necrosis_cohort_submit.sh run
+```
+
 ## Round 1, on Eddie
 
 ```bash
