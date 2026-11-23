@@ -230,9 +230,49 @@ def prepare(a) -> int:
     return 0
 
 
+def derive(a) -> int:
+    """A second finder's split: melanoma and NET join training, tune stays the same, and prophase becomes a negative."""
+    src, out = Path(a.source), Path(a.out)
+    if (out / "index.json").exists():
+        raise SystemExit(f"{out / 'index.json'} already exists: the split is fixed once")
+    if not (src / "unseen-test.json").exists():
+        raise SystemExit("the first finder's one-time unseen test must finish before its images are used for training")
+    index = json.load(open(src / "index.json"))
+    moved = prophase = 0
+    for im in index["images"]:
+        if im["split"] == "unseen":
+            im["split"] = "train"
+            moved += 1
+        if im["source"] == "midog":
+            im["mm2"] = 2.0             # every MIDOG++ image spans 2 mm², whichever scanner made it
+        for o in im["objects"]:
+            if o["role"] == "ignore":
+                o["role"] = "neg"
+                prophase += 1
+    summary = defaultdict(lambda: {"images": 0, "mitoses": 0, "negatives": 0})
+    for im in index["images"]:
+        s = summary[f"split:{im['split']}"]
+        c = Counter(o["role"] for o in im["objects"])
+        s["images"] += 1
+        s["mitoses"] += c["pos"]
+        s["negatives"] += c["neg"]
+    info = {"source_run": str(src.resolve()), "images_moved_to_train": moved, "prophase_now_negative": prophase,
+            **dict(sorted(summary.items()))}
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "index.json").open("w") as f:
+        json.dump(index, f, separators=(",", ":"))
+    (out / "summary.json").write_text(json.dumps(info, indent=2) + "\n")
+    print(json.dumps(info, indent=2))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
+    v = sub.add_parser("derive", help="make the second finder's split from the first finder's")
+    v.add_argument("--source", required=True, help="the first finder's run folder")
+    v.add_argument("--out", required=True)
+    v.set_defaults(fn=derive)
     f = sub.add_parser("fetch", help="download and checksum the public data")
     f.add_argument("--data", required=True)
     f.add_argument("--workers", type=int, default=4)

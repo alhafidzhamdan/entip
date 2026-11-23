@@ -314,7 +314,7 @@ def score_image(det: np.ndarray, im: dict, threshold: float) -> dict:
     fp = int((~near(other, ign)).sum())
     return {"tp": tp, "fp": fp, "fn": len(pos) - tp, "n_true": len(pos), "n_pred": tp + fp,
             "neg_total": len(neg), "neg_hit": int(near(neg, other[~near(other, ign)]).sum()),
-            "mm2": im["w"] * im["h"] * (UM_PER_PX / 1000) ** 2}
+            "mm2": im.get("mm2", im["w"] * im["h"] * (UM_PER_PX / 1000) ** 2)}
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> list:

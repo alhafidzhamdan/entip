@@ -18,7 +18,8 @@ pixel.
 
 - **Mitosis:** prometaphase, metaphase, anaphase, telophase and atypical figures.
 - **Look-alike:** the datasets' negative class, penalised as heavily as a mitosis.
-- **Prophase:** ignored, in training and scoring, to match the counting definition.
+- **Prophase:** never counted as a mitosis. The first finder ignored it in training and scoring, so it could still
+  call a prophase without penalty.
 - **LUNG-MITO is training only**, because its tiles have no patient identifiers and cannot be split safely.
 - **MIDOG++:** 498 of its 503 images have a confirmed CC0 record. The other 5 are never downloaded.
 - A MIDOG++ case is treated as one patient, because the dataset gives no separate patient identifier.
@@ -37,6 +38,35 @@ qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_
 
 The results are in `unseen-test.json`. That is an internal check, not a glioma result. The glioma result comes only
 from scoring the frozen model on the locked reference set below.
+
+## Second finder
+
+`finder_3_retrain.sh` trains a new finder from scratch after the first finder's one-time unseen test.
+
+- Human melanoma and neuroendocrine tumour images join training as complete images. The `tune` cases do not change.
+- Prophase becomes a negative in training and tuning, so calling a prophase now counts as an error.
+- False counts per mm² use the true 2 mm² area of each MIDOG++ image.
+- This finder has no unseen-tumour test. Its glioma performance comes from the held-out patients and the locked set.
+
+## Glioma review round 1
+
+`glioma_review.py` starts teaching the finder glioma with a small TCGA set, using the second finder. It does not use
+gbm-db.
+
+- **Reference patients are sealed first.** The job draws them before anything else, and the finder never runs on them.
+- **Development:** 9 patients, each with 1 field to mark in full and 3 finder fields.
+- **Held out:** 3 patients, each with 2 fields to mark in full. They are never trained on and measure each retrain.
+- **Review:** 15 full fields (7.5 mm²), with no model output, and 300 finder calls in random order with scores hidden.
+- **Calls:** about 100 confident, 100 borderline and 100 low scoring, spread across patients.
+
+Submit the second finder and the round together. The round waits for training to finish:
+
+```bash
+mkdir -p /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-finder2/logs /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-glioma-round1/logs /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-ref1/logs && qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_mitosis/eddie/finder_3_retrain.sh && qsub -hold_jid mitosis_finder2_train /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_mitosis/eddie/glioma_round1.sh
+```
+
+Copy `full-fields-pack.tar` and `calls-pack.tar` to your computer, unpack them and open each `review.html`. Mark the full
+fields first. Keep `private/` on Eddie.
 
 ## Glioma reference set
 
@@ -68,6 +98,7 @@ Unpack the file and open `review.html`.
 ## Marking
 
 - Mark every mitosis whose centre lies inside the white square. Count a telophase pair once.
+- Atypical and granular mitoses count as mitoses. Do not mark prophase as a mitosis.
 - Keys: `1` mitosis, `2` uncertain, `3` pyknosis, `4` apoptosis, `5` karyorrhexis, `6` lymphocyte, `7` other look-alike.
 - `N` or space moves through the nine sections. A field cannot be completed until all nine have been viewed.
 - Click a mark to select it, then press a number to relabel it or backspace to delete it.
