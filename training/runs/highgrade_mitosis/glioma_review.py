@@ -15,8 +15,8 @@ fields to mark in full, and are never used to train. They measure whether a retr
 ``calls-pack.tar`` holds 300 finder candidates in random order: confident, borderline and low scoring. Scores, patients
 and slides stay in ``private/``.
 
-**page** rewrites only the call review page and ``calls-pack.tar`` of a built round, for example after a label is added.
-The keys, crops and order do not change, and labels already saved in the browser are kept.
+**page** rewrites only the two review pages and their tar files of a built round, for example after a label is added.
+The keys, images and order do not change, and call labels already saved in the browser are kept.
 
 Mitosis means prometaphase, metaphase, anaphase, telophase, atypical or granular. Prophase is not a mitosis.
 """
@@ -301,11 +301,17 @@ def page(a) -> int:
     full = list(csv.DictReader(open(private / "full-key.csv", newline="")))
     keyed = list(csv.DictReader(open(private / "calls-key.csv", newline="")))
     calls = [r["call"] for r in keyed]
-    missing = [c for c in calls if not (out / "calls-pack" / "crops" / f"{c}.jpg").exists()]
+    codes = sorted(r["field"] for r in full)
+    missing = [c for c in calls if not (out / "calls-pack" / "crops" / f"{c}.jpg").exists()] + \
+              [c for c in codes if not (out / "full-fields-pack" / "fields" / f"{c}.jpg").exists()]
     if not full or not calls or missing:
-        raise SystemExit("this round has no complete calls pack to rewrite")
-    tar = write_call_page(out, full_sha(full), calls)
-    print(json.dumps({"calls": len(calls), "labels": list(CALL_LABELS), "calls_pack": str(tar)}, indent=2))
+        raise SystemExit("this round has no complete packs to rewrite")
+    sha = full_sha(full)
+    tar = write_call_page(out, sha, calls)
+    full_tar = R.write_pack(out, "full-fields-pack", f"entip-mitosis-dev1-{sha}", codes,
+                            out / "full-fields-pack" / "fields")
+    print(json.dumps({"calls": len(calls), "labels": list(CALL_LABELS), "calls_pack": str(tar),
+                      "full_fields": len(codes), "mark_types": list(R.LABELS), "full_pack": str(full_tar)}, indent=2))
     return 0
 
 

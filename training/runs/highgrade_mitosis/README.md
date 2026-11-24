@@ -107,10 +107,15 @@ Unpack the file and open `review.html`.
 ## Marking
 
 - Mark every mitosis whose centre lies inside the white square. Count a telophase pair once.
-- Atypical and granular mitoses count as mitoses. Do not mark prophase as a mitosis.
-- Keys: `1` mitosis, `2` uncertain, `3` pyknosis, `4` apoptosis, `5` karyorrhexis, `6` lymphocyte, `7` other look-alike.
+- Atypical and granular mitoses count as mitoses. Prophase is marked, if at all, as a look-alike.
+- Mark types: `1` mitosis, `2` uncertain, `3` look-alike.
+- Each mark can carry several ticked details. A mitosis takes one phase at most, plus atypical (`A`) and granular (`G`).
+  A look-alike takes one or more types: prophase, pyknosis, apoptosis, karyorrhexis, lymphocyte, endothelial or
+  reactive, or other. Any mark can be flagged as blurred or hard to judge at the edge.
+- A field with no mitosis must be ticked **No mitoses in this field** before it can be completed.
 - `N` or space moves through the nine sections. A field cannot be completed until all nine have been viewed.
-- Click a mark to select it, then press a number to relabel it or backspace to delete it.
+- Click a mark to select it, press a number to change its type, and backspace to delete it. `⌘Z` or `Ctrl+Z` undoes,
+  `H` hides marks, and `+` and `-` zoom.
 - Enter the assessable share of the field, then press Enter to complete it.
 
 Look-alikes are optional, so they are useful examples but are not an exhaustive negative set.
