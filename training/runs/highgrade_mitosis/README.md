@@ -77,6 +77,28 @@ To update the call page of a built round after a label change, without changing 
 python /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_mitosis/glioma_review.py page --out /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-glioma-round1
 ```
 
+## Third finder: glioma fine-tuning
+
+`glioma_retrain.py` and `finder_4_glioma.sh` use round 1's review. The job needs `mitosis-marks-AH.csv` and
+`mitosis-call-labels-AH.csv` in the round's `private/` folder.
+
+1. **Score the second finder** on all 15 fields marked in full, at its frozen cut-off. This is the baseline.
+2. **Add the 9 development patients' review to training.** Their full fields become fully marked images. Their calls
+   become small images labelled only at the centre: mitosis or granular is positive; prophase, look-alike or not
+   mitosis is negative; uncertain and unusable calls are left out. Each point is drawn as a 4 µm disc.
+3. **Fine-tune** from the second finder for 20 epochs, with a quarter of each batch from glioma. The epoch and cut-off
+   are still chosen on the public tune images, because there is no glioma tune set yet.
+4. **Score the third finder on the 3 held-out patients only.** It refuses any patient it was trained on.
+
+The held-out result is small: 6 fields from 3 patients. The table by cut-off in each score file describes those
+fields and must not be used to choose a cut-off.
+
+```bash
+mkdir -p /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-finder3/logs && qsub /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_mitosis/eddie/finder_4_glioma.sh
+```
+
+The results are `score-mitosis-finder2.json` and `score-mitosis-finder3.json` in the round folder.
+
 ## Glioma reference set
 
 `reference_set.py` builds a blinded, exhaustively counted reference for mitotic figures. It counts only: it makes no

@@ -39,6 +39,7 @@ PEAK_FLOOR = 0.10
 MAX_PEAKS = 3000
 THRESHOLDS = np.round(np.arange(0.10, 0.991, 0.01), 2)
 WEIGHT = {"background": 0.25, "pos": 5.0, "neg": 5.0}
+GLIOMA = "tcga-glioma"              # images made from reviewed glioma fields and calls
 
 
 def load_index(run: Path) -> dict:
@@ -77,8 +78,9 @@ def crop(arr, x0: int, y0: int, size: int) -> np.ndarray:
     return out
 
 
-def targets(objects: list, x0: int, y0: int, size: int, out_px: int) -> tuple:
-    """Target and per-pixel weight maps for a crop, drawn from the expert masks."""
+def targets(objects: list, x0: int, y0: int, size: int, out_px: int, background: float = WEIGHT["background"]) -> tuple:
+    """Target and per-pixel weight maps for a crop, drawn from the expert masks. ``background`` is the weight of
+    unmarked tissue: 0 for an image labelled only at its marks, such as a reviewed call."""
     from PIL import Image, ImageDraw
     scale = out_px / size
     y = Image.new("L", (out_px, out_px), 0)
@@ -95,7 +97,7 @@ def targets(objects: list, x0: int, y0: int, size: int, out_px: int) -> tuple:
             dw.polygon(pts, fill={"neg": 2, "pos": 3, "ignore": 0}[o["role"]])
     code = np.asarray(w)
     weight = np.zeros(code.shape, np.float32)
-    weight[code == 1] = WEIGHT["background"]
+    weight[code == 1] = background
     weight[code == 2] = WEIGHT["neg"]
     weight[code == 3] = WEIGHT["pos"]
     return np.asarray(y, np.float32), weight
@@ -119,18 +121,31 @@ def to_input(x: np.ndarray):
 
 
 class Patches:
-    """Random training patches: 40% on a mitosis, 40% on a look-alike, 20% anywhere."""
+    """Random training patches: 40% on a mitosis, 40% on a look-alike, 20% anywhere fully marked.
 
-    def __init__(self, images: list, root: str, length: int, seed: int = 0):
-        self.images, self.root, self.length, self.seed = images, Path(root), length, seed
-        self.pos = [(i, n) for i, im in enumerate(images) for n, o in enumerate(im["objects"]) if o["role"] == "pos"]
-        self.neg = [(i, n) for i, im in enumerate(images) for n, o in enumerate(im["objects"]) if o["role"] == "neg"]
-        if not self.pos:
-            raise SystemExit("no mitoses in the training split")
-        area = np.array([im["w"] * im["h"] for im in images], float)
-        self.area = area / area.sum()
+    With ``glioma_share`` above 0, that share of patches comes from the reviewed glioma images, which are otherwise
+    too few to be drawn often. Patches anywhere come only from images marked in full."""
+
+    def __init__(self, images: list, root: str, length: int, seed: int = 0, glioma_share: float = 0.0):
+        self.images, self.root, self.length, self.seed, self.share = images, Path(root), length, seed, glioma_share
+        glioma = [i for i, im in enumerate(images) if im["source"] == GLIOMA]
+        if glioma_share > 0:
+            parts = [[i for i, im in enumerate(images) if im["source"] != GLIOMA], glioma]
+        else:
+            parts = [list(range(len(images)))]
+        self.groups = [self.group(p) for p in parts]
+        if any(not g["pos"] for g in self.groups):
+            raise SystemExit("no mitoses in the training split" if len(parts) == 1 else
+                             "--glioma-share needs reviewed glioma mitoses and public mitoses in training")
         self.cache = {}
         self.rng = None
+
+    def group(self, members: list) -> dict:
+        full = [i for i in members if self.images[i].get("background", WEIGHT["background"]) > 0]
+        area = np.array([self.images[i]["w"] * self.images[i]["h"] for i in full], float)
+        return {"pos": [(i, n) for i in members for n, o in enumerate(self.images[i]["objects"]) if o["role"] == "pos"],
+                "neg": [(i, n) for i in members for n, o in enumerate(self.images[i]["objects"]) if o["role"] == "neg"],
+                "full": full, "area": area / area.sum() if len(full) else area}
 
     def __len__(self):
         return self.length
@@ -148,11 +163,14 @@ class Patches:
             info = torch.utils.data.get_worker_info()
             self.rng = np.random.default_rng([self.seed, int(torch.initial_seed()) % (2 ** 32) if info else 0])
         rng = self.rng
+        g = self.groups[1] if self.share > 0 and rng.random() < self.share else self.groups[0]
         size = int(round(PATCH * rng.uniform(0.9, 1.1)))
         u = rng.random()
-        pool = self.pos if u < 0.4 or not self.neg and u < 0.8 else self.neg if u < 0.8 else None
+        pool = g["pos"] if u < 0.4 or not g["neg"] and u < 0.8 else g["neg"] if u < 0.8 else None
+        if pool is None and not g["full"]:
+            pool = g["pos"]
         if pool is None:
-            i = int(rng.choice(len(self.images), p=self.area))
+            i = int(g["full"][int(rng.choice(len(g["full"]), p=g["area"]))])
             cx, cy = rng.uniform(0, self.images[i]["w"]), rng.uniform(0, self.images[i]["h"])
         else:
             i, n = pool[int(rng.integers(len(pool)))]
@@ -164,7 +182,8 @@ class Patches:
         if size != PATCH:
             from PIL import Image
             patch = np.asarray(Image.fromarray(patch).resize((PATCH, PATCH), Image.BILINEAR))
-        y, w = targets(self.images[i]["objects"], x0, y0, size, PATCH)
+        y, w = targets(self.images[i]["objects"], x0, y0, size, PATCH,
+                       self.images[i].get("background", WEIGHT["background"]))
         x, y, w = augment(patch, y, w, rng)
         return to_input(x), torch.from_numpy(y)[None], torch.from_numpy(w)[None]
 
@@ -397,16 +416,30 @@ def train(a) -> int:
         raise SystemExit("the index needs train and tune images")
     if any(im["source"] == "lung" for im in tune):
         raise SystemExit("LUNG-MITO has no patient identifiers and must not be used for tuning")
+    if any(im["source"] == GLIOMA for im in tune):
+        raise SystemExit("reviewed glioma images are for training only")
     seed_all(a.seed)
     dev = device()
     model = build_model(a.base).to(dev)
+    init = None
+    if a.init:
+        start_from = Path(a.init)
+        info = json.load(open(start_from / "frozen.json"))
+        if sha256(start_from / "frozen.pt") != info["sha256"]:
+            raise SystemExit("the starting model has changed since it was frozen")
+        c = torch.load(start_from / "frozen.pt", map_location=dev, weights_only=False)
+        if c["base"] != a.base:
+            raise SystemExit(f"the starting model has base {c['base']}, not {a.base}")
+        model.load_state_dict(c["model"])
+        init = {"run": str(start_from.resolve()), "sha256": info["sha256"]}
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
     total = a.epochs * a.steps
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=total, pct_start=0.1)
     amp = dev.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=amp)
     start, best_f1 = 0, -1.0
-    config = {"epochs": a.epochs, "steps": a.steps, "batch": a.batch, "lr": a.lr, "base": a.base, "seed": a.seed}
+    config = {"epochs": a.epochs, "steps": a.steps, "batch": a.batch, "lr": a.lr, "base": a.base, "seed": a.seed,
+              "init": init, "glioma_share": a.glioma_share}
     last = run / "last.pt"
     if last.exists():
         c = torch.load(last, map_location=dev, weights_only=False)
@@ -419,7 +452,7 @@ def train(a) -> int:
         start, best_f1 = c["epoch"], c["best_f1"]
         print(f"resumed after epoch {start}", flush=True)
     log = run / "train-log.jsonl"
-    data = Patches(tr, root, a.steps * a.batch, a.seed + start)
+    data = Patches(tr, root, a.steps * a.batch, a.seed + start, a.glioma_share)
     gen = torch.Generator().manual_seed(a.seed + start)
     loader = torch.utils.data.DataLoader(data, batch_size=a.batch, shuffle=True, num_workers=a.workers, drop_last=True,
                                          pin_memory=amp, persistent_workers=a.workers > 0, generator=gen)
@@ -450,7 +483,7 @@ def train(a) -> int:
             if f1 > best_f1:
                 best_f1 = f1
                 torch.save({"model": model.state_dict(), "base": a.base, "epoch": epoch, "cutoff": cut, "tune_f1": f1,
-                            "tune": row["tune"]}, run / "best.pt")
+                            "tune": row["tune"], "config": config}, run / "best.pt")
         tmp = run / "last.pt.tmp"
         torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
                     "scaler": scaler.state_dict(), "epoch": epoch, "best_f1": best_f1, "config": config}, tmp)
@@ -472,10 +505,14 @@ def freeze(a) -> int:
         raise SystemExit("no best.pt: train first")
     c = torch.load(run / "best.pt", map_location="cpu", weights_only=False)
     shutil.copyfile(run / "best.pt", run / "frozen.pt")
+    data = "stMIDOG++ masks (CC BY 4.0) on MIDOG++ images (CC0); LUNG-MITO (CC BY 4.0)"
+    if any(im["source"] == GLIOMA for im in load_index(run)["images"] if im["split"] == "train"):
+        data += "; TCGA glioma fields and calls reviewed in this project (development patients only)"
+    config = c.get("config") or {}
     info = {"model": "frozen.pt", "sha256": sha256(run / "frozen.pt"), "index_sha256": sha256(run / "index.json"),
             "epoch": c["epoch"], "cutoff": c["cutoff"], "cutoff_chosen_on": "tune", "tune": c["tune"],
-            "training_data": "stMIDOG++ masks (CC BY 4.0) on MIDOG++ images (CC0); LUNG-MITO (CC BY 4.0)",
-            "pretrained_weights": None}
+            "training_data": data, "pretrained_weights": None, "started_from": config.get("init"),
+            "glioma_share": config.get("glioma_share", 0.0)}
     path.write_text(json.dumps(info, indent=2) + "\n")
     print(json.dumps(info, indent=2))
     return 0
@@ -527,6 +564,8 @@ def main() -> int:
     t.add_argument("--eval-every", type=int, default=5)
     t.add_argument("--workers", type=int, default=int(os.environ.get("NSLOTS", 4)))
     t.add_argument("--seed", type=int, default=20261126)
+    t.add_argument("--init", help="a frozen finder run to start from, instead of random weights")
+    t.add_argument("--glioma-share", type=float, default=0.0, help="share of patches from reviewed glioma images")
     t.set_defaults(fn=train)
     f = sub.add_parser("freeze", help="fix the best model and its cut-off")
     f.add_argument("--run", required=True)
