@@ -68,6 +68,15 @@ mkdir -p /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-finde
 Copy `full-fields-pack.tar` and `calls-pack.tar` to your computer, unpack them and open each `review.html`. Mark the full
 fields first. Keep `private/` on Eddie.
 
+Call keys: `1` mitosis, `2` granular, `3` prophase, `4` look-alike, `5` not mitosis, `6` uncertain, `7` unusable.
+A look-alike mimics a mitosis. Not mitosis is anything else, such as an ordinary nucleus.
+
+To update the call page of a built round after a label change, without changing its keys, crops or saved labels:
+
+```bash
+python /exports/igmm/eddie/Glioblastoma-WGS/scripts/entip/training/runs/highgrade_mitosis/glioma_review.py page --out /exports/igmm/eddie/Glioblastoma-WGS/entip/runs/highgrade/mitosis-glioma-round1
+```
+
 ## Glioma reference set
 
 `reference_set.py` builds a blinded, exhaustively counted reference for mitotic figures. It counts only: it makes no

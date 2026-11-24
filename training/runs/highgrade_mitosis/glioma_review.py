@@ -3,6 +3,7 @@
     python glioma_review.py draw --manifest trial.csv --bags bags/ --slides slides/ --reference ref/private/patients.csv --out round1
     python glioma_review.py calls --finder mitosis-finder1 --slides slides/ --reference ref/private/patients.csv --out round1
     python glioma_review.py build --slides slides/ --reference ref/private/patients.csv --out round1
+    python glioma_review.py page --out round1
 
 **draw** picks 12 TCGA patients who are not in the sealed glioma reference set, one 40x slide each. Nine are
 development patients, with one field to mark in full and three fields for the finder. Three are held out, with two
@@ -13,6 +14,9 @@ fields to mark in full, and are never used to train. They measure whether a retr
 **build** writes two blinded packs. ``full-fields-pack.tar`` holds every field to mark in full, with no model output.
 ``calls-pack.tar`` holds 300 finder candidates in random order: confident, borderline and low scoring. Scores, patients
 and slides stay in ``private/``.
+
+**page** rewrites only the call review page and ``calls-pack.tar`` of a built round, for example after a label is added.
+The keys, crops and order do not change, and labels already saved in the browser are kept.
 
 Mitosis means prometaphase, metaphase, anaphase, telophase, atypical or granular. Prophase is not a mitosis.
 """
@@ -36,7 +40,7 @@ sys.path.insert(0, str(HERE.parent / "highgrade_common"))
 import reference_set as R  # noqa: E402
 from common import quotas, read_manifest, read_patients  # noqa: E402
 
-CALL_LABELS = ("mitosis", "granular", "prophase", "look_alike", "uncertain", "unusable")
+CALL_LABELS = ("mitosis", "granular", "prophase", "look_alike", "not_mitosis", "uncertain", "unusable")
 CROP_UM, CROP_PX = 64.0, 256
 HOLD_FROM = ("gbm", "oligo3", "astro3")
 
@@ -248,7 +252,7 @@ def build(a) -> int:
         by_slide[r["slide"]].append(r)
     run_jobs(R.pack_slide, [(s, v, a.slides, str(folder)) for s, v in sorted(by_slide.items())], workers)
     codes = sorted(r["field"] for r in full)
-    sha = hashlib.sha256("|".join(r["slide"] + r["x_um"] for r in full).encode()).hexdigest()[:12]
+    sha = full_sha(full)
     full_tar = R.write_pack(out, "full-fields-pack", f"entip-mitosis-dev1-{sha}", codes, folder)
 
     chosen = choose_calls(candidates, cutoff, a.calls, a.seed)
@@ -261,12 +265,7 @@ def build(a) -> int:
     for r in chosen:
         by_slide[r["slide"]].append(r)
     run_jobs(crop_slide, [(s, v, a.slides, str(crops)) for s, v in sorted(by_slide.items())], workers)
-    data = {"study": f"entip-mitosis-calls1-{sha}", "labels": list(CALL_LABELS), "calls": [r["call"] for r in chosen]}
-    (pack / "review.html").write_text(CALL_PAGE.replace("__DATA__", json.dumps(data, separators=(",", ":"))),
-                                      encoding="utf-8")
-    calls_tar = out / "calls-pack.tar"
-    with tarfile.open(calls_tar, "w") as tar:
-        tar.add(pack, arcname="calls-pack")
+    calls_tar = write_call_page(out, sha, [r["call"] for r in chosen])
     R.write_csv(private / "full-key.csv", [{k: r[k] for k in ("field", "patient", "slide", "group", "x_um", "y_um",
                                                               "side_um")} for r in sorted(full, key=lambda r: r["field"])])
     R.write_csv(private / "calls-key.csv", [{k: r[k] for k in ("call", "patient", "slide", "field_of_slide", "x_um",
@@ -275,6 +274,38 @@ def build(a) -> int:
     print(json.dumps({"full_fields": len(codes), "calls": len(chosen),
                       "call_strata": dict(Counter(r["stratum"] for r in chosen)), "full_pack": str(full_tar),
                       "calls_pack": str(calls_tar)}, indent=2))
+    return 0
+
+
+def full_sha(full: list) -> str:
+    """Pack id from the full fields in their pack order, so a rebuilt page keeps the same saved-label key."""
+    return hashlib.sha256("|".join(r["slide"] + r["x_um"] for r in full).encode()).hexdigest()[:12]
+
+
+def write_call_page(out: Path, sha: str, calls: list) -> Path:
+    pack = out / "calls-pack"
+    data = {"study": f"entip-mitosis-calls1-{sha}", "labels": list(CALL_LABELS), "calls": calls}
+    (pack / "review.html").write_text(CALL_PAGE.replace("__DATA__", json.dumps(data, separators=(",", ":"))),
+                                      encoding="utf-8")
+    calls_tar = out / "calls-pack.tar"
+    tmp = out / "calls-pack.tar.tmp"
+    with tarfile.open(tmp, "w") as tar:
+        tar.add(pack, arcname="calls-pack")
+    tmp.replace(calls_tar)
+    return calls_tar
+
+
+def page(a) -> int:
+    out = Path(a.out)
+    private = out / "private"
+    full = list(csv.DictReader(open(private / "full-key.csv", newline="")))
+    keyed = list(csv.DictReader(open(private / "calls-key.csv", newline="")))
+    calls = [r["call"] for r in keyed]
+    missing = [c for c in calls if not (out / "calls-pack" / "crops" / f"{c}.jpg").exists()]
+    if not full or not calls or missing:
+        raise SystemExit("this round has no complete calls pack to rewrite")
+    tar = write_call_page(out, full_sha(full), calls)
+    print(json.dumps({"calls": len(calls), "labels": list(CALL_LABELS), "calls_pack": str(tar)}, indent=2))
     return 0
 
 
@@ -287,7 +318,7 @@ aside{width:300px;flex:none;background:#fff;padding:14px;overflow:auto}h1{font-s
 button{font:inherit;border:1px solid #b9b9b1;background:#fff;border-radius:5px;padding:5px 8px;cursor:pointer}button:hover{background:#f0f0ec}.lab{display:flex;width:100%;margin-bottom:4px;text-align:left}.lab.on{outline:2px solid #1f6f54;background:#e4f2eb}kbd{font:11px ui-monospace,monospace;background:#efefea;border:1px solid #cfcfc8;border-radius:3px;padding:0 4px;margin-left:auto}.row{display:flex;gap:6px;flex-wrap:wrap}input{font:inherit;border:1px solid #b9b9b1;border-radius:4px;padding:4px}
 #start{position:fixed;inset:0;z-index:5;background:#f4f4f2;display:flex;align-items:center;justify-content:center;padding:24px}#start div{max-width:540px;background:#fff;border:1px solid #d8d8d3;border-radius:8px;padding:22px}#msg{min-height:18px;color:#a3341f;font-size:12px;margin-top:6px}
 </style></head><body><div id="start"><div><h1>Mitosis call review</h1><p>Judge only the cell at the centre, between the four white ticks. Each crop is 64 µm wide. No score, diagnosis or patient is shown.</p>
-<p><b>Mitosis:</b> prometaphase, metaphase, anaphase, telophase or atypical. <b>Granular:</b> a granular mitosis, which also counts. <b>Prophase</b> does not count. <b>Uncertain:</b> you cannot decide.</p>
+<p><b>Mitosis:</b> prometaphase, metaphase, anaphase, telophase or atypical. <b>Granular:</b> a granular mitosis, which also counts. <b>Prophase</b> does not count. <b>Look-alike:</b> a cell that mimics a mitosis, such as pyknosis, apoptosis, karyorrhexis or a lymphocyte. <b>Not mitosis:</b> anything else, such as an ordinary nucleus or no cell. <b>Uncertain:</b> you cannot decide.</p>
 <p class="row"><label>Your initials <input id="who" maxlength="6" size="8" autocomplete="off"></label><button id="begin">Start</button></p><p id="startmsg" class="muted">Marks save in this browser. Download them often.</p></div></div>
 <main><div id="box"><img id="im" alt="Candidate cell at high power"><i class="t h" style="left:34%"></i><i class="t h" style="right:34%"></i><i class="t v" style="top:34%"></i><i class="t v" style="bottom:34%"></i></div></main>
 <aside><h1 id="title"></h1><div class="muted" id="progress"></div><section id="labels"></section><section><div class="row"><button id="prev">Previous <kbd>←</kbd></button><button id="next">Next <kbd>→</kbd></button><button id="open">Next unlabelled</button></div></section>
@@ -295,7 +326,7 @@ button{font:inherit;border:1px solid #b9b9b1;background:#fff;border-radius:5px;p
 <script>
 const D=__DATA__,KEY="entip-"+D.study,$=id=>document.getElementById(id);let st={rater:"",i:0,labels:{}};try{const o=JSON.parse(localStorage.getItem(KEY)||"null");if(o&&o.labels)st=o}catch(e){}
 const store=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){$("msg").textContent="This browser could not save: download your labels now."}};
-const label=s=>s.replace("_","-").replace(/^./,c=>c.toUpperCase());
+const label=s=>({look_alike:"Look-alike",not_mitosis:"Not mitosis"})[s]||s.replace(/^./,c=>c.toUpperCase());
 function paint(){const c=D.calls[st.i],n=D.calls.filter(x=>st.labels[x]).length;$("title").textContent=`Call ${st.i+1} of ${D.calls.length}`;$("progress").textContent=`${n} labelled · reader ${st.rater||"-"}`;$("im").src=`crops/${c}.jpg`;$("labels").innerHTML=D.labels.map((l,i)=>`<button class="lab ${st.labels[c]===l?"on":""}" data-l="${l}">${label(l)}<kbd>${i+1}</kbd></button>`).join("")}
 function go(i){st.i=Math.max(0,Math.min(D.calls.length-1,i));$("msg").textContent="";store();paint()}
 function nextOpen(){const a=D.calls.findIndex((c,i)=>i>st.i&&!st.labels[c]),b=D.calls.findIndex(c=>!st.labels[c]),to=a>=0?a:b;if(to>=0)go(to);else{paint();$("msg").textContent="All calls labelled. Download your labels."}}
@@ -335,6 +366,9 @@ def main() -> int:
     b.add_argument("--workers", type=int)
     b.add_argument("--seed", type=int, default=20261201)
     b.set_defaults(fn=build)
+    p = sub.add_parser("page", help="rewrite a built round's call review page with the current labels")
+    p.add_argument("--out", required=True)
+    p.set_defaults(fn=page)
     a = ap.parse_args()
     return a.fn(a)
 
